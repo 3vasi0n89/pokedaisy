@@ -168,6 +168,33 @@ class OverlaysTest {
     private val gbaCfg = "overlays = 1\noverlay0_overlay = img/gba-4k.png\noverlay0_viewport = \"0.25,0.203,0.5,0.5935\"\n"
 
     @Test
+    fun aPackBringsOnlyItsCfgOverlaysNotEveryPng() {
+        val store = OverlayStore(tmp.root)
+        val portrait = "overlays = 2\noverlay0_overlay = land.png\noverlay1_overlay = img/port.png\n"
+        val r = store.import(listOf(OverlayStore.Picked("pack.zip", zip(
+            "pack/gba-4k.cfg" to gbaCfg.toByteArray(),
+            "pack/img/gba-4k.png" to png(3840, 2160),
+            "pack/two-ways.cfg" to portrait.toByteArray(),
+            "pack/land.png" to png(1920, 1080),
+            "pack/img/port.png" to png(1080, 1920),
+            // Not named by any .cfg: button art and a preview.
+            "pack/img/a.png" to png(64, 64),
+            "pack/preview.png" to png(320, 180),
+        ))))
+        assertEquals(OverlayStore.Result.Imported(listOf("gba-4k", "two-ways"), 0), r)
+        assertEquals(listOf("gba-4k", "two-ways"), store.list().map { it.id }.sorted())
+        assertEquals(2, store.get("two-ways")!!.layers.size)
+        // The same files picked loose, not zipped: the same two.
+        val loose = OverlayStore(File(tmp.root, "loose"))
+        loose.import(listOf(
+            OverlayStore.Picked("gba-4k.cfg", gbaCfg.toByteArray()),
+            OverlayStore.Picked("gba-4k.png", png(3840, 2160)),
+            OverlayStore.Picked("a.png", png(64, 64)),
+        ))
+        assertEquals(listOf("gba-4k"), loose.list().map { it.id })
+    }
+
+    @Test
     fun importsAZipPackWithItsImageInAFolder() {
         val store = OverlayStore(tmp.root)
         val r = store.import(listOf(OverlayStore.Picked("borders.zip", zip(
@@ -217,6 +244,10 @@ class OverlaysTest {
         assertEquals(listOf("MY FRAME", "MY FRAME 2"), overlayLabelsOf(store))
         assertTrue(store.delete("my-frame"))
         assertEquals(listOf("my-frame-2"), store.list().map { it.id })
+        store.import(listOf(OverlayStore.Picked("another.png", png(1920, 1080))))
+        assertEquals(2, store.deleteAll())
+        assertTrue(store.list().isEmpty())
+        assertEquals(0, store.deleteAll())
     }
 
     /** overlayChoices' de-duplication without its tk() (OverlayLabels.kt needs the app's text tables). */

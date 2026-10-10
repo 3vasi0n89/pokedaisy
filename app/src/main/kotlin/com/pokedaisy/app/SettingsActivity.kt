@@ -385,6 +385,23 @@ class SettingsActivity : ComponentActivity() {
                 )
             }
 
+            if (removingAllOverlays) {
+                OptionConfirm(
+                    title = tk("REMOVE ALL OVERLAYS?"),
+                    message = tr("Every imported overlay ({0}) is deleted from this device. The built-in ones stay.", overlayStore.list().size),
+                    confirmLabel = tk("REMOVE ALL"),
+                    m = m,
+                    onDismiss = { removingAllOverlays = false },
+                    onConfirm = {
+                        removingAllOverlays = false
+                        overlayStore.deleteAll()
+                        if (OverlayChoice.of(prefs.overlay) is OverlayChoice.Imported) prefs.overlay = OverlayChoice.None.key
+                        overlayRemoveMode = false
+                        revision++
+                    },
+                )
+            }
+
             removingOverlay?.let { (id, label) ->
                 OptionConfirm(
                     title = tk("REMOVE OVERLAY?"),
@@ -651,6 +668,8 @@ class SettingsActivity : ComponentActivity() {
     private var overlayPending: List<OverlayStore.Picked>? = null
     /** The imported overlay (id, label) REMOVE asks about. */
     private var removingOverlay by mutableStateOf<Pair<String, String>?>(null)
+    /** REMOVE ALL's confirm is up. */
+    private var removingAllOverlays by mutableStateOf(false)
 
     private val importOverlayFiles = registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         if (uris.isNotEmpty()) importOverlays(uris, emptyList())
@@ -705,6 +724,8 @@ class SettingsActivity : ComponentActivity() {
                 })
                 Spacer(Modifier.weight(1f))
                 if (imported.isNotEmpty()) {
+                    // REMOVE's mode: one tap per overlay, or all of them at once (asked first).
+                    if (overlayRemoveMode) OptionButton(tk("REMOVE ALL"), m, onClick = { removingAllOverlays = true })
                     OptionButton(if (overlayRemoveMode) tk("DONE") else tk("REMOVE"), m, onClick = { overlayRemoveMode = !overlayRemoveMode })
                 }
             }

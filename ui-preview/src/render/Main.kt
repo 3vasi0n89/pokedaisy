@@ -1144,6 +1144,12 @@ fun main(args: Array<String>) {
             onNodeWithText("OVERLAY").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
             onNodeWithText("REMOVE").performClick()
         },
+        // REMOVE's mode > REMOVE ALL: the confirm.
+        Shot("settings-overlay-remove-all", tw, th, td, activity { withOverlays { SettingsActivity() } }) {
+            onNodeWithText("OVERLAY").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithText("REMOVE").performClick()
+            onNodeWithText("REMOVE ALL").performClick()
+        },
         // The top screen with each overlay around a stand-in game, placed as EmulatorView places them.
         Shot("overlay-daisy", tw, th, 1f, overlayView(OverlayChoice.BuiltIn(BuiltInFrames.Style.DAISY), tw, th)),
         Shot("overlay-bezel", tw, th, 1f, overlayView(OverlayChoice.BuiltIn(BuiltInFrames.Style.BEZEL), tw, th)),

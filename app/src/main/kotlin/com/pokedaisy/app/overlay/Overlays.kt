@@ -380,6 +380,9 @@ class OverlayStore(root: File) {
 
     fun delete(id: String): Boolean = safeId(id) && File(dir, id).deleteRecursively()
 
+    /** Every imported overlay gone (REMOVE ALL); how many there were. */
+    fun deleteAll(): Int = list().count { delete(it.id) }
+
     private fun read(folder: File): StoredOverlay? {
         val cfg = File(folder, CFG).takeIf { it.isFile } ?: return null
         val text = runCatching { cfg.readText() }.getOrNull() ?: return null
@@ -407,7 +410,7 @@ class OverlayStore(root: File) {
     enum class Reason { NOTHING_USABLE, TOO_BIG }
 
     /** Imports [files]: .zip packs, .cfg files (with their images among [files], beside their real path, or not at all
-     * yet - then [Result.NeedsImage]) and PNGs no .cfg names (each one an overlay of its own). */
+     * yet - then [Result.NeedsImage]), or - when there's no .cfg among them - PNGs, each one an overlay of its own. */
     fun import(files: List<Picked>): Result {
         val entries = ArrayList<Entry>()
         for (f in files) {
@@ -448,8 +451,10 @@ class OverlayStore(root: File) {
             }
             ids += save(cfg.name.substringBeforeLast('.'), ok.map { (l, img) -> l to img!! })
         }
-        for (png in pngs) {
-            if (png in used) continue
+        // With .cfg files the PNGs are their images, nothing more: a pack's other PNGs (button art, previews, a
+        // layout's spare images) once each became an overlay of their own. Only PNGs picked without any .cfg are
+        // overlays by themselves.
+        if (cfgs.isEmpty()) for (png in pngs) {
             if (ids.size >= MAX_OVERLAYS) { skipped++; continue }
             ids += save(png.name.substringBeforeLast('.'), listOf(OverlayLayer(png.name) to png.bytes))
         }

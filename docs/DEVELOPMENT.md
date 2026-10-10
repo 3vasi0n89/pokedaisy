@@ -781,6 +781,8 @@ built-in frames, storage + import - ui-preview compiles it, `OverlaysTest` cover
   `.cfg` (`overlays = N`, `overlayK_overlay` = its image, `overlayK_viewport` = "x,y,w,h" in 0..1
   where the game goes; touch-button entries ignored), a `.zip` of those (images found by their path
   inside it, `__MACOSX` / dot files skipped, 96 MB unpacked at most, 64 overlays per import) and bare PNGs.
+  With any `.cfg` in an import, only its images come in: a pack's other PNGs (button art, previews) aren't overlays
+  (they once each became one); a PNG is an overlay by itself only when no `.cfg` was picked with it.
   A `.cfg`'s image is looked for among the picked files, then beside its real path (with All files
   access), else the page asks for it (PICK THE IMAGE). Each overlay becomes a folder under
   `<external files>/overlays/` - its PNGs renamed `0.png`, `1.png`... and the `.cfg` rewritten to match,
