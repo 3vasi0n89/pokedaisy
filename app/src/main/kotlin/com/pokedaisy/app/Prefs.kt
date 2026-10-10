@@ -307,6 +307,21 @@ class Prefs(context: Context) {
         get() = p.getString("favorite_roms", null)?.split("\n")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
         set(v) = p.edit().putString("favorite_roms", v.joinToString("\n")).apply()
 
+    /** Crash reports (CrashReports.kt): off until the player opts in. */
+    var crashReportsEnabled: Boolean
+        get() = p.getBoolean("crash_reports_enabled", false)
+        set(v) = p.edit().putBoolean("crash_reports_enabled", v).apply()
+
+    /** The one-time "send crash reports?" ask was shown (answered or not) - never again. */
+    var crashReportsAsked: Boolean
+        get() = p.getBoolean("crash_reports_asked", false)
+        set(v) = p.edit().putBoolean("crash_reports_asked", v).apply()
+
+    /** App opens (process starts) so far - the ask waits for the third. */
+    var appOpenCount: Int
+        get() = p.getInt("app_open_count", 0)
+        set(v) = p.edit().putInt("app_open_count", v).apply()
+
     /** First-time setup finished or skipped; it only shows while this is false and the library is empty. */
     var setupDone: Boolean
         get() = p.getBoolean("setup_done", false)

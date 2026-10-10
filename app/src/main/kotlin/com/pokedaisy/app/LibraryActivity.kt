@@ -88,6 +88,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -170,6 +171,9 @@ class LibraryActivity : ComponentActivity() {
 
     /** First-time setup over the library while non-null (internal for the ui-preview harness). */
     internal var setup by mutableStateOf<SetupState?>(null)
+
+    /** The one-time "send crash reports?" ask (CrashReports.shouldAsk) is up. Internal for ui-preview. */
+    internal var crashAsk by mutableStateOf(false)
     private val pickRomsFolder = registerForActivityResult(StorageAccess.PickFolder()) { uri ->
         pickedFolder(uri)?.let(::linkRomsFolder)
     }
@@ -253,6 +257,9 @@ class LibraryActivity : ComponentActivity() {
                 if (s == null) LibraryScreen() else SetupHost(s)
             }
         }
+
+        // Once ever, from the third open on and two days after the install: may we send crash reports?
+        if (savedInstanceState == null && setup == null && CrashReports.shouldAsk(this, prefs)) crashAsk = true
 
         // Every app open looks for a newer GitHub release. Not in debug builds: a
         // release APK can't install over a debug-signed one (Settings > VERSION still checks).
@@ -430,6 +437,23 @@ class LibraryActivity : ComponentActivity() {
                 ) }
 
             UpdateDialog(updates, m, small)
+
+            // After any update offer, never over setup (this screen isn't composed then).
+            if (crashAsk && updates.release == null) {
+                // Shown = asked, whatever the answer (or none, if the app goes away): only once.
+                LaunchedEffect(Unit) { prefs.crashReportsAsked = true }
+                OptionConfirm(
+                    title = tr("CRASH REPORTS?"),
+                    message = tr(
+                        "When PokéDaisy crashes, it can send a report so the bug gets fixed sooner: the device model, Android version and where the app crashed. Never your ROMs, saves or anything personal. You can change this any time in Settings.",
+                    ),
+                    confirmLabel = tr("SEND REPORTS"),
+                    cancelLabel = tk("NO THANKS"),
+                    m = m,
+                    onDismiss = { crashAsk = false },
+                    onConfirm = { crashAsk = false; CrashReports.setEnabled(prefs, true) },
+                )
+            }
 
             backupPick?.let { b ->
                 OptionSelector(

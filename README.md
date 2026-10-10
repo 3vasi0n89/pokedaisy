@@ -261,7 +261,12 @@ PokeDaisy has no accounts, ads or analytics. It only goes online to:
 - share a BEST EFFORT match, only if you tap SHARE when asked. The window lists every value sent,
   and that's all of it: the ROM's SHA-1, size, game code and revision, the game it was read as and how
   well, and the app version - no file name, account or device details. It goes to PokéDaisy's own
-  Firebase database, where nobody can read it back through the API.
+  Firebase database, where nobody can read it back through the API;
+- send a crash report (Firebase Crashlytics) when the app crashes, **only if you turn
+  CRASH REPORTS on** in Settings. It's off until you do; after a few days of use the app
+  asks once, and never again. A report holds the device model, Android version and where
+  the app crashed; while it's on, Crashlytics also notes each app start, to count the
+  sessions that didn't crash. Turning it off drops any report not yet sent.
 
 Your games and saves never leave your device.
 

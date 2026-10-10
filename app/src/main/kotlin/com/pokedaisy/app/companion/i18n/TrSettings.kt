@@ -103,6 +103,7 @@ internal val trSettings: Map<String, Tr> = mapOf(
     "DARK MODE" to Tr(ja = "ダークモード", fr = "MODE SOMBRE", de = "DUNKELMODUS", it = "MODALITÀ SCURA", es = "MODO OSCURO"),
     "VERSION" to Tr(ja = "バージョン", fr = "VERSION", de = "VERSION", it = "VERSIONE", es = "VERSIÓN"),
     "CHECKING…" to Tr(ja = "かくにんちゅう…", fr = "VÉRIFICATION…", de = "PRÜFE…", it = "VERIFICA…", es = "COMPROBANDO…"),
+    "CRASH REPORTS" to Tr(ja = "クラッシュ レポート", fr = "RAPPORTS DE PLANTAGE", de = "ABSTURZBERICHTE", it = "SEGNALAZIONI CRASH", es = "INFORMES DE FALLOS"),
     "RUN SETUP" to Tr(ja = "セットアップ", fr = "CONFIGURATION", de = "EINRICHTUNG", it = "CONFIGURAZIONE", es = "CONFIGURAR"),
     "BATTLE HINTS" to Tr(ja = "バトル ヒント", fr = "CONSEILS COMBAT", de = "KAMPFTIPPS", it = "CONSIGLI LOTTA", es = "PISTAS COMBATE"),
     "FOE IVS" to Tr(ja = "あいての こたいち", fr = "IV ENNEMIS", de = "GEGNER-DVS", it = "IV AVVERSARI", es = "IV RIVALES"),

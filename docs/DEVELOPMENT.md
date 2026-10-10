@@ -831,19 +831,15 @@ Read them in the console. A ROM shared as FULL is a re-hash of a supported versi
 
 ## Releasing
 
-1. Bump `versionCode` (always up) and `versionName` (semver, e.g. `1.0.4`)
-   in `app/build.gradle.kts`.
-2. `./gradlew :app:assembleRelease`, signed through an untracked
-   `keystore.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`).
-   **Every release must use the same key**: the updater's APK only installs
-   over a build signed with it. Keep the keystore backed up outside the repo.
-   Either password can be left out of `keystore.properties` and kept in the macOS
-   Keychain instead (`security add-generic-password -a pokedaisy -s
-   pokedaisy-storePassword -w`, and `pokedaisy-keyPassword`): the build reads it from there.
-3. Tag `v<versionName>` and publish a GitHub release with the APK attached as
-   `PokeDaisy-<versionName>.apk`. The app compares the tag against its own
-   `versionName` and ignores drafts and pre-releases, so a test build can go out
-   as a pre-release without reaching users.
+See [RELEASING.md](RELEASING.md): `make bump V=x.y.z`, merge, `make release` (tags
+`v<versionName>` on main), and the Release workflow tests, signs and publishes the APK as
+`PokeDaisy-<versionName>.apk`. The app compares the tag against its own `versionName` and
+ignores drafts and pre-releases, so a test build can go out as a pre-release
+(`1.2.0-rc.1`) without reaching users. **Every release must use the same key**: the
+updater's APK only installs over a build signed with it.
+Either keystore password can be left out of `keystore.properties` and kept in the macOS
+Keychain instead (`security add-generic-password -a pokedaisy -s pokedaisy-storePassword -w`,
+and `pokedaisy-keyPassword`): the build reads it from there.
 
 Debug builds never auto-check for updates (a release APK can't install over a
 debug-signed app); Settings > VERSION still does. Before handing a download to

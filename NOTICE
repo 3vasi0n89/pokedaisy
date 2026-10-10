@@ -51,6 +51,13 @@ The app shows every license below in full under Settings > LICENSES.
   (third_party/licenses/Apache-2.0.txt; their NOTICE files in
   third_party/licenses/Apache-Commons-NOTICE.txt); XZ for Java, BSD Zero
   Clause (third_party/licenses/XZ-Java-0BSD.txt).
+- Firebase Crashlytics (with -ndk, Firebase Sessions, Installations and their
+  support libraries), Apache License 2.0 - active only in builds made with the
+  project's Firebase config (the official releases), and sending nothing until
+  the player turns CRASH REPORTS on. They pull in
+  Google Play services' play-services-basement and play-services-tasks, under
+  the Android Software Development Kit License
+  (https://developer.android.com/studio/terms).
 - Some decoders and layouts follow the community decompilations of the games
   (pret's pokefirered / pokeemerald / pokeruby / pokeyellow and
   pokeemerald-expansion), which publish no license of their own: the Gen 1
