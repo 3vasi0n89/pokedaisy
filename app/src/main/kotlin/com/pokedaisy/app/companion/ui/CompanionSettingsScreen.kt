@@ -403,6 +403,15 @@ private fun homeRows(
         SettingRow(tk("ASPECT"), aspectLabel(s.stretchGame)) { s.setStretchGame(!s.stretchGame); changed() },
         // FILTER (LCD / LCD PAPER / SCANLINES / CRT) and GBA COLORS, on their own page.
         SettingRow(tk("SHADERS"), s.screenFilter.label) { navigate(Page.SHADERS) },
+        // A frame around the game: NONE, the built-in ones, the player's imports (added on the top screen). Live.
+        s.overlayChoices.takeIf { it.isNotEmpty() }?.let { choices ->
+            val current = choices.firstOrNull { it.first == s.overlay }?.second ?: choices.first().second
+            SettingRow(tk("OVERLAY"), current) {
+                select(Selector(tk("OVERLAY"), choices.map { it.second }, current) { l ->
+                    choices.firstOrNull { it.second == l }?.let { s.setOverlay(it.first) }
+                })
+            }
+        },
         // The game's frames per second and the app's CPU share, in the game's corner.
         SettingRow(tk("FPS / CPU"), onOff(s.showPerformance)) { s.setShowPerformance(!s.showPerformance); changed() },
         // OFF / ON / AUTO (the device's): both screens switch at once.

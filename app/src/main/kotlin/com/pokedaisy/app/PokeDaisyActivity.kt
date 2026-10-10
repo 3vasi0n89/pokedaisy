@@ -38,6 +38,8 @@ import com.pokedaisy.app.companion.DeviceBattery
 import com.pokedaisy.app.companion.FfMode
 import com.pokedaisy.app.companion.GridStrength
 import com.pokedaisy.app.companion.ScreenFilter
+import com.pokedaisy.app.overlay.OverlayChoice
+import com.pokedaisy.app.overlay.OverlayStore
 import com.pokedaisy.app.companion.FfMusicMode
 import com.pokedaisy.app.companion.data.FfMenuWatch
 import com.pokedaisy.app.companion.TelemetryStore
@@ -71,6 +73,8 @@ class PokeDaisyActivity : Activity() {
     private var hotkeysOn = true
     private lateinit var engine: EmulatorEngine
     private lateinit var view: EmulatorView
+    /** SCREEN > OVERLAY's imports (Settings > OVERLAY on the top screen adds them). */
+    private val overlayStore by lazy { OverlayStore(getExternalFilesDir(null) ?: filesDir) }
     private lateinit var hud: TextView
     private lateinit var touchControls: TouchControlsView
     private lateinit var statusBar: ComposeView
@@ -392,6 +396,12 @@ class PokeDaisyActivity : Activity() {
         override val stretchGame get() = Prefs(this@PokeDaisyActivity).stretchGame
         override fun setStretchGame(on: Boolean) {
             Prefs(this@PokeDaisyActivity).stretchGame = on
+            runOnUiThread { syncGameScreen() }
+        }
+        override val overlayChoices get() = com.pokedaisy.app.overlay.overlayChoices(overlayStore).map { (c, label) -> c.key to label }
+        override val overlay get() = Prefs(this@PokeDaisyActivity).overlay
+        override fun setOverlay(key: String) {
+            Prefs(this@PokeDaisyActivity).overlay = key
             runOnUiThread { syncGameScreen() }
         }
         override val gbaColors get() = Prefs(this@PokeDaisyActivity).gbaColors
@@ -985,6 +995,8 @@ class PokeDaisyActivity : Activity() {
         if (portrait) sidePanel.setEnabled(false) else portraitPanel.setEnabled(false)
         sidePanel.setEnabled(on && !portrait)
         portraitPanel.setEnabled(on && portrait)
+        // Upright, the game drops its overlay (and gets it back sideways).
+        syncGameScreen()
     }
 
     /** Locked to landscape with a second screen (the Thor's top one); else the device's rotation decides. */
@@ -1039,7 +1051,15 @@ class PokeDaisyActivity : Activity() {
         statusBar.visibility = if (prefs.statusBar && !prefs.statusBarOnCompanion) View.VISIBLE else View.GONE
         performance.visibility = if (prefs.showPerformance) View.VISIBLE else View.GONE
         com.pokedaisy.app.companion.ui.CompanionStatusBar.shown = prefs.statusBar && prefs.statusBarOnCompanion
-        (statusBar.parent as? GameStageLayout)?.stretch = prefs.stretchGame
+        val stageLayout = statusBar.parent as? GameStageLayout
+        // SCREEN > OVERLAY: not on a phone held upright, where the game is its own shape across the top.
+        view.overlay = if (stageLayout?.topAligned == true) null else when (val c = OverlayChoice.of(prefs.overlay)) {
+            OverlayChoice.None -> null
+            is OverlayChoice.BuiltIn -> EmulatorView.OverlaySource.BuiltIn(c.style)
+            is OverlayChoice.Imported -> overlayStore.get(c.id)?.let { EmulatorView.OverlaySource.Imported(it) }
+        }
+        // With an overlay the view takes all the room and places the game in it itself.
+        stageLayout?.stretch = prefs.stretchGame || view.overlay != null
         view.stretch = prefs.stretchGame
         view.gbaColors = prefs.gbaColors
         CompanionColors.set(
