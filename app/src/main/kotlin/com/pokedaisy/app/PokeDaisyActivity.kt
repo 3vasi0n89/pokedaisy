@@ -261,6 +261,9 @@ class PokeDaisyActivity : Activity() {
         // Orange Islands is retail FireRed rev 0's RAM and party menu, edited in place.
         game == com.pokedaisy.app.companion.data.GameKind.ORANGE_ISLANDS ->
             BattleInputController.SwitchAddrs(partyMenu = 0x0203B0A0L, party = 0x02024284L)
+        // So is Ultra Violet (FireRed 1.0 under its own game code, NATIVE_ULTRA_VIOLET).
+        game == com.pokedaisy.app.companion.data.GameKind.FIRERED && romCode == com.pokedaisy.app.companion.data.TelemetrySampler.ULTRA_VIOLET_CODE ->
+            BattleInputController.SwitchAddrs(partyMenu = 0x0203B0A0L, party = 0x02024284L)
         game == com.pokedaisy.app.companion.data.GameKind.TMT2 ->
             BattleInputController.SwitchAddrs(partyMenu = 0x0203242CL, party = 0x02032C94L)
         game == com.pokedaisy.app.companion.data.GameKind.AMETHYST ->

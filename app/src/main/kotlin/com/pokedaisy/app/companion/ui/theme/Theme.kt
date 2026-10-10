@@ -396,6 +396,9 @@ private fun backdropColors(game: GameKind): IntArray? = when (game) {
     GameKind.SOULGOLD -> intArrayOf(0xFF84CEEF.toInt(), 0xFF7BC6EF.toInt(), 0xFF429CD6.toInt())
     // Orange Islands' party menu: FireRed's layout in cream stripes (sampled headless).
     GameKind.ORANGE_ISLANDS -> intArrayOf(0xFFFFF7CE.toInt(), 0xFFEFEFB5.toInt(), 0xFFE7DE9C.toInt())
+    // Sword and Shield Ultimate Plus' party grid until its own cell (RomArt.SWSH_BACKDROP) is there:
+    // red, its darker red accents (its grid lines left out).
+    GameKind.SWORD_SHIELD -> intArrayOf(0xFFCE3131.toInt(), 0xFFCE3131.toInt(), 0xFF9C2121.toInt())
     else -> null
 }
 
@@ -440,6 +443,10 @@ private fun buildGameBackground(context: android.content.Context, game: GameKind
     // the Thor's 5x was ~53,000 draws a frame: 77 ms per frame on the RenderThread.)
     if (game == GameKind.YELLOW) {
         return GameBackground(android.graphics.Bitmap.createBitmap(intArrayOf(-1), 1, 1, android.graphics.Bitmap.Config.ARGB_8888).asImageBitmap(), false)
+    }
+    // Sword and Shield Ultimate Plus: CFRU's grid in its own red, one 32px cell tiled (RomArt).
+    if (game == GameKind.SWORD_SHIELD) {
+        GameArt.get(context, com.pokedaisy.app.companion.data.RomArt.SWSH_BACKDROP)?.let { return GameBackground(it.asImageBitmap(), true) }
     }
     backdropColors(game)?.let { to ->
         return GameBackground(recolorBackdrop(GameArt.get(context, "partybg/firered.png"), to).asImageBitmap(), false)

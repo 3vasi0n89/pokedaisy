@@ -112,6 +112,11 @@ object BestEffort {
     const val MAP_IN_ROM_MIN = 0.4
 
     private val FIRERED = setOf("BPR", "BPG")
+    /** Ultra Violet's own code: FireRed 1.0 underneath, but only its own config is worth trying. */
+    private val ULTRA_VIOLET = setOf("PUV")
+
+    /** A FireRed-engine game's header code (the companion falls back to FireRed's look). */
+    fun isFireRedFamily(gameCode: String?): Boolean = gameCode != null && (FIRERED + ULTRA_VIOLET).any { gameCode.startsWith(it) }
     private val EMERALD = setOf("BPE")
     private val RUBY_SAPPHIRE = setOf("AXV", "AXP")
 
@@ -131,6 +136,8 @@ object BestEffort {
             Candidate("AMETHYST_V1_4_1", GameKind.AMETHYST, NATIVE_AMETHYST_V1_4_1, FIRERED, "Pokémon Amethyst v1.4"),
             Candidate("CELIA", GameKind.CELIA, NATIVE_CELIA, FIRERED, "Celia's Stupid Romhack"),
             Candidate("ORANGE_ISLANDS", GameKind.ORANGE_ISLANDS, NATIVE_ORANGE_ISLANDS, FIRERED, "Pokémon Orange Islands"),
+            Candidate("ULTRA_VIOLET", GameKind.FIRERED, NATIVE_ULTRA_VIOLET, ULTRA_VIOLET, "Pokémon Ultra Violet"),
+            Candidate("SWORD_SHIELD", GameKind.SWORD_SHIELD, NATIVE_SWORD_SHIELD, FIRERED, "Sword and Shield Ultimate Plus"),
             Candidate("EMERALD", GameKind.EMERALD, NATIVE_EMERALD_RETAIL, EMERALD, "Pokémon Emerald"),
             Candidate("EMERALD_ES", GameKind.EMERALD, NATIVE_EMERALD_ES, EMERALD, "Pokémon Esmeralda"),
             Candidate("EMERALD_DE", GameKind.EMERALD, NATIVE_EMERALD_DE, EMERALD, "Pokémon Smaragd"),
@@ -458,11 +465,12 @@ object BestEffort {
 
     /** The globals the decoders read the running game's tables by ([activeGame] and friends). */
     private object Globals {
-        class Saved(val game: GameKind, val lang: Char, val code: String, val sg12: Boolean, val am141: Boolean)
+        class Saved(val game: GameKind, val lang: Char, val code: String, val sg12: Boolean, val am141: Boolean, val uv: Boolean)
 
-        fun save() = Saved(activeGame, romLanguage, romGameCode, soulGoldV12, amethystV141)
+        fun save() = Saved(activeGame, romLanguage, romGameCode, soulGoldV12, amethystV141, ultraViolet)
         fun restore(s: Saved) {
             activeGame = s.game; romLanguage = s.lang; romGameCode = s.code; soulGoldV12 = s.sg12; amethystV141 = s.am141
+            ultraViolet = s.uv
         }
         fun set(c: Candidate) {
             activeGame = c.kind
@@ -470,6 +478,7 @@ object BestEffort {
             romGameCode = c.cfg.gameCode
             soulGoldV12 = c.cfg === NATIVE_SOULGOLD_V1_2 || c.cfg === NATIVE_SOULGOLD_V1_2B
             amethystV141 = c.cfg === NATIVE_AMETHYST_V1_4_1
+            ultraViolet = c.cfg === NATIVE_ULTRA_VIOLET
         }
     }
 }

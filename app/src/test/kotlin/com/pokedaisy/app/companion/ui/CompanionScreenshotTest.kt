@@ -628,6 +628,7 @@ open class CompanionScreenshotTest {
         val rom = RomFileReader.load(RETAIL_ROM_DIR + romFile) ?: return
         activeGame = kind
         amethystV141 = cfg === NATIVE_AMETHYST_V1_4_1 // the Poller sets these with activeGame
+        com.pokedaisy.app.companion.data.ultraViolet = cfg === com.pokedaisy.app.companion.data.NATIVE_ULTRA_VIOLET
         romLanguage = cfg.language
         romGameCode = cfg.gameCode
         resetNativeBagCache()
@@ -875,6 +876,24 @@ open class CompanionScreenshotTest {
     @Test fun orangeIslandsBattle() = retail("orange_islands_battle", NATIVE_ORANGE_ISLANDS, OI_ROM, GameKind.ORANGE_ISLANDS, "BATTLE", art = true)
     @Test fun orangeIslandsDexEntry() = retail("orange_islands", NATIVE_ORANGE_ISLANDS, OI_ROM, GameKind.ORANGE_ISLANDS, "DEX", entry = 25, art = true)
     @Test fun orangeIslandsGuideBoss() = retailGuide("orange_islands", NATIVE_ORANGE_ISLANDS, OI_ROM, "NEXT BOSS", kind = GameKind.ORANGE_ISLANDS)
+    // Ultra Violet: FireRed's look and tables with its own names; its maps' own HERE / WHERE IS.
+    @Test fun ultraVioletParty() = retail("ultra_violet", NATIVE_UV, UV_ROM, GameKind.FIRERED, "PARTY", art = true)
+    @Test fun ultraVioletItems() = retail("ultra_violet", NATIVE_UV, UV_ROM, GameKind.FIRERED, "ITEMS", art = true)
+    @Test fun ultraVioletMap() = retail("ultra_violet", NATIVE_UV, UV_ROM, GameKind.FIRERED, "MAP", art = true)
+    @Test fun ultraVioletBattle() = retail("ultra_violet_battle", NATIVE_UV, UV_ROM, GameKind.FIRERED, "BATTLE", art = true)
+    @Test fun ultraVioletDexEntry() = retail("ultra_violet", NATIVE_UV, UV_ROM, GameKind.FIRERED, "DEX", entry = 4, art = true)
+    @Test fun ultraVioletGuideBoss() = retailGuide("ultra_violet", NATIVE_UV, UV_ROM, "NEXT BOSS", kind = GameKind.FIRERED)
+    @Test fun ultraVioletGuideHere() = retailGuide("ultra_violet", NATIVE_UV, UV_ROM, "HERE", kind = GameKind.FIRERED)
+    // Sword and Shield Ultimate Plus: Galar on CFRU, its sampled party / bag look, its map from the ROM.
+    @Test fun swordShieldParty() = retail("sword_shield_up", NATIVE_SS, SS_ROM, GameKind.SWORD_SHIELD, "PARTY", art = true)
+    @Test fun swordShieldItems() = retail("sword_shield_up", NATIVE_SS, SS_ROM, GameKind.SWORD_SHIELD, "ITEMS", art = true)
+    @Test fun swordShieldMap() = retail("sword_shield_up", NATIVE_SS, SS_ROM, GameKind.SWORD_SHIELD, "MAP", art = true, romMap = true)
+    @Test fun swordShieldBattle() = retail("sword_shield_up_battle", NATIVE_SS, SS_ROM, GameKind.SWORD_SHIELD, "BATTLE", art = true)
+    @Test fun swordShieldDex() = hackDex("sword_shield_up", NATIVE_SS, SS_ROM, GameKind.SWORD_SHIELD)
+    @Test fun swordShieldDexEntry() = retail("sword_shield_up", NATIVE_SS, SS_ROM, GameKind.SWORD_SHIELD, "DEX", entry = 813, art = true)
+    @Test fun swordShieldDexEvolve() = dexSection("sword_shield_up", NATIVE_SS, SS_ROM, GameKind.SWORD_SHIELD, 813, DexSection.EVOLVE)
+    @Test fun swordShieldGuideBoss() = retailGuide("sword_shield_up", NATIVE_SS, SS_ROM, "NEXT BOSS", kind = GameKind.SWORD_SHIELD)
+    @Test fun swordShieldGuideHere() = retailGuide("sword_shield_up", NATIVE_SS, SS_ROM, "HERE", kind = GameKind.SWORD_SHIELD)
     // Unbound's French translation: English's RAM, French names / descriptions / dex text / map names.
     @Test fun unboundFrParty() = retail("unbound_fr", NATIVE_UNBOUND_FR, UB_FR_ROM, GameKind.UNBOUND, "PARTY", art = true)
     @Test fun unboundFrItems() = retail("unbound_fr", NATIVE_UNBOUND_FR, UB_FR_ROM, GameKind.UNBOUND, "ITEMS", art = true, describe = true)
@@ -970,6 +989,7 @@ open class CompanionScreenshotTest {
             if (romMap) com.pokedaisy.app.companion.data.RomRegionMap.loadNow(RomArt.dirOverride!!, fixture, java.io.File(RETAIL_ROM_DIR + romFile)) else null
         activeGame = kind
         amethystV141 = cfg === NATIVE_AMETHYST_V1_4_1 // the Poller sets these with activeGame
+        com.pokedaisy.app.companion.data.ultraViolet = cfg === com.pokedaisy.app.companion.data.NATIVE_ULTRA_VIOLET
         romLanguage = cfg.language
         romGameCode = cfg.gameCode
         com.pokedaisy.app.companion.data.quetzalNames =
@@ -1090,6 +1110,7 @@ open class CompanionScreenshotTest {
         val rom = RomFileReader.load(RETAIL_ROM_DIR + romFile) ?: return
         activeGame = kind
         amethystV141 = cfg === NATIVE_AMETHYST_V1_4_1 // the Poller sets these with activeGame
+        com.pokedaisy.app.companion.data.ultraViolet = cfg === com.pokedaisy.app.companion.data.NATIVE_ULTRA_VIOLET
         romLanguage = cfg.language
         romGameCode = cfg.gameCode
         val t = cfg.pokedex!!
@@ -1141,6 +1162,7 @@ open class CompanionScreenshotTest {
         val rom = RomFileReader.load(RETAIL_ROM_DIR + romFile) ?: return
         activeGame = kind
         amethystV141 = false
+        com.pokedaisy.app.companion.data.ultraViolet = cfg === com.pokedaisy.app.companion.data.NATIVE_ULTRA_VIOLET
         romLanguage = cfg.language
         romGameCode = cfg.gameCode
         val t = cfg.pokedex!!
@@ -1257,6 +1279,10 @@ private const val IMPERIUM_ROM = "Emerald Imperium (v1.3.1).gba"
 private const val QUETZAL_ROM = "PokemonQuetzalEnglishAlpha9v0.gba"
 private const val QUETZAL_ES_ROM = "QuetzalDaisy/PokemonQuetzalSpanishAlpha9v0.gba"
 private const val OI_ROM = "Pokemon Orange Islands.gba"
+private const val UV_ROM = "ultra-violet-v1.22.gba"
+private const val SS_ROM = "Sword and Shield Ultimate Plus (1.2.1.2).gba"
+private val NATIVE_UV get() = com.pokedaisy.app.companion.data.NATIVE_ULTRA_VIOLET
+private val NATIVE_SS get() = com.pokedaisy.app.companion.data.NATIVE_SWORD_SHIELD
 private const val UB_FR_ROM = "Pokémon Unbound v2.1.1.1 FR.gba"
 private const val ROWE_ROM = "Pokémon R.O.W.E. (v2.1.9.1 Experimental).gba"
 private const val SAPPHIRE_ROM = "Pokemon - Sapphire Version (USA, Europe) (Rev 1).gba"

@@ -4,6 +4,7 @@ import android.content.Context
 import com.pokedaisy.app.companion.data.EMERALD_LOCALIZED_CODES
 import com.pokedaisy.app.companion.data.RETAIL_PORT_CODE_TITLES
 import com.pokedaisy.app.companion.data.RETAIL_PORT_TITLES
+import com.pokedaisy.app.companion.data.TelemetrySampler
 import java.io.File
 
 /**
@@ -66,13 +67,18 @@ object GameTitles {
         "0ce2a880aa097f1dce4e1db8ee513d0e82d15859" to "Pokémon Unbound",
         "8bac897de515f88e6ce92d0712ce2c018a394b37" to "Pokémon Orange Islands",
         "d2e3800e69e44c9649c3d9a15dc1cd12c1d90501" to "Pokémon Orange Islands",
+        "3b6c51d8fb6b513bdd01b7bda3ed8965bc985d58" to "Pokémon Ultra Violet",
+        "afe4c8e0f9c7186860fcea5f25d8318f5d7929b9" to "Pokémon Sword and Shield Ultimate Plus",
+        "daa2f89934d2c0447d5271dabeba86bfba04e1fd" to "Pokémon Sword and Shield Ultimate Plus",
+        "4858cc3d7b335bb5eed553861d7a4a17bad9ce2c" to "Pokémon Sword and Shield Ultimate Plus",
+        "932323d1fa3732d8673d1319fa86ed4df41087b9" to "Pokémon Sword and Shield Ultimate Plus",
         // Game Boy (pret/pokeyellow's roms.sha1).
         "cc7d03262ebfaf2f06772c1a480c7d9d5f4a38e1" to "Pokémon Yellow",
     )
 
     /** Only these games' ROMs (and Game Boy carts) are worth hashing: every entry above is one of them. */
     private val CODES = setOf("BPRE", "BPGE", "BPEE", "AXVE", "AXPE") + EMERALD_LOCALIZED_CODES +
-        RETAIL_PORT_CODE_TITLES.keys
+        RETAIL_PORT_CODE_TITLES.keys + TelemetrySampler.HACK_GAME_CODES
 
     /** What the library shows for [rom]: the player's RENAME, else [defaultLabel]. Cheap. */
     fun label(context: Context, prefs: Prefs, rom: File): String =
@@ -135,18 +141,25 @@ object GameTitles {
 
     private fun cacheFile(context: Context) = File(context.filesDir, "rom-titles.tsv")
 
+    /** Which games [BY_SHA1] knew when the cache was written: a file found nameless then may have a name now. */
+    private val KNOWN = "#known\t" + Integer.toHexString(BY_SHA1.keys.sorted().hashCode())
+
     private fun load(context: Context): MutableMap<String, Entry> {
         val map = java.util.concurrent.ConcurrentHashMap<String, Entry>()
         val f = cacheFile(context)
         if (!f.isFile) return map
         runCatching {
+            var stale = true
             f.forEachLine { line ->
+                if (line == KNOWN) stale = false
                 val p = line.split('\t')
                 if (p.size != 4) return@forEachLine
                 val size = p[1].toLongOrNull() ?: return@forEachLine
                 val modified = p[2].toLongOrNull() ?: return@forEachLine
                 map[p[0]] = Entry(size, modified, p[3].ifEmpty { null })
             }
+            // Written before a game was added (an app update): ask the nameless files again.
+            if (stale) map.values.removeAll { it.title == null }
         }
         return map
     }
@@ -155,7 +168,7 @@ object GameTitles {
         val f = cacheFile(context)
         val tmp = File(f.parentFile, "${f.name}.tmp")
         runCatching {
-            tmp.writeText(entries.entries.joinToString("") { (path, e) ->
+            tmp.writeText(KNOWN + "\n" + entries.entries.joinToString("") { (path, e) ->
                 "$path\t${e.size}\t${e.modified}\t${e.title.orEmpty()}\n"
             })
             tmp.renameTo(f)

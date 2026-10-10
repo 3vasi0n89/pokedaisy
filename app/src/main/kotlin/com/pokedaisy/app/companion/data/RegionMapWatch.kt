@@ -84,8 +84,9 @@ object RegionMapWatch {
             ((rom[i + 2].toLong() and 0xFF) shl 16) or ((rom[i + 3].toLong() and 0xFF) shl 24)
         val end = minOf(rom.size, SCAN_END) - 8
         return when (String(rom, 0xAC, 4, Charsets.US_ASCII)) {
-            // the other-language FireRed / LeafGreen too: the pattern finds their own pointer
-            "BPRE", "BPGE", "BPRD", "BPRF", "BPRI", "BPRS", "BPGF", "BPGI", "BPGS" -> {
+            // the other-language FireRed / LeafGreen too: the pattern finds their own pointer (and
+            // Ultra Violet's, FireRed 1.0 under its own code)
+            "BPRE", "BPGE", "BPRD", "BPRF", "BPRI", "BPRS", "BPGF", "BPGI", "BPGS", "PUVV" -> {
                 val seen = HashMap<Long, Int>()
                 for (i in 0..end step 4) {
                     val a = u32(i)

@@ -98,6 +98,18 @@ class RomArtTest {
         }
     }
 
+    /**
+     * Sword and Shield Ultimate Plus: CFRU's tiles and slot tilemaps in its own palette - its own
+     * frames (the striped empty slot too) and grid cell, never CFRU's shared ones; its status icons
+     * are Odyssey's. Pinned to scripts/gen_cfru_party_assets.py's decode of the same ROM.
+     */
+    @Test fun swordShieldSuppliesItsPartyArt() {
+        val images = composed(GBA + "Sword and Shield Ultimate Plus (1.2.1.2).gba")
+        assertGolden(images.filterKeys { it.startsWith("partyswsh/") || it == RomArt.SWSH_BACKDROP }, SWSH)
+        assertEquals(CFRU_STATUS.getValue("od"), pixels(images.getValue("partycfru/od/status_icons.png")))
+        assertEquals(emptySet<String>(), images.keys.filter { it.startsWith("partycfru/slot_") || it == RomArt.CFRU_BACKDROP }.toSet())
+    }
+
     @Test fun romWithoutTheArtGivesNothing() {
         val rom = ByteArray(1 shl 20) { (it * 31 + (it ushr 7)).toByte() }
         assertTrue(RomArt.compose(RomArt.find(rom)).isEmpty())
@@ -140,6 +152,16 @@ class RomArtTest {
             "partycfru/slot_normal.png" to "e9603ce2",
             "partycfru/slot_selected.png" to "ec246dad",
             "partycfru/slot_selected_fainted.png" to "f83c49af",
+        )
+        val SWSH = mapOf(
+            "partybg/swsh_tile.png" to "10269a9f",
+            "partyswsh/slot_empty.png" to "559e285b",
+            "partyswsh/slot_fainted.png" to "9e1b3924",
+            "partyswsh/slot_nohp_normal.png" to "5800fc35",
+            "partyswsh/slot_nohp_selected.png" to "fdc1d5db",
+            "partyswsh/slot_normal.png" to "12fcecf5",
+            "partyswsh/slot_selected.png" to "5452336b",
+            "partyswsh/slot_selected_fainted.png" to "c3dee479",
         )
         val CFRU_STATUS = mapOf("ub" to "2e442add", "rr" to "dddaa119", "od" to "a20e9bf7", "am" to "bc0660eb")
         // CRC32 of each image's ARGB pixels; the images matched the PNGs the app

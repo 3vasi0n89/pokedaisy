@@ -325,6 +325,22 @@ class HackPokedexTest {
     }
 
     @Test
+    fun `Ultra Violet entries - FireRed rev 0's tables`() = roms("ultra-violet-v1.22.gba", GameKind.FIRERED, POKEDEX_ULTRA_VIOLET) { t ->
+        val charmander = PokedexSource.entry(t, 4)!!
+        assertEquals("LIZARD" to (6 to 85), charmander.category to (charmander.heightDm to charmander.weightHg))
+        assertEquals(listOf("BLAZE"), charmander.abilities)
+    }
+
+    @Test
+    fun `Sword and Shield entries - one national dex`() = roms("Sword and Shield Ultimate Plus (1.2.1.2).gba", GameKind.SWORD_SHIELD, POKEDEX_SWORD_SHIELD) { t ->
+        val scorbunny = PokedexSource.entry(t, 813)!!
+        assertEquals(1105 to "Rabbit", scorbunny.species to scorbunny.category)
+        assertEquals(3 to 45, scorbunny.heightDm to scorbunny.weightHg)
+        assertEquals(1105, PokedexSource.speciesFor(t, 813))
+        assertEquals("Seed", PokedexSource.entry(t, 1)!!.category)
+    }
+
+    @Test
     fun `Imperium entries and the Hoenn order`() = roms("Emerald Imperium (v1.3.1).gba", GameKind.IMPERIUM, POKEDEX_IMPERIUM) { t ->
         assertEquals(252, PokedexSource.regionalOrder(t)!!.first())
         val charmander = PokedexSource.entry(t, 4)!!

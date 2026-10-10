@@ -22,7 +22,9 @@ class HackGuidesTest {
     private val amethyst = Game("Pokemon Amethyst (v1.3.0).gba", GameKind.AMETHYST, NATIVE_AMETHYST, "amethyst")
     private val amethyst141 = Game("Pokemon Amethyst (v1.4.1).gba", GameKind.AMETHYST, NATIVE_AMETHYST_V1_4_1, "amethyst_v141")
     private val celia = Game("Pokemon Celia's Stupid Romhack (v1.1.4).gba", GameKind.CELIA, NATIVE_CELIA, "celia")
-    private val all = listOf(odyssey, gaia, amethyst, amethyst141, celia)
+    private val uvGame = Game("ultra-violet-v1.22.gba", GameKind.FIRERED, NATIVE_ULTRA_VIOLET, "ultra_violet")
+    private val swordShield = Game("Sword and Shield Ultimate Plus (1.2.1.2).gba", GameKind.SWORD_SHIELD, NATIVE_SWORD_SHIELD, "sword_shield_up")
+    private val all = listOf(odyssey, gaia, amethyst, amethyst141, celia, uvGame, swordShield)
 
     private fun load(g: Game): RomFileReader? = RomFileReader.load(RETAIL_ROM_DIR + g.rom)?.also {
         select(g)
@@ -32,6 +34,7 @@ class HackGuidesTest {
     private fun select(g: Game) {
         activeGame = g.kind
         amethystV141 = g.cfg === NATIVE_AMETHYST_V1_4_1
+        ultraViolet = g.cfg === NATIVE_ULTRA_VIOLET
     }
 
     private val noProgress = SaveProgress(ByteArray(0x120), ByteArray(0x200))
@@ -150,6 +153,30 @@ class HackGuidesTest {
         assertTrue(GuideRomSource.wildMapKeys(orangeIslands.t).isNotEmpty())
         val whereIs = generatedWhereIs(GuideId.ORANGE_ISLANDS, { "AREA $it" }) { false }
         assertNotNull(whereIs)
+    }
+
+    /** Ultra Violet: FireRed's gyms and League (BROCK's ONIX / GEODUDE), BROCK next on the save; its own wild headers and areas. */
+    @Test fun `ultra violet`() {
+        load(uvGame) ?: return
+        assertEquals(listOf(12, 14), GuideRomSource.party(uvGame.t, 414)!!.map { it.level })
+        val p = readSaveProgress(FixtureMemoryReader.load("ultra_violet"), NATIVE_ULTRA_VIOLET, uvGame.t)!!
+        assertEquals("LEADER BROCK", GUIDE_ULTRA_VIOLET.bosses.first { !it.isDone(p) }.title)
+        assertTrue(GuideRomSource.wildMapKeys(uvGame.t).isNotEmpty())
+        assertNotNull(generatedWhereIs(GuideId.ULTRA_VIOLET, { "AREA $it" }) { false })
+        ultraViolet = false
+    }
+
+    /** Sword and Shield Ultimate Plus: its eight leaders by badge (BEA / ALLISTER and GORDIE / MELONY both listed), MILO next. */
+    @Test fun `sword and shield`() {
+        load(swordShield) ?: return
+        val leaders = GUIDE_SWORD_SHIELD.bosses.flatMap { b -> b.teams(noProgress).map { (_, id) -> id } }
+        assertEquals(listOf(414, 415, 416, 27, 417, 418, 49, 420, 419, 350), leaders)
+        assertEquals(listOf("Gossifleur", "Eldegoss"), GuideRomSource.party(swordShield.t, 414)!!.map { speciesName(it.species) })
+        assertEquals(listOf(46, 47, 46, 48), GuideRomSource.party(swordShield.t, 350)!!.map { it.level }) // RAIHAN
+        val p = readSaveProgress(FixtureMemoryReader.load("sword_shield_up"), NATIVE_SWORD_SHIELD, swordShield.t)!!
+        assertEquals("LEADER MILO", GUIDE_SWORD_SHIELD.bosses.first { !it.isDone(p) }.title)
+        assertTrue(GuideRomSource.wildMapKeys(swordShield.t).isNotEmpty())
+        assertNotNull(generatedWhereIs(GuideId.SWORD_SHIELD, { "AREA $it" }) { false })
     }
 
     /** The translations: their own tables (Quetzal Spanish) or English's (Unbound French), names in their language. */

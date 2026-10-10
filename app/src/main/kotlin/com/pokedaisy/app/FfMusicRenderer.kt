@@ -334,7 +334,7 @@ class FfMusicRenderer(
             java.io.RandomAccessFile(rom, "r").use { f -> f.seek(0xAC); ByteArray(3).also { f.readFully(it) } }
         }.getOrNull()?.toString(Charsets.US_ASCII) ?: return null
         return when (code) {
-            "BPR", "BPG" -> 257
+            "BPR", "BPG", "PUV" -> 257 // PUV: Ultra Violet, FireRed's song table
             "BPE", "AXV", "AXP" -> 367
             else -> null
         }

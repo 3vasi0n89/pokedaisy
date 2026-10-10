@@ -68,6 +68,8 @@ import com.pokedaisy.app.companion.data.POCKET_TM_HM
 import com.pokedaisy.app.companion.data.activeGame
 import com.pokedaisy.app.companion.data.itemNamesEmeraldGame
 import com.pokedaisy.app.companion.data.itemNamesFireRedGame
+import com.pokedaisy.app.companion.data.itemNamesUltraVioletGame
+import com.pokedaisy.app.companion.data.ultraViolet
 import com.pokedaisy.app.companion.data.localText
 import com.pokedaisy.app.companion.data.pocketLabel
 import com.pokedaisy.app.companion.data.pocketOrder
@@ -85,7 +87,7 @@ private enum class ItemSort(val label: String) { DEFAULT(tk("Default")), NAME(tk
  */
 private fun gameItemNames(game: GameKind): Map<Int, String>? = when (game) {
     // A localized game's own (GameText), already in its casing.
-    GameKind.FIRERED -> localText?.items ?: itemNamesFireRedGame
+    GameKind.FIRERED -> localText?.items ?: if (ultraViolet) itemNamesUltraVioletGame else itemNamesFireRedGame
     GameKind.EMERALD -> localText?.items ?: itemNamesEmeraldGame
     else -> null
 }
@@ -289,6 +291,24 @@ private val RadicalRedBag = BagPalette(
 )
 
 /**
+ * Sampled from Sword and Shield Ultimate Plus' bag screen (FireRed's layout): a cream list with
+ * dashed beige row lines and the vanilla grey text, framed charcoal / dark red / red / near-black
+ * (the tabs: red with white text), the black description bar, a light icon box with a gold
+ * edge, the orange pocket arrows (underline) and a flat light-grey backdrop.
+ */
+private val SwordShieldBag = BagPalette(
+    panelLayers = listOf(Color(0xFF393939) to 2, Color(0xFFA50018) to 1, Color(0xFFD60021) to 3, Color(0xFF292929) to 2),
+    tabLayerCount = 2,
+    fill = Color(0xFFF7E7D6), divider = Color(0xFFD6CEC6),
+    text = Color(0xFF636363), textShadow = Color(0xFFD6D6CE),
+    tabText = Color(0xFFFFFFFF), tabTextShadow = Color(0xFF636363), tabUnderline = Color(0xFFFF5200),
+    descLayers = listOf(Color(0xFF393939) to 1), descFill = Color(0xFF000000),
+    descText = Color(0xFFFFFFFF), descTextShadow = Color(0xFF636363),
+    iconBox = Color(0xFFDEDED6), iconBoxEdge = Color(0xFFEFB518),
+    backdrop = Color(0xFFDEDED6) to Color(0xFFDEDED6),
+)
+
+/**
  * Sampled from Odyssey's bag screen: light grey-cream rows split by solid
  * gold lines on a gold ground, the vanilla grey text, the dark pocket-title
  * box (the tabs: dark with white text, gold edge), the dark description bar,
@@ -444,6 +464,7 @@ private fun lightBagFor(game: GameKind): BagPalette = when (game) {
     GameKind.AMETHYST -> AmethystBag
     GameKind.RADICAL_RED -> RadicalRedBag
     GameKind.ODYSSEY -> OdysseyBag
+    GameKind.SWORD_SHIELD -> SwordShieldBag
     GameKind.EMERALD_ROGUE -> RogueBag
     GameKind.LAZARUS, GameKind.EMERALD_SEAGLASS -> PlainExpansionBag
     GameKind.ROWE -> RoweBag

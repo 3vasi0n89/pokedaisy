@@ -186,7 +186,7 @@ class GameInfo(
         }
 
         private fun baseGame(code: String?): String? = when (code) {
-            "BPRE" -> "Pokémon FireRed"
+            "BPRE", "PUVV" -> "Pokémon FireRed" // PUVV: Ultra Violet
             "BPGE" -> "Pokémon LeafGreen"
             "BPEE" -> "Pokémon Emerald"
             "BPES" -> "Pokémon Edición Esmeralda"

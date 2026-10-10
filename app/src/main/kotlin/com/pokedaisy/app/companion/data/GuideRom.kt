@@ -750,6 +750,35 @@ val GUIDE_TABLES_CELIA = GuideTables(
 )
 
 /**
+ * Pokémon Ultra Violet: retail FireRed rev 0's gTrainers (FireRed's gyms and League, one
+ * trainer added at 530) and gLevelUpLearnsets, its own gWildMonHeaders (0x087339C0, all 14
+ * literal-pool words) and gMapGroups (0x0872AF04); FireRed's SaveBlock1 flags / vars.
+ */
+val GUIDE_TABLES_ULTRA_VIOLET = GuideTables(
+    trainers = 0x0823EAC8L,
+    learnsets = 0x0825D7B4L,
+    wildHeaders = 0x087339C0L,
+    guide = GuideId.ULTRA_VIOLET,
+    mapGroups = 0x0872AF04L,
+)
+
+/**
+ * Pokémon Sword and Shield Ultimate Plus (CFRU): gTrainers rewritten in place at FireRed rev
+ * 0's address (trainer 414 is MILO), CFRU's 3-byte learnsets at 0x099F4D98, gWildMonHeaders
+ * 0x0892E408 (all 14 literal-pool words), gMapGroups 0x087B1010.
+ */
+val GUIDE_TABLES_SWORD_SHIELD = GuideTables(
+    trainers = 0x0823EAC8L,
+    learnsets = 0x099F4D98L,
+    learnsetCfru = true,
+    wildHeaders = 0x0892E408L,
+    probeTrainer = 414,
+    probeName = "Milo",
+    guide = GuideId.SWORD_SHIELD,
+    mapGroups = 0x087B1010L,
+)
+
+/**
  * Pokémon Orange Islands: retail FireRed rev 0's gTrainers (0x0823EAC8, rewritten - its gym
  * leaders are trainers 1-5, CISSY first) and gLevelUpLearnsets (0x0825D7B4, 0x70 before rev
  * 1's), its own gWildMonHeaders (repointed to 0x08A1B1B0, FireRed's layout) and FireRed's

@@ -114,7 +114,7 @@ class TelemetrySampler {
         beMatch = null
         baseCfg = null
         nativeCfg = null
-        kind = if (beCode?.startsWith("BPR") == true || beCode?.startsWith("BPG") == true) GameKind.FIRERED else GameKind.EMERALD
+        kind = if (BestEffort.isFireRedFamily(beCode)) GameKind.FIRERED else GameKind.EMERALD
         unsupportedHackLabel = beLabel
         beFresh = false
         beGuess = false
@@ -346,6 +346,7 @@ class TelemetrySampler {
             val base = baseCfg ?: nativeCfg
             soulGoldV12 = base === NATIVE_SOULGOLD_V1_2 || base === NATIVE_SOULGOLD_V1_2B
             amethystV141 = base === NATIVE_AMETHYST_V1_4_1
+            ultraViolet = base === NATIVE_ULTRA_VIOLET
             romLanguage = nativeCfg?.language ?: 'E'
             romGameCode = nativeCfg?.gameCode.orEmpty()
             // Quetzal picks each kind of name's language from its own options (a few bytes a sample).
@@ -423,6 +424,15 @@ class TelemetrySampler {
             return
         }
 
+        // Pokémon Ultra Violet: FireRed 1.0 under a game code of its own (PUVV) - by its hash.
+        if (code == ULTRA_VIOLET_CODE) {
+            val hash = runCatching { sha1HexChunked(reader, 0x08000000L, size) }.getOrNull()
+            kind = GameKind.FIRERED
+            if (hash == ULTRA_VIOLET_V1_22_SHA1) nativeCfg = NATIVE_ULTRA_VIOLET
+            else unsupportedRom(reader, code, size, hash, "unrecognized Ultra Violet build (sha1 ${hash?.take(12) ?: "unknown"}…)")
+            return
+        }
+
         // Not FireRed/Emerald-based at all (another GBA game): nothing here
         // knows its RAM - say so rather than read it as FireRed.
         // [CompanionSupport] makes the same call from the file at import.
@@ -473,6 +483,9 @@ class TelemetrySampler {
                 AMETHYST_V1_3_0_SHA1 -> { kind = GameKind.AMETHYST; nativeCfg = NATIVE_AMETHYST }
                 AMETHYST_V1_4_1_SHA1 -> { kind = GameKind.AMETHYST; nativeCfg = NATIVE_AMETHYST_V1_4_1 }
                 CELIA_V1_1_4_SHA1 -> { kind = GameKind.CELIA; nativeCfg = NATIVE_CELIA }
+                SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_SHA1, SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_CASUAL_SHA1,
+                SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_PERFORMANCE_SHA1, SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_CASUAL_PERFORMANCE_SHA1,
+                -> { kind = GameKind.SWORD_SHIELD; nativeCfg = NATIVE_SWORD_SHIELD }
                 else -> {
                     kind = GameKind.FIRERED
                     unsupportedRom(reader, code, size, hash, "unrecognized FireRed-based ROM hack " +
@@ -754,6 +767,21 @@ class TelemetrySampler {
         // Both host-side masked hashes (GPIO bytes zero).
         const val ORANGE_ISLANDS_V5_7_BETA_SHA1 = "d2e3800e69e44c9649c3d9a15dc1cd12c1d90501"
         const val ORANGE_ISLANDS_UNVERSIONED_SHA1 = "8bac897de515f88e6ce92d0712ce2c018a394b37"
+        // Pokémon Ultra Violet v1.22 (16 MB, FireRed rev 0 code under the game code PUVV) - host-side
+        // masked hash (GPIO bytes zero, so a plain `shasum`).
+        const val ULTRA_VIOLET_V1_22_SHA1 = "3b6c51d8fb6b513bdd01b7bda3ed8965bc985d58"
+        const val ULTRA_VIOLET_CODE = "PUVV"
+        // Pokémon Sword and Shield Ultimate Plus v1.2.1.2 (BPRE, 32 MB, CFRU) - host-side masked hash
+        // (GPIO bytes zero).
+        const val SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_SHA1 = "afe4c8e0f9c7186860fcea5f25d8318f5d7929b9"
+        // Its three patched releases: the same tables and RAM (the Casual patch changes some item prices and
+        // trainers, the Performance patch some code), so the same config. Masked hashes (GPIO bytes zero).
+        const val SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_CASUAL_SHA1 = "daa2f89934d2c0447d5271dabeba86bfba04e1fd"
+        const val SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_PERFORMANCE_SHA1 = "4858cc3d7b335bb5eed553861d7a4a17bad9ce2c"
+        const val SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_CASUAL_PERFORMANCE_SHA1 = "932323d1fa3732d8673d1319fa86ed4df41087b9"
+
+        /** Hacks under a game code of their own that detect() reads as their base game (by hash). */
+        val HACK_GAME_CODES = setOf(ULTRA_VIOLET_CODE)
 
         // Pokémon Yellow (USA, Europe) - the Game Boy cart (pret/pokeyellow builds it byte for byte).
         const val YELLOW_SHA1 = "cc7d03262ebfaf2f06772c1a480c7d9d5f4a38e1"
@@ -770,7 +798,7 @@ class TelemetrySampler {
         const val GAME_BOY_SUPPORT = true
 
         /** Every hack detect() has RAM addresses for - the >16 MB ones it
-         * hashes, plus Seaglass and Orange Islands (16 MB). [CompanionSupport] checks imports against it. */
+         * hashes, plus Seaglass, Orange Islands and Ultra Violet (16 MB). [CompanionSupport] checks imports against it. */
         val SUPPORTED_HACK_SHA1S = setOf(
             UNBOUND_V2_1_1_1_SHA1, GAIA_V3_2_SHA1, RADICAL_RED_V4_1_SHA1, ODYSSEY_V4_1_1_SHA1,
             AMETHYST_V1_3_0_SHA1, AMETHYST_V1_4_1_SHA1, CELIA_V1_1_4_SHA1, HEART_AND_SOUL_V2_0_6_SHA1, LAZARUS_V2_0_SHA1,
@@ -778,6 +806,8 @@ class TelemetrySampler {
             SOULGOLD_V1_1_4_SHA1, SOULGOLD_V1_2_SHA1, SOULGOLD_V1_2B_SHA1, GLAZED_V9_2_0_SHA1, IMPERIUM_V1_3_1_SHA1,
             QUETZAL_V9_0_ALPHA_SHA1, QUETZAL_V9_0_ALPHA_ES_SHA1, UNBOUND_V2_1_1_1_FR_SHA1,
             ORANGE_ISLANDS_V5_7_BETA_SHA1, ORANGE_ISLANDS_UNVERSIONED_SHA1,
+            ULTRA_VIOLET_V1_22_SHA1, SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_SHA1, SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_CASUAL_SHA1,
+            SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_PERFORMANCE_SHA1, SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_CASUAL_PERFORMANCE_SHA1,
         )
     }
 }

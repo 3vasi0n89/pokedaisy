@@ -847,6 +847,45 @@ val POKEDEX_ORANGE_ISLANDS = POKEDEX_FIRERED_REV1.copy(
     evolutions = 0x08259754L,
 )
 
+/**
+ * Pokémon Ultra Violet: retail FireRed rev 0's tables at rev 0's addresses (its literal pools
+ * still name them), the dex text edited in place; TM / HM learnsets and moves rev 0's too.
+ */
+val POKEDEX_ULTRA_VIOLET = POKEDEX_ORANGE_ISLANDS.copy(
+    tmhmLearnsets = 0x08252BC8L,
+    tmhmMoves = 0x0845A5A4L,
+)
+
+/**
+ * Pokémon Sword and Shield Ultimate Plus v1.2.1.2 (CFRU): every table found through the
+ * literal-pool word FireRed 1.0 loads it from (entries 0x09A04D08, front pics 0x099EDB5C,
+ * palettes 0x09A02128, base stats 0x099AFBEC, species -> national 0x09A11274, ability names
+ * 0x094A9324 - 13 bytes, vanilla's length - and the evolutions at 0x099C2C06, CFRU's 16 rows a
+ * species: BULBASAUR's LEVEL 16 -> IVYSAUR at +0x80). SCORBUNNY is species 1105, No. 813.
+ * The flags are Unbound's CFRU ones: the save's seen bits are GROOKEY / SCORBUNNY / WOOLOO /
+ * ZACIAN, caught SCORBUNNY. Its POKéDEX (opened headless with FLAG_SYS_POKEDEX_GET 0x829 set)
+ * lists one dex in national order; three Gen 9 species carry No. 1018-1019, which have no entries.
+ */
+val POKEDEX_SWORD_SHIELD = PokedexTables(
+    entries = 0x09A04D08L,
+    frontPics = 0x099EDB5CL,
+    palettes = 0x09A02128L,
+    speciesInfo = 0x099AFBECL,
+    speciesToNational = 0x09A11274L,
+    abilityNames = 0x094A9324L,
+    footprints = 0,
+    hiddenAbilityOff = 0x1A,
+    categorySuffix = "Pokémon",
+    speciesCount = 1268,
+    nationalCount = 898,
+    // One dex, in national order from No001 (its table of contents has Numerical Mode only).
+    regionalCount = 898,
+    regionName = null,
+    flags = CFRU_DEX_FLAGS,
+    nationalMagicOff = -1,
+    evoLayout = EvoLayout(EvoScheme.CFRU, table = 0x099C2C06L, perMon = 16),
+)
+
 /** Pokémon SoulGold v1.1.4: national 1-1025, 323 of them disabled (no species),
  * so its JOHTO dex is the other 702 in national order - a u32 list the game's own
  * national -> Johto lookup (0x081F0D84) scans: PIKACHU is its 023, CHIKORITA 133,

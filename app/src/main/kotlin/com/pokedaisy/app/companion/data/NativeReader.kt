@@ -1719,6 +1719,46 @@ val NATIVE_ORANGE_ISLANDS = NATIVE_FIRERED_REV0.copy(
     monToSwitchIntoOff = NATIVE_FIRERED_REV1.monToSwitchIntoOff,
 )
 
+// Pokémon Ultra Violet v1.22 (16 MB, sha1 3b6c51d8…): FireRed 1.0 edited in place, under a
+// game code of its own (PUVV, revision byte 0). Every literal pool the config points through
+// still names rev 0's address - the party / save / battle RAM, gItems, the icon and dex
+// tables, gTrainers, gLevelUpLearnsets - and the headless capture of the user's save
+// (`ultra_violet`: CHARMANDER Lv6 10/21, SCRATCH / GROWL, POTION, ₽3080 in PALLET TOWN)
+// decodes with rev 0's addresses. It moved gWildMonHeaders (0x087339C0) and gMapGroups
+// (0x0872AF04) for its new maps, and renamed a few things (GameKind.FIRERED with
+// ActiveTables' ultraViolet: UltraVioletGen.kt). Its region map is FireRed's byte for byte.
+val NATIVE_ULTRA_VIOLET = NATIVE_FIRERED_REV0.copy(
+    pokedex = POKEDEX_ULTRA_VIOLET,
+    guideTables = GUIDE_TABLES_ULTRA_VIOLET,
+    enemyParty = NATIVE_FIRERED_REV1.enemyParty,
+    battlerPartyIndexes = NATIVE_FIRERED_REV1.battlerPartyIndexes,
+    battleStructPtr = NATIVE_FIRERED_REV1.battleStructPtr,
+    monToSwitchIntoOff = NATIVE_FIRERED_REV1.monToSwitchIntoOff,
+)
+
+// Pokémon Sword and Shield Ultimate Plus v1.2.1.2 (32 MB, sha1 afe4c8e0…): Galar on CFRU, so
+// FireRed 1.0's code and RAM with its data repointed. The words FireRed loads its tables from
+// hold the hack's: gItems 0x093C0000 (Radical Red's address too), gMonIconTable 0x099F1EB8,
+// gMonIconPaletteIndices 0x099F1980 (the palettes stay vanilla's), sItemIconTable 0x093C8100.
+// The headless capture of the user's save (`sword_shield_up`: SCORBUNNY Lv5 21/21, GROWL /
+// TACKLE, ₽5000, POTION x2 / SOOTHE BELL / OLD ROD) decodes with rev 0's RAM. Its Casual / Performance /
+// Casual and Performance patches keep every table and the RAM: the same save and battle decode in each.
+val NATIVE_SWORD_SHIELD = NATIVE_FIRERED_REV0.copy(
+    itemDescs = vanillaItems(0x093C0000L),
+    monIconTable = 0x099F1EB8L,
+    monIconPaletteIndices = 0x099F1980L,
+    itemIconTable = 0x093C8100L,
+    pokedex = POKEDEX_SWORD_SHIELD,
+    guideTables = GUIDE_TABLES_SWORD_SHIELD,
+    // Battle (headless, a scripted wild WOOLOO: `sword_shield_up_battle`): rev 0's battle RAM and
+    // BattlePokemon hold, gEnemyParty holds the WOOLOO, and rev 0's action handler is what
+    // gBattlerControllerFuncs points at while the action menu waits (CFRU patched it in place).
+    enemyParty = NATIVE_FIRERED_REV1.enemyParty,
+    battlerPartyIndexes = NATIVE_FIRERED_REV1.battlerPartyIndexes,
+    battleStructPtr = NATIVE_FIRERED_REV1.battleStructPtr,
+    monToSwitchIntoOff = NATIVE_FIRERED_REV1.monToSwitchIntoOff,
+)
+
 private const val MAP_HEADER_REGION_MAPSEC_OFF = 0x14L
 private const val OBJECT_EVENT_FACING_OFF = 0x18L
 private const val BATTLE_TYPE_DOUBLE = 0x0001
@@ -2033,6 +2073,7 @@ private fun Mon.withNativeGender(raw: ByteArray, off: Int, layout: PartyMonLayou
         GameKind.QUETZAL -> genderRatiosQuetzal
         GameKind.ROWE -> genderRatiosRowe
         GameKind.ORANGE_ISLANDS -> genderRatiosOrangeIslands
+        GameKind.SWORD_SHIELD -> genderRatiosSwordShield
         else -> return this
     }
     // BoxPokemon +0x13 flags byte (isBadEgg:1, hasSpecies:1, isEgg:1): an egg

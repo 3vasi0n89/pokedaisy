@@ -46,6 +46,8 @@ private fun rawAreas(guide: GuideId): List<String> = when (guide) {
     GuideId.AMETHYST_V141 -> GUIDE_AREAS_AMETHYST_V141_RAW
     GuideId.CELIA -> GUIDE_AREAS_CELIA_RAW
     GuideId.ORANGE_ISLANDS -> GUIDE_AREAS_ORANGE_ISLANDS_RAW
+    GuideId.ULTRA_VIOLET -> GUIDE_AREAS_ULTRA_VIOLET_RAW
+    GuideId.SWORD_SHIELD -> GUIDE_AREAS_SWORD_SHIELD_RAW
     // No area data yet: HERE lists the wild Pokémon alone.
     GuideId.GLAZED, GuideId.IMPERIUM, GuideId.QUETZAL, GuideId.LAZARUS, GuideId.SEAGLASS, GuideId.TMT2, GuideId.SOULGOLD -> emptyList()
 }

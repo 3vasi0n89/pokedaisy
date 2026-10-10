@@ -51,14 +51,22 @@ class BestEffortTest {
         Game("Emerald Imperium (v1.3.1).gba", "imperium", "BPEE", "IMPERIUM"),
         Game("Pokémon R.O.W.E. (v2.1.9.1 Experimental).gba", "rowe", "BPEE", "ROWE"),
         Game("PokemonQuetzalEnglishAlpha9v0.gba", "quetzal", "BPEE", "QUETZAL"),
+        // FireRed 1.0 under its own game code: only its own config is tried.
+        Game("ultra-violet-v1.22.gba", "ultra_violet", "PUVV", "ULTRA_VIOLET"),
+        Game("Sword and Shield Ultimate Plus (1.2.1.2).gba", "sword_shield_up", "BPRE", "SWORD_SHIELD"),
     )
 
     /**
      * With its own game's configs gone, these read as an engine sibling - and every name they'd
      * show is confirmed at its id: Orange Islands and Odyssey are in-place edits of FireRed rev 0
-     * (how Orange Islands read before it had a config), Unbound shares Amethyst's CFRU tables.
+     * (how Orange Islands read before it had a config). Unbound reads as well through Amethyst's
+     * CFRU tables as through Sword and Shield Ultimate Plus' (the same species ids), so neither
+     * is used quietly: the player picks. Sword and Shield Ultimate Plus reads through Amethyst's
+     * (the other CFRU configs' moves don't hold), with its ROM-side parts switched off.
      */
-    private val siblings = mapOf("orange_islands" to GameKind.FIRERED, "odyssey" to GameKind.FIRERED, "unbound" to GameKind.AMETHYST)
+    private val siblings = mapOf(
+        "orange_islands" to GameKind.FIRERED, "odyssey" to GameKind.FIRERED, "sword_shield_up" to GameKind.AMETHYST,
+    )
 
     private class Loaded(val reader: MemoryReader, val size: Long, val text: BestEffort.RomText)
 

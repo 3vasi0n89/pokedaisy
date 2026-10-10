@@ -67,6 +67,8 @@ class RomItemTextTest {
         Case("QuetzalDaisy/PokemonQuetzalSpanishAlpha9v0.gba", GameKind.QUETZAL, NATIVE_QUETZAL_ES, mapOf(28 to "Restaura 20 PS")),
         Case("Pokémon Unbound v2.1.1.1 FR.gba", GameKind.UNBOUND, NATIVE_UNBOUND_FR, mapOf(13 to "Rend 20 PV")),
         Case("Pokemon Orange Islands.gba", GameKind.ORANGE_ISLANDS, NATIVE_ORANGE_ISLANDS, mapOf(13 to "20 points")),
+        Case("ultra-violet-v1.22.gba", GameKind.FIRERED, NATIVE_ULTRA_VIOLET, mapOf(13 to "20 points")),
+        Case("Sword and Shield Ultimate Plus (1.2.1.2).gba", GameKind.SWORD_SHIELD, NATIVE_SWORD_SHIELD, mapOf(13 to "by 20 points")),
         Case("Pokémon R.O.W.E. (v2.1.9.1 Experimental).gba", GameKind.ROWE, NATIVE_ROWE, mapOf(28 to "by 20 points")),
     )
 

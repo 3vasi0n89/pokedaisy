@@ -36,6 +36,8 @@ class MoneyTest {
         assertEquals(1_048_458L, money("quetzal_es", NATIVE_QUETZAL_ES))
         assertEquals(1748L, money("unbound_fr", NATIVE_UNBOUND_FR))
         assertEquals(2000L, money("orange_islands", NATIVE_ORANGE_ISLANDS))
+        assertEquals(3080L, money("ultra_violet", NATIVE_ULTRA_VIOLET))
+        assertEquals(5000L, money("sword_shield_up", NATIVE_SWORD_SHIELD))
     }
 
     @Test

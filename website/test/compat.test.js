@@ -36,6 +36,13 @@ test('FireRed / Emerald: known dumps, unknown small ROMs, big hacks', () => {
     { status: 'supported', title: 'Pokémon R.O.W.E.', version: 'v2.1.9.1', base: 'Pokémon Emerald' });
 });
 
+test('a hack under a game code of its own: Ultra Violet (PUVV)', () => {
+  assert.deepEqual(v('PUVV', 0, 16 * MB, '3b6c51d8fb6b513bdd01b7bda3ed8965bc985d58'),
+    { status: 'supported', title: 'Pokémon Ultra Violet', version: 'v1.22', base: 'Pokémon FireRed' });
+  // Another build: the app only knows this one.
+  assert.deepEqual(v('PUVV', 0, 16 * MB), { status: 'unsupported', reason: 'unknown-hack', base: 'Pokémon FireRed' });
+});
+
 test('other retail games: revisions and size', () => {
   assert.equal(v('AXVE', 2, 16 * MB).status, 'supported');
   assert.equal(v('BPES', 1, 16 * MB).reason, 'revision');
