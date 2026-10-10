@@ -99,6 +99,9 @@ fun CompanionSettingsScreen(
     ui: SettingsUiState = remember { SettingsUiState(initialPage) },
     /** The game's status bar is drawn over the companion's tabs (it shows the game and battery). */
     statusBarShown: Boolean = false,
+    /** A ROM the app doesn't know: the game it's read as (BEST EFFORT), a GAME row at the top; [onPlaysAs] opens the picker. */
+    playsAs: String? = null,
+    onPlaysAs: () -> Unit = {},
 ) {
     val m = rememberGbaTextMetrics()
     var page by ui::page
@@ -137,10 +140,12 @@ fun CompanionSettingsScreen(
                 }
                 Spacer(Modifier.height(m.u * 4))
             }
-            val rows = remember(settings, page, tick, hiddenTabs, availableTabs) {
+            val rows = remember(settings, page, tick, hiddenTabs, availableTabs, playsAs) {
                 if (settings == null) return@remember listOf(SettingRow(tk("NO GAME RUNNING"), null) {})
                 when (page) {
-                    Page.HOME -> homeRows(settings, barCount(settings, availableTabs), { tick++ }, { page = it }, { selector = it })
+                    Page.HOME -> playsAs?.let { game ->
+                        listOf(groupTitle(tk("GAME")), SettingRow(tk("PLAYS AS"), game, subtitle = "Which game this ROM is read as") { onPlaysAs() })
+                    }.orEmpty() + homeRows(settings, barCount(settings, availableTabs), { tick++ }, { page = it }, { selector = it })
                     Page.TABS -> COMPANION_TABS.map { id ->
                         val shown = id in settings.companionTabs
                         // A tab this game doesn't have (DEX, GUIDE) keeps its setting for the games that do.

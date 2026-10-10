@@ -27,13 +27,14 @@ spoiler-free guide. Everything is drawn in the game's own menu style.
 
 ## Devices
 
-| Device                        | Status                                       |
-| ----------------------------- | -------------------------------------------- |
-| AYN Thor                      | Tested, made for it                          |
-| Retroid Pocket Duo / Duo Lite | Should work, not yet tested on real hardware |
-| Anbernic RG DS                | Should work, not yet tested on real hardware |
-| Retroid Pocket 6              | Single screen: tested                        |
-| Android phones (portrait)     | Should work, checked in screenshots only     |
+| Device                    | Status                                                         |
+| ------------------------- | -------------------------------------------------------------- |
+| AYN Thor                  | Tested, made for it                                            |
+| Retroid Pocket Duo Lite   | Supported: its 4:3 bottom screen (1280x960) has its own layout |
+| Retroid Pocket Duo        | Should work, not yet tested on real hardware                   |
+| Anbernic RG DS            | Should work, not yet tested on real hardware                   |
+| Retroid Pocket 6          | Single screen: tested                                          |
+| Android phones (portrait) | Should work, checked in screenshots only                       |
 
 Any Android 8.0+ device runs the games.
 

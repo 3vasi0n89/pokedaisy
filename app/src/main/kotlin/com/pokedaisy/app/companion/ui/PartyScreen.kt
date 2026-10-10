@@ -126,8 +126,13 @@ fun PartyGrid(
     }
 }
 
-/** Wider than this (width / height), the party grid goes to three columns. */
-private const val WIDE_PARTY_ASPECT = 1.6f
+/**
+ * Wider than this (width / height), the party grid goes to three columns. The grids measured: the
+ * Thor's bottom screen ~1.4, a 4:3 screen (the Retroid Pocket Duo Lite's 1280x960) ~1.56 and up to
+ * ~1.75 with a bigger density or the status bar over the tabs - 1.6 put that one in three columns -
+ * and the Thor's 1920x1080 top screen 2.2+.
+ */
+private const val WIDE_PARTY_ASPECT = 2.0f
 
 /** A slot's tap: with the companion's click, or silent when the game makes its own sound. */
 internal fun Modifier.slotClickable(sound: Boolean, enabled: Boolean, onClick: () -> Unit): Modifier =

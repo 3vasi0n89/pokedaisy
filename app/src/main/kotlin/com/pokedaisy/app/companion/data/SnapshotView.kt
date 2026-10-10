@@ -77,11 +77,37 @@ data class LocationView(
     val highlightH: Int,
 )
 
-/** A BEST EFFORT match: read as [title]; [full] = every part held, else [off] are switched off; [fresh] = matched just now
- * ([report]: what sharing it would send, when the ROM's hash is known). */
+/**
+ * A BEST EFFORT match: read as [title] ([id]); [full] = every part held, else [off] are switched off;
+ * [fresh] = matched just now, by best effort itself - worth a notice ([report]: what sharing it would
+ * send, when the ROM's hash is known). [picked]: the player chose it. [guess]: no party to check it
+ * by yet, only the ROM's names. [doubt]: once a party read, it didn't hold - the player picks again
+ * or keeps it ([suggest]: the game it reads as instead, if one is sure).
+ */
 data class BestEffortView(
     val title: String, val full: Boolean, val off: Set<BestEffort.Part>, val fresh: Boolean,
     val report: BestEffortReport? = null,
+    val id: String = "",
+    val picked: Boolean = false,
+    val guess: Boolean = false,
+    val doubt: Boolean = false,
+    val suggest: String? = null,
+)
+
+/** One game in WHICH GAME IS THIS?: [likely] = the ROM's names are its own, [readsParty] = the party reads through it. */
+data class GameOption(val id: String, val title: String, val likely: Boolean, val readsParty: Boolean)
+
+/**
+ * WHICH GAME IS THIS? for a ROM the app doesn't know (a Gen 3 base game): the games it could be,
+ * best first ([GameOption]s of its base game), the one in use ([current]), and why none was
+ * chosen by itself ([miss]: no party yet / none reads). [declined]: the player said NONE OF THESE -
+ * NOT SUPPORTED stays, with a button back here.
+ */
+data class GamePickerView(
+    val options: List<GameOption>,
+    val current: String? = null,
+    val miss: BestEffort.Miss? = null,
+    val declined: Boolean = false,
 )
 
 data class SnapshotView(
@@ -91,9 +117,8 @@ data class SnapshotView(
     val unsupported: Boolean = false,
     /** Read through BEST EFFORT ([BestEffort]): what as, and how well; null = a ROM the app knows. */
     val bestEffort: BestEffortView? = null,
-    /** NOT SUPPORTED offers TRY BEST EFFORT (a Gen 3 base game); [bestEffortMiss] = why the last try found nothing. */
-    val canTryBestEffort: Boolean = false,
-    val bestEffortMiss: BestEffort.Miss? = null,
+    /** WHICH GAME IS THIS? - set for every ROM the app doesn't know that's a Gen 3 base game. */
+    val gamePicker: GamePickerView? = null,
     val frameCounter: Long = 0,
     val inBattle: Boolean = false,
     val isDoubleBattle: Boolean = false,

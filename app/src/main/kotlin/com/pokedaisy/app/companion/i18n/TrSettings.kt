@@ -3,6 +3,7 @@ package com.pokedaisy.app.companion.i18n
 /** Both Settings screens: the top-screen SettingsActivity and the companion's SETTINGS tab. */
 internal val trSettings: Map<String, Tr> = mapOf(
     // Page titles
+    "Which game this ROM is read as" to Tr(ja = "この ROMを どの ゲームとして よむか", fr = "Le jeu sous lequel cette ROM est lue", de = "Als welches Spiel diese ROM gelesen wird", it = "Come quale gioco viene letta questa ROM", es = "Como qué juego se lee esta ROM"),
     "Key bindings: which button presses A, B, START..." to Tr(ja = "キーせってい: どのボタンが A B START…", fr = "Touches : quel bouton fait A, B, START...", de = "Tastenbelegung: welche Taste A, B, START drückt...", it = "Tasti: quale pulsante preme A, B, START...", es = "Teclas: qué botón pulsa A, B, START..."),
     "KEY IN USE" to Tr(ja = "つかわれている キー", fr = "TOUCHE UTILISÉE", de = "TASTE BELEGT", it = "TASTO IN USO", es = "TECLA EN USO"),
     "MOVE" to Tr(ja = "うつす", fr = "DÉPLACER", de = "VERSCHIEBEN", it = "SPOSTA", es = "MOVER"),

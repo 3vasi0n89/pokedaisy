@@ -375,6 +375,19 @@ class LibraryActivity : ComponentActivity() {
                         gameInfo = null
                         rescanRomsFolder()
                     },
+                    onPickGame = { gp, id ->
+                        val store = com.pokedaisy.app.companion.data.BestEffortStore
+                        when (id) {
+                            GAME_AUTO -> store.forget(gp.sha1)
+                            GAME_NONE -> store.decline(gp.sha1)
+                            // Its ROM-side parts are checked when the game next runs (the companion's sampler).
+                            else -> com.pokedaisy.app.companion.data.BestEffort.candidate(id)?.let { c ->
+                                store.save(gp.sha1, com.pokedaisy.app.companion.data.BestEffort.Match(c, full = false, off = emptySet(), score = 0), com.pokedaisy.app.companion.data.BestEffortStore.Source.PICKED, verified = false)
+                            }
+                        }
+                        gameInfo = null
+                        rescanRomsFolder()
+                    },
                 ) }
 
             UpdateDialog(updates, m, small)

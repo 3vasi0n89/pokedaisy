@@ -1356,6 +1356,30 @@ object Gen3Text {
         'I' to mapOf(0x5E to "PO", 0x5F to "Ké", 0x60 to "ME", 0x61 to "LL", 0x62 to "A", 0x63 to "E", 0x2A to "º"),
     )
 
+    // char -> the first byte drawing it, per table; ASCII ' is the game's ’ ("FARFETCH’D").
+    private fun reverse(t: CharArray): Map<Char, Int> = HashMap<Char, Int>().also { m ->
+        for (b in t.indices.reversed()) if (t[b] != UNKNOWN) m[t[b]] = b
+        m['\''] = 0xB4
+    }
+    private val westernRev by lazy { reverse(table) }
+    private val japaneseRev by lazy { reverse(japanese) }
+
+    /** [s] in the running game's bytes ([romLanguage]'s table), no terminator; null when a
+     * character has no byte of its own (the multi-letter glyphs aren't used). */
+    fun encode(s: String): ByteArray? {
+        val rev = if (romLanguage == 'J') japaneseRev else westernRev
+        return ByteArray(s.length) { i -> (rev[s[i]] ?: return null).toByte() }
+    }
+
+    /** Byte -> the byte of the same letter upper-cased (case-blind matching: FireRed's
+     * "BULBASAUR" is a hack table's "Bulbasaur"); Japanese has no case. */
+    fun foldTable(): IntArray {
+        val jp = romLanguage == 'J'
+        val chars = if (jp) japanese else table
+        val rev = if (jp) japaneseRev else westernRev
+        return IntArray(256) { b -> if (jp) b else rev[chars[b].uppercaseChar()] ?: b }
+    }
+
     /** Up to [max] bytes from [off], stopping at 0xFF; line breaks become
      * spaces, control codes (0xFC + args, e.g. a font change) and placeholders
      * (0xFD + id, e.g. the player's name) are dropped. */

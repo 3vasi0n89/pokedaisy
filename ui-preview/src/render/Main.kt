@@ -927,6 +927,19 @@ fun main(args: Array<String>) {
                 gameInfo = com.pokedaisy.app.GameInfo.read(ctx, Prefs(ctx), File(ctx.filesDir, "roms/firered-qol.gba"), hashes = true)
             }
         }),
+        // A ROM the app doesn't know: INFO's PICK A GAME, tapped (every config of its base game, AUTO, NONE OF THESE).
+        Shot("library-info-pick", tw, th, td, activity {
+            LibraryActivity().apply {
+                val ctx = android.content.Context()
+                val info = com.pokedaisy.app.GameInfo.read(ctx, Prefs(ctx), File(ctx.filesDir, "roms/firered-qol.gba"), hashes = true)
+                gameInfo = com.pokedaisy.app.GameInfo(
+                    info.title, info.sections, supportUrl = "https://example.invalid",
+                    gamePick = com.pokedaisy.app.GameInfo.GamePick("0123456789abcdef0123456789abcdef01234567", "BPEE", "SOULGOLD_V1_2"),
+                )
+            }
+        }) {
+            onNodeWithText("PICK A GAME").performClick()
+        },
         Shot("library-load-save", tw, th, td, activity {
             LibraryActivity().apply {
                 val ctx = android.content.Context()

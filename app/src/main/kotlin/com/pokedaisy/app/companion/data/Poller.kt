@@ -41,26 +41,63 @@ class TelemetrySampler {
     private var beSha1: String? = null
     private var beSize = 0L
     private var beRev = 0
+    private var beLabel: String? = null
     private var beMatch: BestEffort.Match? = null
-    private var beFresh = false
-    private var beMiss: BestEffort.Miss? = null
     private var baseCfg: NativeConfig? = null
-    @Volatile private var bestEffortRequested = false
+    // Where the match came from and whether a party has confirmed it (BestEffortStore.Entry).
+    private var beSource = BestEffortStore.Source.AUTO
+    private var beVerified = false
+    // Best effort chose it just now (a notice), it's only a guess from the ROM's names, or a party
+    // read since doesn't hold with it (PICK AGAIN / KEEP; beSuggest: the game that is sure instead).
+    private var beFresh = false
+    private var beGuess = false
+    private var beDoubt = false
+    private var beSuggest: BestEffort.Candidate? = null
+    private var beDeclined = false
+    // The ROM's text (once per ROM) and the last look at every config, for the picker's order.
+    private var beText: BestEffort.RomText? = null
+    private var beVerdict: BestEffort.Verdict? = null
+    private var beSamples = 0
+    private var beGuessSamples = 0
 
-    /** NOT SUPPORTED's TRY BEST EFFORT: tried on the next sample (the emulator thread). */
-    fun requestBestEffort() {
-        bestEffortRequested = true
+    // The player's answers from the companion (any thread), taken on the next sample.
+    private sealed interface PickAnswer {
+        class Pick(val id: String) : PickAnswer
+        object None : PickAnswer
+        object Keep : PickAnswer
+        object Seen : PickAnswer
     }
+    private val answers = java.util.concurrent.ConcurrentLinkedQueue<PickAnswer>()
 
-    /** [label]: the ROM isn't one detect() knows. One best effort kept for it ([BestEffortStore]) reads it anyway. */
+    /** WHICH GAME IS THIS?: read the ROM as candidate [id] ([BestEffort.candidate]). */
+    fun pickGame(id: String) { answers += PickAnswer.Pick(id) }
+    /** NONE OF THESE: no game - NOT SUPPORTED, until the player opens the picker again. */
+    fun pickNone() { answers += PickAnswer.None }
+    /** KEEP: the doubted match stays, as the player's own pick. */
+    fun keepGame() { answers += PickAnswer.Keep }
+    /** The match notice was seen. */
+    fun bestEffortSeen() { answers += PickAnswer.Seen }
+
+    /** [label]: the ROM isn't one detect() knows. A match kept for it ([BestEffortStore]) reads it anyway. */
     private fun unsupportedRom(reader: MemoryReader, code: String, size: Long, hash: String?, label: String) {
         unsupportedHackLabel = label
         if (!BestEffort.canTry(code)) return
         beCode = code
         beSize = size
+        beLabel = label
         beRev = runCatching { reader.readCoreMemory(0x080000BCL, 1)[0].toInt() and 0xFF }.getOrDefault(0)
         beSha1 = hash ?: runCatching { sha1HexChunked(reader, 0x08000000L, size) }.getOrNull()
-        BestEffortStore.load(beSha1)?.let(BestEffortStore::matchOf)?.let(::useBestEffort)
+        beDeclined = BestEffortStore.declined(beSha1)
+        BestEffortStore.load(beSha1)?.let { e ->
+            BestEffortStore.matchOf(e)?.let(::useBestEffort)
+            beSource = e.source
+            beVerified = e.verified
+            // Best effort's own choice no party has confirmed yet (a guess, or a row from before the
+            // stricter checks): a guess again, which a party confirms or the timeout drops.
+            beGuess = e.source == BestEffortStore.Source.AUTO && !e.verified
+        }
+        // Look at it on the first sample: a guess or a sure match shows up at once.
+        beSamples = EVALUATE_EVERY
     }
 
     private fun useBestEffort(m: BestEffort.Match) {
@@ -72,15 +109,131 @@ class TelemetrySampler {
         itemTextChosen = false
     }
 
+    /** Back to NOT SUPPORTED (WHICH GAME IS THIS? on the companion). */
+    private fun dropBestEffort() {
+        beMatch = null
+        baseCfg = null
+        nativeCfg = null
+        kind = if (beCode?.startsWith("BPR") == true || beCode?.startsWith("BPG") == true) GameKind.FIRERED else GameKind.EMERALD
+        unsupportedHackLabel = beLabel
+        beFresh = false
+        beGuess = false
+        beDoubt = false
+        beSuggest = null
+        itemTextChosen = false
+        resetNativeBagCache()
+    }
+
+    private fun save(m: BestEffort.Match, source: BestEffortStore.Source, verified: Boolean) {
+        beSource = source
+        beVerified = verified
+        beSha1?.let { BestEffortStore.save(it, m, source, verified) }
+    }
+
+    private fun takeAnswers(reader: MemoryReader) {
+        while (true) {
+            when (val a = answers.poll() ?: return) {
+                is PickAnswer.Pick -> {
+                    val c = BestEffort.candidate(a.id) ?: continue
+                    val code = beCode ?: continue
+                    // Its ROM-side parts checked as usual; picked, it's verified once a party holds with it.
+                    val fit = verdict(reader, code)?.fits?.firstOrNull { it.candidate === c }
+                    val m = fit?.match() ?: BestEffort.Match(c, false, BestEffort.Part.entries.toSet(), 0)
+                    dropBestEffort()
+                    useBestEffort(m)
+                    beDeclined = false
+                    save(m, BestEffortStore.Source.PICKED, verified = fit?.sure == true)
+                    android.util.Log.i("pokedaisy", "best effort: picked ${c.id} off=${m.off} for sha1=$beSha1")
+                }
+                PickAnswer.None -> {
+                    dropBestEffort()
+                    beDeclined = true
+                    beSha1?.let(BestEffortStore::decline)
+                }
+                PickAnswer.Keep -> beMatch?.let { m ->
+                    beDoubt = false
+                    beSuggest = null
+                    save(m, BestEffortStore.Source.PICKED, verified = true)
+                }
+                PickAnswer.Seen -> beFresh = false
+            }
+        }
+    }
+
+    private fun verdict(reader: MemoryReader, code: String): BestEffort.Verdict? {
+        val text = beText ?: runCatching {
+            val t0 = System.nanoTime()
+            BestEffort.romText(reader, code, beSize).also {
+                android.util.Log.i("pokedaisy", "best effort: ROM text read in ${(System.nanoTime() - t0) / 1_000_000} ms")
+            }
+        }.getOrNull()?.also { beText = it } ?: return null
+        return BestEffort.evaluate(reader, code, beSize, text).also { beVerdict = it }
+    }
+
+    /**
+     * Every [EVALUATE_EVERY] samples, while there's nothing to read the ROM with yet or the match
+     * hasn't been confirmed by a party: what best effort makes of the running game. A SURE match is
+     * used (and kept) without asking; with no party yet, a guess from the ROM's names stands in until
+     * one reads. A match a party contradicts goes - or, the player's own pick, asks.
+     */
     private fun runBestEffort(reader: MemoryReader) {
         val code = beCode ?: return
-        val (m, miss) = BestEffort.match(reader, code)
-        beMiss = miss
-        if (m == null) return
-        beSha1?.let { BestEffortStore.save(it, m) }
-        useBestEffort(m)
-        beFresh = true
-        android.util.Log.i("pokedaisy", "best effort: ${m.candidate.id} full=${m.full} off=${m.off} for sha1=$beSha1")
+        val unresolved = beMatch == null && !beDeclined
+        val unverified = beMatch != null && !beVerified && !beDoubt
+        if (beVerdict != null && !unresolved && !unverified) return
+        if (beGuess && ++beGuessSamples > GUESS_SAMPLES) {
+            // A guess no party ever confirmed (the RAM isn't the guessed game's): the player picks.
+            android.util.Log.i("pokedaisy", "best effort: guess ${beMatch?.candidate?.id} never read a party, asking")
+            dropBestEffort()
+            return
+        }
+        if (++beSamples < EVALUATE_EVERY) return
+        beSamples = 0
+        val v = verdict(reader, code) ?: return
+        val sure = v.sure
+        // The player's pick (here or in the library's INFO) reads with its ROM-side parts as this ROM has them.
+        beMatch?.takeIf { beSource == BestEffortStore.Source.PICKED }?.let { m ->
+            val checked = v.fits.firstOrNull { it.candidate === m.candidate }?.match() ?: return@let
+            if (checked.off != m.off || checked.full != m.full) { useBestEffort(checked); save(checked, beSource, beVerified) }
+        }
+        val current = beMatch
+        // A confirmed match isn't judged again (that look was only for the picker's order).
+        if (current != null && beVerified) return
+        when {
+            current == null -> if (!beDeclined) {
+                val pick = sure ?: v.guess ?: return
+                val m = pick.match()
+                useBestEffort(m)
+                beFresh = true
+                beGuess = sure == null
+                beGuessSamples = 0
+                save(m, BestEffortStore.Source.AUTO, verified = sure != null)
+                android.util.Log.i("pokedaisy", "best effort: ${if (sure != null) "sure" else "guess"} ${m.candidate.id} off=${m.off} for sha1=$beSha1")
+            }
+            !v.sawParty -> {}
+            sure != null && sure.candidate.kind == current.candidate.kind -> {
+                // Confirmed - by the very build, or a better one of the same game.
+                val m = if (beSource == BestEffortStore.Source.AUTO) sure.match() else current
+                if (m.candidate !== current.candidate) useBestEffort(m)
+                beGuess = false
+                save(m, beSource, verified = true)
+            }
+            beSource == BestEffortStore.Source.AUTO -> {
+                // Best effort's own choice didn't hold: the sure one instead, else the player picks.
+                dropBestEffort()
+                sure?.let { useBestEffort(it.match()); beFresh = true; save(it.match(), BestEffortStore.Source.AUTO, verified = true) }
+                    ?: beSha1?.let(BestEffortStore::forget)
+            }
+            else -> {
+                val fit = v.fits.firstOrNull { it.candidate === current.candidate }
+                if (sure == null && fit?.party != null && fit.shownHolds) {
+                    save(current, beSource, verified = true)
+                } else {
+                    beDoubt = true
+                    beSuggest = sure?.candidate
+                }
+            }
+        }
     }
 
     /**
@@ -153,20 +306,35 @@ class TelemetrySampler {
             bestEffort = beMatch?.let { m ->
                 BestEffortView(
                     m.candidate.title, m.full, m.off, beFresh,
-                    report = beSha1?.takeIf { beFresh }?.let { BestEffortReport(it.lowercase(), beSize, beCode.orEmpty(), beRev, m.candidate.id, m.full, m.off) },
+                    report = beSha1?.takeIf { beFresh && !beGuess }?.let { BestEffortReport(it.lowercase(), beSize, beCode.orEmpty(), beRev, m.candidate.id, m.full, m.off) },
+                    id = m.candidate.id,
+                    picked = beSource == BestEffortStore.Source.PICKED,
+                    guess = beGuess,
+                    doubt = beDoubt,
+                    suggest = beSuggest?.title,
                 )
             },
-            canTryBestEffort = s.unsupported && beCode != null,
-            bestEffortMiss = beMiss,
+            gamePicker = beCode?.let { code -> gamePicker(code) },
         )
+    }
+
+    /** The picker's list: the last look's order, every config of the base game (before one, in the list's
+     * own order) - one row per title (two builds of SoulGold v1.2 share one), the one in use where it's one. */
+    private fun gamePicker(code: String): GamePickerView {
+        val v = beVerdict
+        val current = beMatch?.candidate?.id
+        val all = v?.fits?.map { f -> GameOption(f.candidate.id, f.candidate.title, v.likely(f), f.party != null) }
+            ?: BestEffort.candidatesFor(code).map { GameOption(it.id, it.title, likely = false, readsParty = false) }
+        val options = all.groupBy { it.title }.values.map { same -> same.firstOrNull { it.id == current } ?: same.first() }
+        return GamePickerView(options, current = current, miss = if (beMatch == null) v?.miss else null, declined = beDeclined)
     }
 
     private fun sampleUntagged(reader: MemoryReader): SnapshotView {
         try {
             if (kind == null) detect(reader)
-            if (bestEffortRequested) {
-                bestEffortRequested = false
-                if (unsupportedHackLabel != null) runBestEffort(reader)
+            if (beCode != null) {
+                takeAnswers(reader)
+                runBestEffort(reader)
             }
             if (kind != null && !itemTextChosen) {
                 itemTextChosen = true
@@ -626,6 +794,11 @@ class TelemetrySampler {
 // itself having ticked forward). Masking these 6 bytes out before hashing
 // makes detection stable regardless of how long the game's been running,
 // instead of only working on the very first boot.
+/** Samples (~1 a second) between best effort's looks while it has something to settle. */
+private const val EVALUATE_EVERY = 5
+/** How long a guess from the ROM's names stands without a party to confirm it (~10 minutes). */
+private const val GUESS_SAMPLES = 600
+
 private val GPIO_HOLE_START = 0x080000C4L
 private const val GPIO_HOLE_SIZE = 6
 

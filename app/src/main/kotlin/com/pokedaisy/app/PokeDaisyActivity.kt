@@ -196,8 +196,8 @@ class PokeDaisyActivity : Activity() {
         else -> null
     }
 
-    /** NOT SUPPORTED's TRY BEST EFFORT: the sampler tries it on its next pass (the emulator thread). */
-    private val tryBestEffort: () -> Unit = { telemetry.requestBestEffort() }
+    /** WHICH GAME IS THIS?: the player's answers, taken by the sampler on its next pass (the emulator thread). */
+    private val gamePick get() = telemetry.gamePick
 
     /** The match notice's SHARE - the player's yes to sending exactly what it listed. */
     private val shareBestEffort: (com.pokedaisy.app.companion.data.BestEffortReport) -> Unit = { r ->
@@ -586,11 +586,11 @@ class PokeDaisyActivity : Activity() {
         root.setViewTreeViewModelStoreOwner(owner)
         sidePanel = SidePanel(root, view, touchControls, Prefs(this), panelBack, playClick) {
             val snap by telemetry.snapshot.collectAsState()
-            CompanionScreen(snap, stateSlots, companionSettings, battleInput, back = panelBack, clickSound = playClick, achievements = RetroAchievements, statusBar = companionStatusBar, itemUse = itemUse, askForSupport = askForSupport, tryBestEffort = tryBestEffort, shareBestEffort = shareBestEffort)
+            CompanionScreen(snap, stateSlots, companionSettings, battleInput, back = panelBack, clickSound = playClick, achievements = RetroAchievements, statusBar = companionStatusBar, itemUse = itemUse, askForSupport = askForSupport, gamePick = gamePick, shareBestEffort = shareBestEffort)
         }
         portraitPanel = PortraitPanel(root, view, touchControls, Prefs(this), portraitBack, playClick) {
             val snap by telemetry.snapshot.collectAsState()
-            CompanionScreen(snap, stateSlots, companionSettings, battleInput, back = portraitBack, clickSound = playClick, achievements = RetroAchievements, statusBar = companionStatusBar, itemUse = itemUse, askForSupport = askForSupport, tryBestEffort = tryBestEffort, shareBestEffort = shareBestEffort)
+            CompanionScreen(snap, stateSlots, companionSettings, battleInput, back = portraitBack, clickSound = playClick, achievements = RetroAchievements, statusBar = companionStatusBar, itemUse = itemUse, askForSupport = askForSupport, gamePick = gamePick, shareBestEffort = shareBestEffort)
         }
         // Two screens: the game stays on the landscape top one. One screen (a phone): it turns
         // with the device (the user's rotation setting), the companion under the game upright.
@@ -965,7 +965,7 @@ class PokeDaisyActivity : Activity() {
                 if (swap) stage
                 else DualScreenPresentation.companionView(
                     ctx, telemetry, stateSlots, companionSettings, battleInput, companionBack, playClick, RetroAchievements,
-                    initialTab = companionStartTab, statusBar = companionStatusBar, itemUse = itemUse, askForSupport = askForSupport, tryBestEffort = tryBestEffort, shareBestEffort = shareBestEffort,
+                    initialTab = companionStartTab, statusBar = companionStatusBar, itemUse = itemUse, askForSupport = askForSupport, gamePick = gamePick, shareBestEffort = shareBestEffort,
                 )
             }.also { it.show() }
         }.onFailure { Log.w("pokedaisy", "presentation failed", it) }.getOrNull()
@@ -1019,7 +1019,7 @@ class PokeDaisyActivity : Activity() {
         val owner = ComposeHostOwner().apply { create(); resume() }
         val view = DualScreenPresentation.companionView(
             this, telemetry, stateSlots, companionSettings, battleInput, companionBack, playClick, RetroAchievements,
-            initialTab = companionStartTab, statusBar = companionStatusBar, itemUse = itemUse, askForSupport = askForSupport, tryBestEffort = tryBestEffort, shareBestEffort = shareBestEffort,
+            initialTab = companionStartTab, statusBar = companionStatusBar, itemUse = itemUse, askForSupport = askForSupport, gamePick = gamePick, shareBestEffort = shareBestEffort,
         ).apply {
             setViewTreeLifecycleOwner(owner)
             setViewTreeSavedStateRegistryOwner(owner)
@@ -1428,7 +1428,7 @@ class PokeDaisyActivity : Activity() {
         return ComposeView(this).apply {
             setContent {
                 val snap by telemetry.snapshot.collectAsState()
-                CompanionScreen(snap, stateSlots, companionSettings, battleInput, back = mirrorBack, clickSound = playClick, achievements = RetroAchievements, statusBar = companionStatusBar, itemUse = itemUse, askForSupport = askForSupport, tryBestEffort = tryBestEffort, shareBestEffort = shareBestEffort)
+                CompanionScreen(snap, stateSlots, companionSettings, battleInput, back = mirrorBack, clickSound = playClick, achievements = RetroAchievements, statusBar = companionStatusBar, itemUse = itemUse, askForSupport = askForSupport, gamePick = gamePick, shareBestEffort = shareBestEffort)
             }
         }
     }

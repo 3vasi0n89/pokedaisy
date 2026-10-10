@@ -87,7 +87,9 @@ import com.pokedaisy.app.companion.data.buildSnapshotView
 import com.pokedaisy.app.companion.data.readNativeTelemetry
 import com.pokedaisy.app.companion.data.resetNativeBagCache
 import com.pokedaisy.app.companion.ui.theme.QolTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.unit.dp
 import org.junit.Before
@@ -116,6 +118,9 @@ open class CompanionScreenshotTest {
     @Before
     fun game() {
         activeGame = GameKind.FIRERED
+        // A retail() shot of another language leaves its ROM's globals behind (Japanese type names on SUGGESTIONS).
+        romLanguage = 'E'
+        romGameCode = ""
         OptionColors.inGame = true
         RomItemText.use(null) // a retail() shot's game must not leave its descriptions to the next
         // The party menu art, backdrops and region maps come from the ROM too (RomArt).
@@ -376,24 +381,86 @@ open class CompanionScreenshotTest {
         )
     }
 
-    /** An unknown FireRed-based hack: TRY BEST EFFORT above ASK FOR SUPPORT. */
+    /** An unknown Emerald-based hack before the player has a Pokémon: WHICH GAME IS THIS?, the likely games first. */
     @Test
-    fun unsupportedBestEffort() = paparazzi.snapshot {
+    fun gamePicker() = paparazzi.snapshot {
         CompanionScreen(
-            SnapshotView(connected = false, error = "unrecognized FireRed-based ROM hack (BPRE, 32 MB, sha1 0123456789ab…)", unsupported = true, canTryBestEffort = true),
-            SampleCompanion.Slots, SampleCompanion.Settings(), askForSupport = {}, tryBestEffort = {},
+            SnapshotView(
+                connected = false, error = "unrecognized Emerald-based ROM hack (BPEE, 32 MB, sha1 0123456789ab…)", unsupported = true,
+                gamePicker = SamplePicker.picker(miss = com.pokedaisy.app.companion.data.BestEffort.Miss.NO_PARTY),
+            ),
+            SampleCompanion.Slots, SampleCompanion.Settings(), askForSupport = {}, gamePick = SamplePicker.actions,
         )
     }
 
-    /** ...tried before the player had a Pokémon. */
+    /** ...a party that reads as none of them. */
     @Test
-    fun unsupportedBestEffortNoParty() = paparazzi.snapshot {
+    fun gamePickerNoMatch() = paparazzi.snapshot {
         CompanionScreen(
             SnapshotView(
-                connected = false, error = "unrecognized FireRed-based ROM hack (BPRE, 32 MB, sha1 0123456789ab…)", unsupported = true,
-                canTryBestEffort = true, bestEffortMiss = com.pokedaisy.app.companion.data.BestEffort.Miss.NO_PARTY,
+                connected = false, error = "unrecognized Emerald-based ROM hack", unsupported = true,
+                gamePicker = SamplePicker.picker(miss = com.pokedaisy.app.companion.data.BestEffort.Miss.NO_MATCH, likely = false),
             ),
-            SampleCompanion.Slots, SampleCompanion.Settings(), askForSupport = {}, tryBestEffort = {},
+            SampleCompanion.Slots, SampleCompanion.Settings(), askForSupport = {}, gamePick = SamplePicker.actions,
+        )
+    }
+
+    /** NONE OF THESE: NOT SUPPORTED again, with PICK A GAME back to the list. */
+    @Test
+    fun gamePickerDeclined() = paparazzi.snapshot {
+        CompanionScreen(
+            SnapshotView(
+                connected = false, error = "unrecognized Emerald-based ROM hack", unsupported = true,
+                gamePicker = SamplePicker.picker(declined = true),
+            ),
+            SampleCompanion.Slots, SampleCompanion.Settings(), askForSupport = {}, gamePick = SamplePicker.actions,
+        )
+    }
+
+    /** The picker over a game it's read as (WRONG GAME? / SETTINGS > GAME): the one in use marked. */
+    @Test
+    fun gamePickerOverlay() = paparazzi.snapshot {
+        QolTheme {
+            Box(Modifier.fillMaxSize()) {
+                CompanionScreen(SampleCompanion.snapshot, SampleCompanion.Slots, SampleCompanion.Settings())
+                GamePickerOverlay(SamplePicker.picker(current = "SOULGOLD_V1_2"), SamplePicker.actions, askForSupport = {}, onDismiss = {})
+            }
+        }
+    }
+
+    /** SETTINGS of a ROM read through best effort: PLAYS AS at the top. */
+    @Test
+    fun settingsPlaysAs() = paparazzi.snapshot {
+        CompanionScreen(
+            SampleCompanion.snapshot.copy(gamePicker = SamplePicker.picker(current = "SOULGOLD_V1_2")),
+            SampleCompanion.Slots, SampleCompanion.Settings(), initialTab = "SETTINGS", gamePick = SamplePicker.actions,
+        )
+    }
+
+    /** A guess from the ROM's names (no party yet): WRONG GAME? / OK. */
+    @Test
+    fun bestEffortGuessNotice() = paparazzi.snapshot {
+        CompanionScreen(
+            SampleCompanion.snapshot.copy(
+                bestEffort = com.pokedaisy.app.companion.data.BestEffortView(
+                    "Pokémon SoulGold v1.2", full = false, off = emptySet(), fresh = true, id = "SOULGOLD_V1_2", guess = true,
+                ),
+            ),
+            SampleCompanion.Slots, SampleCompanion.Settings(), gamePick = SamplePicker.actions,
+        )
+    }
+
+    /** The player's pick, which the party then didn't hold with: PICK AGAIN / KEEP. */
+    @Test
+    fun bestEffortDoubtNotice() = paparazzi.snapshot {
+        CompanionScreen(
+            SampleCompanion.snapshot.copy(
+                bestEffort = com.pokedaisy.app.companion.data.BestEffortView(
+                    "Pokémon Lazarus", full = false, off = emptySet(), fresh = false, id = "LAZARUS", picked = true,
+                    doubt = true, suggest = "Pokémon SoulGold v1.2",
+                ),
+            ),
+            SampleCompanion.Slots, SampleCompanion.Settings(), gamePick = SamplePicker.actions,
         )
     }
 
@@ -410,7 +477,7 @@ open class CompanionScreenshotTest {
                     ),
                 ),
             ),
-            SampleCompanion.Slots, SampleCompanion.Settings(), shareBestEffort = {},
+            SampleCompanion.Slots, SampleCompanion.Settings(), shareBestEffort = {}, gamePick = SamplePicker.actions,
         )
     }
 
@@ -421,10 +488,10 @@ open class CompanionScreenshotTest {
             SampleCompanion.snapshot.copy(
                 bestEffort = com.pokedaisy.app.companion.data.BestEffortView(
                     "Pokémon FireRed", full = false,
-                    off = setOf(com.pokedaisy.app.companion.data.BestEffort.Part.DEX, com.pokedaisy.app.companion.data.BestEffort.Part.GUIDE), fresh = true,
+                    off = setOf(com.pokedaisy.app.companion.data.BestEffort.Part.DEX, com.pokedaisy.app.companion.data.BestEffort.Part.MON_ICONS), fresh = true,
                 ),
             ),
-            SampleCompanion.Slots, SampleCompanion.Settings(),
+            SampleCompanion.Slots, SampleCompanion.Settings(), gamePick = SamplePicker.actions,
         )
     }
     @Test fun dex() = tab("DEX")

@@ -80,10 +80,12 @@ reason about Compose layout blind. Two ways, same screens:
    not a regression gate). Tests live in
    `app/src/test/kotlin/.../companion/ui/CompanionScreenshotTest.kt`: one per companion
    tab (via `CompanionScreen(initialTab = …)` — Paparazzi can't tap the tab bar) plus the
-   shared `OptionSelector`/`OptionConfirm`, at the Thor bottom screen's 1240x1080 (landscape);
+   shared `OptionSelector`/`OptionConfirm`, at the Thor bottom screen's 1240x1080 (landscape); `DuoLiteCompanionScreenshotTest`
+re-runs them at the Retroid Pocket Duo Lite's 1280x960 (4:3: ~120 px less height - the summary moves its types beside the
+icon, STATES flattens its thumbnails, both only when the full layout doesn't fit);
    `WideCompanionScreenshotTest` re-runs all of them at the top screen's 1920x1080 (where SWAP SCREENS puts
    the companion; density 2.0, the closest bucket layoutlib has). Wide-screen rules so far: `PartyGrid` goes
-   to 3 columns past 1.6:1 (a measuring `Layout` - BoxWithConstraints composed the slots late and FireRed's
+   to 3 columns past 2.0:1 (1.6 caught the Duo Lite's 4:3 grid, ~1.56-1.75) (a measuring `Layout` - BoxWithConstraints composed the slots late and FireRed's
    icons missed the frame), and the MAP fills the tab only while that stretches it <= 1.2x
    (`MAX_MAP_STRETCH`; the Thor's bottom is ~1.16), else it keeps its shape, centred, buttons with it. Add a
    test when adding a screen. Paparazzi is pinned to **1.3.4** — the last release on
@@ -801,18 +803,27 @@ later one).
 imported ROMs are checked into the same cache by `checkImported`, linked ones by the scan); the companion's NOT SUPPORTED
 page and the library INFO of such a ROM open `RomSupportRequest.url` - rom_request.yml prefilled by field id with the
 file name, game code, size and SHA-1, like the website's ROM check.
-**BEST EFFORT** (`BestEffort.kt`): an unsupported ROM of a Gen 3 base game (header code BPR/BPG/BPE/AXV/AXP) gets
-TRY BEST EFFORT on NOT SUPPORTED; the sampler then reads the running game through every `BestEffort.candidates`
-config of that family (the decoders' globals set per try, put back after). A config fits when its party is real
-(1-6 mons, encrypted boxes pass their checksum, species / level / HP plausible) - so the player must be in game with
-a Pokémon; each ROM-side `Part` (DEX via `pokedexMatchesRom` or gSpeciesInfo's BULBASAUR, GUIDE's probe trainer, item
-text) that doesn't hold is switched off (`Match.config`). All holding = FULL (a re-hashed supported build, like the
-SoulGold v1.2 reports): treated as supported, no tag. Kept by SHA-1 in `filesDir/best-effort.tsv` (`BestEffortStore`,
-candidate ids are stable - never rename one) and applied by `detect()` next launch (`unsupportedRom`); the version
-globals compare `baseCfg` by identity. Library: `CompanionSupport.verdict` (SUPPORTED / MATCHED / PARTIAL / TRYABLE /
-UNSUPPORTED) cached by `RomFolder` as 1/M/P/T/U (old "0" rows are re-checked once); linked-folder TRYABLE ROMs are
-listed with NOT SUPPORTED so best effort is reachable, PARTIAL ones tagged PARTIALLY SUPPORTED; INFO's FORGET MATCH.
-`BestEffortTest` matches 7 games' real saves to their own configs (all FULL) and a party-less game to nothing.
+**BEST EFFORT** (`BestEffort.kt`): an unsupported ROM of a Gen 3 base game (header code BPR/BPG/BPE/AXV/AXP) is read
+through every `BestEffort.candidates` config of that family, **automatically** (the sampler every 5 samples while
+unsettled; there is no TRY button). What a config would *show* is checked against the ROM, not just its RAM - a Galar hack
+once read as Emerald with a real party and wrong names, sprites and map. `RomNames` scans the ROM once for every
+candidate's names (loose: case, spaces, `-.'`, é/♀/♂ ignored - the shared tables use modern spellings) and
+`RomNameTables` locates each config's species / move / item / map-section tables in it by votes on its names' offsets
+(inline arrays, or pointer tables via a second pass), so names are checked **at their ids** wherever a rebuild moved
+them. A `Fit` is SURE when its party reads, its species table agrees (0.95) with no extra species past its last, it covers
+0.7 of the ROM's species names, its map names hold (or come from `RomRegionMap`), and what it shows (party, moves, bag,
+current map) is confirmed - and no other game is as sure (`Verdict.sure`: fewer ROM `Part`s off, or 0.15 more of its own
+names in the ROM, else it's the player's call). Parts (`DEX`, `GUIDE`, `ITEM_TEXT`, `MON_ICONS`, `ITEM_ICONS`) that don't
+hold are switched off - no sprites rather than wrong ones. Before a party, a ROM whose names + map table point at one game
+gets it as a guess (`Verdict.guess`), dropped after ~10 min without a party. Otherwise the companion shows **WHICH GAME
+IS THIS?** (`GamePicker.kt`) in place of NOT SUPPORTED: ranked, LIKELY tags, NONE OF THESE (`BestEffortStore.decline`) /
+ASK FOR SUPPORT; also reachable from the match notice's WRONG GAME?, SETTINGS > GAME > PLAYS AS and the library INFO's
+PICK A GAME. A pick (`Source.PICKED`) is confirmed once a party reads, else a WRONG GAME? notice (PICK AGAIN / KEEP).
+`best-effort.tsv` rows carry source + verified; 4-column rows from before are re-checked as guesses. `BestEffortTest`
+pins it over 26 real ROMs + saves: each SURE of its own config, and with its own game's configs removed nothing is sure
+except three engine siblings (Orange Islands / Odyssey -> FireRed rev 0, Unbound -> Amethyst), every name confirmed.
+Library: `CompanionSupport.verdict` (SUPPORTED / MATCHED / PARTIAL / TRYABLE / UNSUPPORTED) cached by `RomFolder` as
+1/M/P/T/U; linked-folder TRYABLE ROMs are listed with NOT SUPPORTED, PARTIAL ones tagged PARTIALLY SUPPORTED.
 **Sharing a BEST EFFORT match** (opt-in, `BestEffortShare.kt`): the fresh-match notice asks (`BestEffortShareNotice`,
 listing `BestEffortShare.fields` value by value); only SHARE sends - one Firestore REST create into project `pokedaisy`,
 collection `bestEffortReports`, no SDK / API key / ids: sha1, size, gameCode, revision, matchedAs, full, off,
