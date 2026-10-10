@@ -2,9 +2,11 @@ package com.pokedaisy.app
 
 import android.content.Context
 import android.opengl.GLES20
+import android.opengl.GLES30
 import android.opengl.GLSurfaceView
 import android.opengl.GLUtils
 import android.util.Log
+import com.pokedaisy.app.companion.Smoothing
 import com.pokedaisy.app.overlay.BuiltInFrames
 import com.pokedaisy.app.overlay.Box
 import com.pokedaisy.app.overlay.OverlayBitmaps
@@ -16,6 +18,7 @@ import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
+import kotlin.math.roundToInt
 
 /**
  * Draws the mGBA RGBA framebuffer as an aspect-fit (or, with [stretch], view-filling)
@@ -154,8 +157,26 @@ class EmulatorView(context: Context) : GLSurfaceView(context) {
             renderer.setGrid(v[0], v[1])
         }
 
+    /** SHADERS > SMOOTHING ([com.pokedaisy.app.Prefs.smoothing]): xBRZ / xBR / ScaleFX before FILTER. */
+    var smoothing: Smoothing = Smoothing.OFF
+        set(v) {
+            if (field == v) return
+            field = v
+            renderer.setSmoothing(ScreenShaders.smoothingPasses(v)?.map { pass ->
+                LoadedPass(pass, shaderAssets.getOrPut(pass.asset) {
+                    context.assets.open("shaders/" + pass.asset).use { it.readBytes().decodeToString() }
+                })
+            })
+        }
+    private val shaderAssets = HashMap<String, String>()
+
+    /** A smoothing pass with its file's text (read on the UI thread; compiled on the GL thread). */
+    private class LoadedPass(val pass: ScreenShaders.SmoothPass, val source: String)
+
     init {
-        setEGLContextClientVersion(2)
+        // ES 3 where the GPU has it (SMOOTHING's shaders are GLSL ES 3.00, ScaleFX draws into half
+        // floats); every other pass is GLSL ES 1.00, which an ES 3 context runs as well.
+        setEGLContextClientVersion(if (GlCaps.gles3(context)) 3 else 2)
         setRenderer(renderer)
         renderMode = RENDERMODE_CONTINUOUSLY
     }
@@ -269,6 +290,13 @@ class EmulatorView(context: Context) : GLSurfaceView(context) {
         private var stretch = false
         private var gbaColors = false
         private var effect: ScreenShaders.Effect? = null
+        /** SMOOTHING's passes; [smoothPrograms] are built from them on the GL thread. */
+        private var smoothPasses: List<LoadedPass>? = null
+        private var smoothPrograms: List<RetroProgram>? = null
+        private var smoothBuiltFor: List<LoadedPass>? = null
+        /** The passes failed here (a compile error, no half-float framebuffer): skipped until they change. */
+        private var smoothFailed = false
+        private val smoothTargets = ArrayList<RenderTarget>()
         private var gridX = 0f
         private var gridY = 0f
         private var overlay: OverlayImage? = null
@@ -366,6 +394,8 @@ class EmulatorView(context: Context) : GLSurfaceView(context) {
 
         fun setGrid(x: Float, y: Float) = synchronized(lock) { gridX = x; gridY = y }
 
+        fun setSmoothing(passes: List<LoadedPass>?) = synchronized(lock) { smoothPasses = passes }
+
         fun setOverlay(img: OverlayImage?) = synchronized(lock) {
             overlay = img
             overlayUploaded = false
@@ -390,6 +420,10 @@ class EmulatorView(context: Context) : GLSurfaceView(context) {
             effectProgramFor = null
             colorTarget = RenderTarget()
             effectTarget = RenderTarget()
+            smoothPrograms = null
+            smoothBuiltFor = null
+            smoothFailed = false
+            smoothTargets.clear()
             val ids = IntArray(2)
             GLES20.glGenTextures(2, ids, 0)
             texId = ids[0]
@@ -466,13 +500,20 @@ class EmulatorView(context: Context) : GLSurfaceView(context) {
                 pass(color, input, colorTarget)
                 input = colorTarget.tex
             }
+            // The largest whole multiple of the game that fits, per axis (STRETCH scales them apart).
+            val kx = maxOf(1, (quadW / texW).toInt())
+            val ky = maxOf(1, (quadH / texH).toInt())
             val fx = effectProgram()
-            if (fx != null && effect?.prescale == true) {
-                // The largest whole multiple that fits, per axis (STRETCH scales them apart).
-                val kx = maxOf(1, (quadW / texW).toInt())
-                val ky = maxOf(1, (quadH / texH).toInt())
+            val prescaled = fx != null && effect?.prescale == true
+            // SMOOTHING: upscales the game; FILTER then draws over its picture (`uSmoothed`).
+            val smoothed = runSmoothing(input, kx, ky, prescaled)
+            if (smoothed != 0) {
+                input = smoothed
+                smooth = true
+            }
+            if (prescaled) {
                 if (effectTarget.ensure(texW * kx, texH * ky)) {
-                    pass(fx, input, effectTarget)
+                    pass(fx!!, input, effectTarget, sample = smoothed != 0)
                     input = effectTarget.tex
                     smooth = true
                 }
@@ -482,7 +523,7 @@ class EmulatorView(context: Context) : GLSurfaceView(context) {
 
             GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
             GLES20.glViewport(0, 0, surfaceW, surfaceH)
-            drawQuad(last, input, viewUv, pos, smooth)
+            drawQuad(last, input, viewUv, pos, smooth, smoothed = smoothed != 0 && !prescaled)
             if (overlayOnTop) drawOverlay()
         }
 
@@ -502,14 +543,81 @@ class EmulatorView(context: Context) : GLSurfaceView(context) {
             GLES20.glDisable(GLES20.GL_BLEND)
         }
 
-        /** Draws [input] through [program] into all of [target]. */
-        private fun pass(program: Program, input: Int, target: RenderTarget) {
+        /** Draws [input] through [program] into all of [target]; [sample] = [input] is SMOOTHING's picture
+         * (read smoothly, at whatever size it came out). */
+        private fun pass(program: Program, input: Int, target: RenderTarget, sample: Boolean = false) {
             GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, target.fbo)
             GLES20.glViewport(0, 0, target.w, target.h)
-            drawQuad(program, input, passUv, fullQuad, smooth = false)
+            drawQuad(program, input, passUv, fullQuad, smooth = sample, smoothed = sample)
         }
 
-        private fun drawQuad(program: Program, input: Int, uv: FloatBuffer, quad: FloatBuffer, smooth: Boolean) {
+        /**
+         * SMOOTHING's passes over [input] (the game, after GBA COLORS); returns the texture they drew,
+         * or 0 with none (off, or failed here). Each pass reads the one before at its own size (and
+         * PassPrevN the one N back; one before the first is [input]), drawn as RetroArch draws a pass.
+         */
+        private fun runSmoothing(input: Int, kx: Int, ky: Int, prescaled: Boolean): Int {
+            val programs = smoothPrograms() ?: return 0
+            val passes = smoothBuiltFor ?: return 0
+            var src = input
+            var srcW = texW
+            var srcH = texH
+            for ((i, program) in programs.withIndex()) {
+                val (w, h) = when (val size = passes[i].pass.size) {
+                    is ScreenShaders.SmoothSize.Source -> srcW * size.scale to srcH * size.scale
+                    ScreenShaders.SmoothSize.Whole -> texW * kx to texH * ky
+                    ScreenShaders.SmoothSize.View ->
+                        if (prescaled) texW * kx to texH * ky
+                        else maxOf(1, quadW.roundToInt()) to maxOf(1, quadH.roundToInt())
+                }
+                while (smoothTargets.size <= i) smoothTargets += RenderTarget()
+                val target = smoothTargets[i]
+                if (!target.ensure(w, h, half = passes[i].pass.float)) {
+                    Log.w("pokedaisy", "smoothing: no ${if (passes[i].pass.float) "half-float " else ""}framebuffer, off")
+                    smoothFailed = true
+                    return 0
+                }
+                GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, target.fbo)
+                GLES20.glViewport(0, 0, w, h)
+                program.draw(src, srcW, srcH, w, h) { n ->
+                    // PassPrevN: N passes back; one before the first pass is the input.
+                    when (val k = i - n) {
+                        -1 -> Triple(input, texW, texH)
+                        in 0 until i -> smoothTargets[k].let { Triple(it.tex, it.w, it.h) }
+                        else -> null
+                    }
+                }
+                src = target.tex
+                srcW = w
+                srcH = h
+            }
+            return src
+        }
+
+        /** SMOOTHING's programs, (re)built on the GL thread when [setSmoothing] changed the passes. */
+        private fun smoothPrograms(): List<RetroProgram>? {
+            val passes = smoothPasses
+            if (passes !== smoothBuiltFor) {
+                smoothPrograms?.forEach { GLES20.glDeleteProgram(it.id) }
+                smoothPrograms = null
+                smoothBuiltFor = passes
+                smoothFailed = false
+                if (passes != null) {
+                    smoothPrograms = runCatching { passes.map { RetroProgram(it.source) } }
+                        .onFailure {
+                            Log.w("pokedaisy", "smoothing: shader failed to build, off", it)
+                            smoothFailed = true
+                        }
+                        .getOrNull()
+                }
+            }
+            return if (smoothFailed) null else smoothPrograms
+        }
+
+        private fun drawQuad(
+            program: Program, input: Int, uv: FloatBuffer, quad: FloatBuffer, smooth: Boolean,
+            smoothed: Boolean = false,
+        ) {
             val filter = if (smooth) GLES20.GL_LINEAR else GLES20.GL_NEAREST
             GLES20.glUseProgram(program.id)
             GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
@@ -519,6 +627,7 @@ class EmulatorView(context: Context) : GLSurfaceView(context) {
             GLES20.glUniform1i(program.uTex, 0)
             GLES20.glUniform2f(program.uTexSize, texW.toFloat(), texH.toFloat())
             GLES20.glUniform2f(program.uGrid, gridX, gridY)
+            GLES20.glUniform1f(program.uSmoothed, if (smoothed) 1f else 0f)
 
             GLES20.glEnableVertexAttribArray(program.aPos)
             GLES20.glVertexAttribPointer(program.aPos, 2, GLES20.GL_FLOAT, false, 0, quad)
@@ -584,6 +693,82 @@ class EmulatorView(context: Context) : GLSurfaceView(context) {
             val uTex = GLES20.glGetUniformLocation(id, "uTex")
             val uTexSize = GLES20.glGetUniformLocation(id, "uTexSize")
             val uGrid = GLES20.glGetUniformLocation(id, "uGrid")
+            val uSmoothed = GLES20.glGetUniformLocation(id, "uSmoothed")
+        }
+
+        /**
+         * A RetroArch-format pass (one .glsl file, VERTEX / FRAGMENT by define): its attributes
+         * (VertexCoord, TexCoord, COLOR), MVPMatrix and the size uniforms RetroArch gives a pass.
+         * Throws if it doesn't build (caught by [smoothPrograms]).
+         */
+        private class RetroProgram(source: String) {
+            val id = buildProgram(
+                ScreenShaders.smoothingSource(source, "VERTEX"),
+                ScreenShaders.smoothingSource(source, "FRAGMENT"),
+            ) { p ->
+                GLES20.glBindAttribLocation(p, 0, "VertexCoord")
+                GLES20.glBindAttribLocation(p, 1, "TexCoord")
+                GLES20.glBindAttribLocation(p, 2, "COLOR")
+            }
+            private fun u(name: String) = GLES20.glGetUniformLocation(id, name)
+            private val mvp = u("MVPMatrix")
+            private val frameDirection = u("FrameDirection")
+            private val frameCount = u("FrameCount")
+            private val outputSize = u("OutputSize")
+            private val textureSize = u("TextureSize")
+            private val inputSize = u("InputSize")
+            private val texture = u("Texture")
+            /** PassPrev1..6: (sampler, TextureSize, InputSize), for the ones this pass declares. */
+            private val prev = (1..6).mapNotNull { n ->
+                val t = u("PassPrev${n}Texture")
+                if (t < 0) null else n to intArrayOf(t, u("PassPrev${n}TextureSize"), u("PassPrev${n}InputSize"))
+            }
+
+            /** Draws [src] ([srcW] x [srcH]) into the bound [outW] x [outH] target; [prevOf] gives PassPrevN. */
+            fun draw(src: Int, srcW: Int, srcH: Int, outW: Int, outH: Int, prevOf: (Int) -> Triple<Int, Int, Int>?) {
+                GLES20.glUseProgram(id)
+                GLES20.glUniformMatrix4fv(mvp, 1, false, MVP, 0)
+                GLES20.glUniform1i(frameDirection, 1)
+                GLES20.glUniform1i(frameCount, 0)
+                GLES20.glUniform2f(outputSize, outW.toFloat(), outH.toFloat())
+                GLES20.glUniform2f(textureSize, srcW.toFloat(), srcH.toFloat())
+                GLES20.glUniform2f(inputSize, srcW.toFloat(), srcH.toFloat())
+                bindNearest(0, src)
+                GLES20.glUniform1i(texture, 0)
+                for ((i, entry) in prev.withIndex()) {
+                    val (n, loc) = entry
+                    val (tex, w, h) = prevOf(n) ?: continue
+                    bindNearest(1 + i, tex)
+                    GLES20.glUniform1i(loc[0], 1 + i)
+                    GLES20.glUniform2f(loc[1], w.toFloat(), h.toFloat())
+                    GLES20.glUniform2f(loc[2], w.toFloat(), h.toFloat())
+                }
+                GLES20.glEnableVertexAttribArray(0)
+                GLES20.glVertexAttribPointer(0, 4, GLES20.GL_FLOAT, false, 0, VERTEX_COORDS)
+                GLES20.glEnableVertexAttribArray(1)
+                GLES20.glVertexAttribPointer(1, 4, GLES20.GL_FLOAT, false, 0, TEX_COORDS)
+                GLES20.glDisableVertexAttribArray(2)
+                GLES20.glVertexAttrib4f(2, 1f, 1f, 1f, 1f)
+                GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4)
+                GLES20.glDisableVertexAttribArray(0)
+                GLES20.glDisableVertexAttribArray(1)
+                GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
+            }
+
+            private fun bindNearest(unit: Int, tex: Int) {
+                GLES20.glActiveTexture(GLES20.GL_TEXTURE0 + unit)
+                GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tex)
+                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST)
+                GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_NEAREST)
+            }
+
+            companion object {
+                /** VertexCoord in [0, 1] and this ortho matrix to clip space, as RetroArch draws; TexCoord y 0
+                 * lands on the target's row 0, so every pass keeps the game's top-row-first order. */
+                private val MVP = floatArrayOf(2f, 0f, 0f, 0f, 0f, 2f, 0f, 0f, 0f, 0f, 1f, 0f, -1f, -1f, 0f, 1f)
+                private val VERTEX_COORDS = floats(0f, 0f, 0f, 1f, 1f, 0f, 0f, 1f, 0f, 1f, 0f, 1f, 1f, 1f, 0f, 1f)
+                private val TEX_COORDS = floats(0f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 0f, 1f, 0f, 0f, 1f, 1f, 0f, 0f)
+            }
         }
 
         /** An offscreen texture a pass draws into; lives and dies with the GL context. */
@@ -593,11 +778,13 @@ class EmulatorView(context: Context) : GLSurfaceView(context) {
             var w = 0
             var h = 0
             private var unsupported = false
+            private var isHalf = false
 
-            /** Sizes it to [width] x [height]; false if the GPU can't draw into it (the pass is then skipped). */
-            fun ensure(width: Int, height: Int): Boolean {
+            /** Sizes it to [width] x [height] ([half] = RGBA16F, ES 3 only); false if the GPU can't draw
+             * into it (the pass is then skipped). */
+            fun ensure(width: Int, height: Int, half: Boolean = false): Boolean {
                 if (unsupported) return false
-                if (w == width && h == height) return true
+                if (w == width && h == height && isHalf == half) return true
                 if (fbo == 0) {
                     val ids = IntArray(1)
                     GLES20.glGenTextures(1, ids, 0)
@@ -606,10 +793,17 @@ class EmulatorView(context: Context) : GLSurfaceView(context) {
                     fbo = ids[0]
                 }
                 GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, tex)
-                GLES20.glTexImage2D(
-                    GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, width, height, 0,
-                    GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null,
-                )
+                if (half) {
+                    GLES30.glTexImage2D(
+                        GLES30.GL_TEXTURE_2D, 0, GLES30.GL_RGBA16F, width, height, 0,
+                        GLES30.GL_RGBA, GLES30.GL_HALF_FLOAT, null,
+                    )
+                } else {
+                    GLES20.glTexImage2D(
+                        GLES20.GL_TEXTURE_2D, 0, GLES20.GL_RGBA, width, height, 0,
+                        GLES20.GL_RGBA, GLES20.GL_UNSIGNED_BYTE, null,
+                    )
+                }
                 GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
                 GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
                 GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fbo)
@@ -625,6 +819,7 @@ class EmulatorView(context: Context) : GLSurfaceView(context) {
                 }
                 w = width
                 h = height
+                isHalf = half
                 return true
             }
         }
@@ -644,12 +839,13 @@ class EmulatorView(context: Context) : GLSurfaceView(context) {
                 ByteBuffer.allocateDirect(v.size * 4).order(ByteOrder.nativeOrder())
                     .asFloatBuffer().apply { put(v); position(0) }
 
-            private fun buildProgram(vsrc: String, fsrc: String): Int {
+            private fun buildProgram(vsrc: String, fsrc: String, beforeLink: (Int) -> Unit = {}): Int {
                 val vs = compile(GLES20.GL_VERTEX_SHADER, vsrc)
                 val fs = compile(GLES20.GL_FRAGMENT_SHADER, fsrc)
                 val p = GLES20.glCreateProgram()
                 GLES20.glAttachShader(p, vs)
                 GLES20.glAttachShader(p, fs)
+                beforeLink(p)
                 GLES20.glLinkProgram(p)
                 val status = IntArray(1)
                 GLES20.glGetProgramiv(p, GLES20.GL_LINK_STATUS, status, 0)

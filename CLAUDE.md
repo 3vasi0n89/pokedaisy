@@ -114,7 +114,7 @@ SETTINGS/STATES and the top-screen Library/Settings are all built from these pie
 a game backdrop (`GameBackdrop` on the companion, `AppBackdrop` — FireRed's party-menu
 stripes — on the top screen); ITEMS (`ItemsScreen.kt`) is the per-game bag screen in the
 same idiom. PARTY uses the game's own slot (`GbaPartySlot`, generated `PartySlotStyle`s) where one exists; every other game gets a FireRed-like slot drawn from a `PartyPalette` (`PartyScreen.kt`, `partyPaletteFor`) — restyle a game by adding a palette there, like ITEMS' `BagPalette`. Rogue, Gaia, Lazarus, Seaglass and R.O.W.E. have palettes sampled from their party menus (headless: the save's first mon copied into slots 2-3, slot 3 at 0 HP, so normal / selected / fainted all show; `PartySlotColors.band` / per-state `text`, `PartyPalette.empty` cover flat and white-box slots); their bags have `BagPalette`s (TMT2's is `EmeraldBag`; Celia and Gaia match FireRed's). Their backdrop is FireRed's party backdrop recoloured (`backdropColors` in `theme/Theme.kt`: its 3 colours mapped to the game's), or plain stripes until a FireRed ROM has supplied the art. Multi-choice settings open an `OptionSelector` pick-list — never make a row
-cycle through more than two values (one exception, the user's call: SHADERS > FILTER and GRID cycle on tap, so each
+cycle through more than two values (one exception, the user's call: SHADERS > FILTER, GRID and SMOOTHING cycle on tap, so each
 look shows on the game at once). **The PokéDaisy theme** (the default, `DAISY_THEME_ID` 8 in `theme/Theme.kt`; Settings > THEME, `Prefs.appTheme` by
 id - FireRed is 0, the old default) only changes the top screen's backdrop (Library, Settings, setup): `AppBackdrop`
 -> `DaisyBackdrop`, the website's (blobs, dot grid and, on the Library, its floating logos). The windows and text
@@ -229,7 +229,7 @@ path shows the lists unmarked). When adding a guide for another game, generate i
 and tag its hand-written entries with areas. HERE shows whenever a game has area data, even
 without the ROM tables (then no wild list).
 
-**ROM art - no game art is bundled** (`assets/` holds only fonts): FireRed's / Emerald's party-menu art
+**ROM art - no game art is bundled** (`assets/` holds only fonts and SMOOTHING's shaders): FireRed's / Emerald's party-menu art
 (`partyfr/`, `partyem/`: slot frames, Poke Ball, status icons, small font), Heart and Soul's (`partyhns/`,
 smol: `HNS_PARTY_*` / `_BALL_*` / `_STATUS_*` / `_FONT_SMALL` + Emerald's slot tilemaps) and the CFRU hacks'
 (`partycfru/`: the shared 112x40 slot frames `CFRU_*`, each hack's status icons `UB_` / `RR_` / `OD_` /
@@ -525,6 +525,16 @@ desaturated (its DARKEN_COLOUR looked more vibrant than plain LCD), + procedural
 the view pass flips. Shaders get `uTex` / `vUv` / `uTexSize`. None of it shows in Paparazzi / ui-preview:
 screenshot the Thor (`adb exec-out screencap -p -d <display id>`), or run the real shader strings in WebGL
 (GLSL ES 1.0, same as GLES2) in the browser pane - how the CRT was tuned, on a 240x160 frame at 1620x1080.
+SHADERS > SMOOTHING (`Prefs.smoothing`: OFF / xBRZ / xBR / SCALEFX, GitHub #42; SABR, also asked for, notched
+edges in the harness) runs libretro's own .glsl files, unmodified in `assets/shaders/`, between GBA COLORS and FILTER:
+`EmulatorView.RetroProgram` draws them as RetroArch would (VertexCoord / TexCoord / MVPMatrix, Texture / TextureSize /
+InputSize / OutputSize, PassPrevN, `#pragma parameter` defaults), `ScreenShaders.smoothingSource` makes them GLSL ES 3.00
+(+ xBR's `delta` globals const). Hence the ES 3 context (`GlCaps.gles3`; ES 2 devices get the row greyed out); ScaleFX's
+first two passes draw into RGBA16F. Sizes: xBRZ at the game's on-screen size, xBR at the largest whole multiple (then
+smooth), ScaleFX 3x; with LCD / SCANLINES (prescaled) everything goes through the whole multiple. FILTER then draws
+over the smoothed picture (`uSmoothed`: LCD PAPER and CRT read it where they are, not at GBA pixel centres). Never on the
+companion. Picked in the harness's mini .glslp runner (WebGL2), then checked on the Thor: every mode and xBRZ + CRT / LCD,
+live cycling, FF still 300 fps. A build failure or a missing half-float framebuffer logs and turns it off for that context.
 SHADERS > ON COMPANION (`Prefs.companionShaders`, default ON) puts FILTER and GBA COLORS over the companion and
 the top screen's status bar too, without touching the colour scheme: `CompanionColors` runs one AGSL shader (GBA
 COLORS, then the filter) on every tracked view as a `RenderEffect` (Android 13+; older devices keep the plain look;

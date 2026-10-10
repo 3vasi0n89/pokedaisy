@@ -38,6 +38,7 @@ import com.pokedaisy.app.companion.DeviceBattery
 import com.pokedaisy.app.companion.FfMode
 import com.pokedaisy.app.companion.GridStrength
 import com.pokedaisy.app.companion.ScreenFilter
+import com.pokedaisy.app.companion.Smoothing
 import com.pokedaisy.app.overlay.OverlayChoice
 import com.pokedaisy.app.overlay.OverlayStore
 import com.pokedaisy.app.companion.FfMusicMode
@@ -419,6 +420,12 @@ class PokeDaisyActivity : Activity() {
             Prefs(this@PokeDaisyActivity).gridStrength = strength
             runOnUiThread { syncGameScreen() }
         }
+        override val smoothing get() = Prefs(this@PokeDaisyActivity).smoothing
+        override fun setSmoothing(mode: Smoothing) {
+            Prefs(this@PokeDaisyActivity).smoothing = mode
+            runOnUiThread { syncGameScreen() }
+        }
+        override val smoothingAvailable get() = GlCaps.gles3(this@PokeDaisyActivity)
         override val companionShaders get() = Prefs(this@PokeDaisyActivity).companionShaders
         override fun setCompanionShaders(on: Boolean) {
             Prefs(this@PokeDaisyActivity).companionShaders = on
@@ -1072,6 +1079,7 @@ class PokeDaisyActivity : Activity() {
         )
         view.screenEffect = ScreenShaders.effectFor(prefs.screenFilter)
         view.screenGrid = ScreenShaders.gridFor(prefs.screenFilter, prefs.gridStrength)
+        view.smoothing = prefs.smoothing
     }
 
     /**

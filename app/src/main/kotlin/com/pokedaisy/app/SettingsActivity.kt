@@ -599,6 +599,7 @@ class SettingsActivity : ComponentActivity() {
     @Composable
     private fun ShadersScreen(m: GbaTextMetrics) {
         @Suppress("UNUSED_EXPRESSION") revision
+        val smoothingAvailable = remember { GlCaps.gles3(this) }
         val rows = listOf(
             // NONE / LCD grid / LCD PAPER / SCANLINES / CRT.
             // Each tap steps to the next filter, like the companion's.
@@ -610,6 +611,13 @@ class SettingsActivity : ComponentActivity() {
             SettingRow(tk("GRID"), prefs.gridStrength.label, enabled = prefs.screenFilter.hasGrid) {
                 if (prefs.screenFilter.hasGrid) {
                     prefs.gridStrength = prefs.gridStrength.next()
+                    revision++
+                }
+            },
+            // OFF / xBRZ / xBR / SCALEFX, cycling too: smooths the game's edges before FILTER (the game only).
+            SettingRow(tk("SMOOTHING"), if (smoothingAvailable) prefs.smoothing.label else tk("N/A"), enabled = smoothingAvailable) {
+                if (smoothingAvailable) {
+                    prefs.smoothing = prefs.smoothing.next()
                     revision++
                 }
             },

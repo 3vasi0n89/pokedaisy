@@ -1171,6 +1171,11 @@ open class CompanionScreenshotTest {
         CompanionScreen(SampleCompanion.snapshot, SampleCompanion.Slots, SampleCompanion.Settings(cheatList = SampleCompanion.cheats), initialTab = "SETTINGS", initialSettingsPage = "CHEATS")
     }
 
+    /** SETTINGS > SHADERS: FILTER, GRID, SMOOTHING, GBA COLORS, ON COMPANION. */
+    @Test fun settingsShaders() = paparazzi.snapshot {
+        CompanionScreen(SampleCompanion.snapshot, SampleCompanion.Slots, SampleCompanion.Settings(), initialTab = "SETTINGS", initialSettingsPage = "SHADERS")
+    }
+
     @Test fun settingsCheatsEmpty() = paparazzi.snapshot {
         CompanionScreen(SampleCompanion.snapshot, SampleCompanion.Slots, SampleCompanion.Settings(), initialTab = "SETTINGS", initialSettingsPage = "CHEATS")
     }
@@ -1384,6 +1389,8 @@ object SampleCompanion {
         override fun setScreenFilter(filter: com.pokedaisy.app.companion.ScreenFilter) {}
         override val gridStrength = com.pokedaisy.app.companion.GridStrength.MEDIUM
         override fun setGridStrength(strength: com.pokedaisy.app.companion.GridStrength) {}
+        override val smoothing = com.pokedaisy.app.companion.Smoothing.OFF
+        override fun setSmoothing(mode: com.pokedaisy.app.companion.Smoothing) {}
         override val companionShaders = true
         override fun setCompanionShaders(on: Boolean) {}
         override val gameName = "Pokémon FireRed"

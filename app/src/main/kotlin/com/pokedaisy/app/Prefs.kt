@@ -4,6 +4,7 @@ import android.content.Context
 import com.pokedaisy.app.companion.FfMode
 import com.pokedaisy.app.companion.GridStrength
 import com.pokedaisy.app.companion.ScreenFilter
+import com.pokedaisy.app.companion.Smoothing
 import com.pokedaisy.app.companion.FfMusicMode
 
 /** Tiny SharedPreferences wrapper for app-level state. */
@@ -215,6 +216,11 @@ class Prefs(context: Context) {
     var gridStrength: GridStrength
         get() = GridStrength.entries.firstOrNull { it.name == p.getString("grid_strength", null) } ?: GridStrength.MEDIUM
         set(v) = p.edit().putString("grid_strength", v.name).apply()
+
+    /** SHADERS > SMOOTHING: xBRZ / xBR / ScaleFX over the game ([ScreenShaders.smoothingPasses]). */
+    var smoothing: Smoothing
+        get() = Smoothing.entries.firstOrNull { it.name == p.getString("smoothing", null) } ?: Smoothing.OFF
+        set(v) = p.edit().putString("smoothing", v.name).apply()
 
     /** Two screens: the game on the second display and the companion on the main one -
      * for a device whose main display is its bottom screen (see PokeDaisyActivity.syncPresentation). */

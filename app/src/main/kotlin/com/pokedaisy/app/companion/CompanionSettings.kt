@@ -150,6 +150,13 @@ interface CompanionSettings {
     val gridStrength: GridStrength
     fun setGridStrength(strength: GridStrength)
 
+    /** The edge-smoothing upscaler on the game - see [Prefs.smoothing]. */
+    val smoothing: Smoothing
+    fun setSmoothing(mode: Smoothing)
+
+    /** Whether this device can run SMOOTHING (OpenGL ES 3); without it the row is greyed out. */
+    val smoothingAvailable: Boolean get() = true
+
     /** Whether there's a second screen - SWAP SCREENS only shows then. */
     val hasSecondScreen: Boolean get() = false
 
@@ -246,6 +253,22 @@ enum class GridStrength(val label: String) {
     ;
 
     fun next(): GridStrength = entries[(ordinal + 1) % entries.size]
+}
+
+/** SHADERS > SMOOTHING: an edge-smoothing upscaler run on the game before FILTER (ScreenShaders.smoothingPasses),
+ * in the order a tap steps through them - it cycles like FILTER. Never on the companion (it's UI, not pixel art).
+ * [label]s are the shaders' own names. */
+enum class Smoothing(val label: String) {
+    OFF(tk("OFF")),
+    /** xBRZ freescale: sharp, the cleanest edges. */
+    XBRZ(tk("xBRZ")),
+    /** xBR level 2: rounder and softer. */
+    XBR(tk("xBR")),
+    /** ScaleFX: the most even outlines, 3x then scaled (needs float framebuffers). */
+    SCALEFX(tk("SCALEFX")),
+    ;
+
+    fun next(): Smoothing = entries[(ordinal + 1) % entries.size]
 }
 
 /**
