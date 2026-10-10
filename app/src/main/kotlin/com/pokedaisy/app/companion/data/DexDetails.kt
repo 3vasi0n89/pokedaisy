@@ -42,6 +42,9 @@ enum class EvoScheme {
     /** pokeemerald-expansion 1.12+ (TMT2, Heart and Soul, SoulGold): EVO_LEVEL / TRADE / ITEM / ...
      * plus a list of {condition, arg1, arg2, arg3} (IF_GENDER, IF_TIME, IF_HOLD_ITEM, ...). */
     EXPANSION_PARAMS,
+    /** Recharged Yellow: vanilla's, plus 16 = use item [param] (its LINKING CORD) while holding the
+     * row's 4th u16 - the trade-with-an-item evolutions (POLIWHIRL + KING'S ROCK, ONIX + METAL COAT). */
+    RECHARGED_YELLOW,
 }
 
 /**
@@ -322,6 +325,7 @@ object DexDetails {
             EvoScheme.QUETZAL -> if (m <= 42) expansion(m, p) else null
             EvoScheme.ROWE -> if (m <= 31) expansion(m, p) else null
             EvoScheme.EXPANSION_PARAMS -> null
+            EvoScheme.RECHARGED_YELLOW -> vanilla(m, p) ?: if (m == 16) listOf(EvoReq.UseItem(p), EvoReq.Hold(extra)) else null
         } ?: listOf(EvoReq.Special)
         return EvoLink(from, target, reqs)
     }

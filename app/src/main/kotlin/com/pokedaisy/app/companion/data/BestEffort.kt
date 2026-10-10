@@ -138,6 +138,10 @@ object BestEffort {
             Candidate("ORANGE_ISLANDS", GameKind.ORANGE_ISLANDS, NATIVE_ORANGE_ISLANDS, FIRERED, "Pokémon Orange Islands"),
             Candidate("ULTRA_VIOLET", GameKind.FIRERED, NATIVE_ULTRA_VIOLET, ULTRA_VIOLET, "Pokémon Ultra Violet"),
             Candidate("SWORD_SHIELD", GameKind.SWORD_SHIELD, NATIVE_SWORD_SHIELD, FIRERED, "Sword and Shield Ultimate Plus"),
+            Candidate("RECHARGED_YELLOW_V1_8_0", GameKind.RECHARGED_YELLOW, NATIVE_RECHARGED_YELLOW_V1_8_0, FIRERED, "Pokémon Recharged Yellow v1.8"),
+            Candidate("RECHARGED_YELLOW_V1_9_0", GameKind.RECHARGED_YELLOW, NATIVE_RECHARGED_YELLOW_V1_9_0, FIRERED, "Pokémon Recharged Yellow v1.9.0"),
+            Candidate("RECHARGED_YELLOW_V1_9_4", GameKind.RECHARGED_YELLOW, NATIVE_RECHARGED_YELLOW_V1_9_4, FIRERED, "Pokémon Recharged Yellow v1.9.4"),
+            Candidate("RECHARGED_YELLOW_V1_9_7", GameKind.RECHARGED_YELLOW, NATIVE_RECHARGED_YELLOW_V1_9_7, FIRERED, "Pokémon Recharged Yellow v1.9.7"),
             Candidate("EMERALD", GameKind.EMERALD, NATIVE_EMERALD_RETAIL, EMERALD, "Pokémon Emerald"),
             Candidate("EMERALD_ES", GameKind.EMERALD, NATIVE_EMERALD_ES, EMERALD, "Pokémon Esmeralda"),
             Candidate("EMERALD_DE", GameKind.EMERALD, NATIVE_EMERALD_DE, EMERALD, "Pokémon Smaragd"),
@@ -149,6 +153,7 @@ object BestEffort {
             Candidate("SOULGOLD", GameKind.SOULGOLD, NATIVE_SOULGOLD, EMERALD, "Pokémon SoulGold v1.1"),
             Candidate("SOULGOLD_V1_2", GameKind.SOULGOLD, NATIVE_SOULGOLD_V1_2, EMERALD, "Pokémon SoulGold v1.2"),
             Candidate("SOULGOLD_V1_2B", GameKind.SOULGOLD, NATIVE_SOULGOLD_V1_2B, EMERALD, "Pokémon SoulGold v1.2"),
+            Candidate("SOULGOLD_V1_2C", GameKind.SOULGOLD, NATIVE_SOULGOLD_V1_2C, EMERALD, "Pokémon SoulGold v1.2"),
             Candidate("ROWE", GameKind.ROWE, NATIVE_ROWE, EMERALD, "Pokémon R.O.W.E."),
             Candidate("EMERALD_ROGUE", GameKind.EMERALD_ROGUE, NATIVE_EMERALD_ROGUE, EMERALD, "Emerald Rogue"),
             Candidate("EMERALD_SEAGLASS", GameKind.EMERALD_SEAGLASS, NATIVE_EMERALD_SEAGLASS, EMERALD, "Emerald Seaglass"),
@@ -157,6 +162,11 @@ object BestEffort {
             Candidate("IMPERIUM", GameKind.IMPERIUM, NATIVE_IMPERIUM, EMERALD, "Emerald Imperium"),
             Candidate("QUETZAL", GameKind.QUETZAL, NATIVE_QUETZAL, EMERALD, "Pokémon Quetzal"),
             Candidate("QUETZAL_ES", GameKind.QUETZAL, NATIVE_QUETZAL_ES, EMERALD, "Pokémon Quetzal (ES)"),
+            Candidate("MARIOMON_V1_5_2", GameKind.MARIOMON, NATIVE_MARIOMON_V1_5_2, EMERALD, "Super Mariomon v1.5.2"),
+            Candidate("MARIOMON_V1_5_1", GameKind.MARIOMON, NATIVE_MARIOMON_V1_5_1, EMERALD, "Super Mariomon v1.5.1"),
+            Candidate("MARIOMON_V1_3", GameKind.MARIOMON, NATIVE_MARIOMON_V1_3, EMERALD, "Super Mariomon v1.3"),
+            Candidate("MARIOMON_V1_2_2", GameKind.MARIOMON, NATIVE_MARIOMON_V1_2_2, EMERALD, "Super Mariomon v1.2.2"),
+            Candidate("MARIOMON_V1_2_1", GameKind.MARIOMON, NATIVE_MARIOMON_V1_2_1, EMERALD, "Super Mariomon v1.2.1"),
             Candidate("RUBY", GameKind.EMERALD, NATIVE_RUBY, RUBY_SAPPHIRE, "Pokémon Ruby"),
             Candidate("SAPPHIRE", GameKind.EMERALD, NATIVE_SAPPHIRE, RUBY_SAPPHIRE, "Pokémon Sapphire"),
         )
@@ -282,6 +292,10 @@ object BestEffort {
                 .thenByDescending { it.party != null && it.namesHold }
                 // Among those, the address-checked parts holding say "this very build".
                 .thenBy { if (it.party != null && it.namesHold) it.off.size else 0 }
+                // A party read whose every shown name the ROM confirms beats name shares alone: Recharged
+                // Yellow's ROM also carries other languages' name tables (French species after its own,
+                // Portuguese moves), so no config's species "cover" it - its own still reads its party name for name.
+                .thenByDescending { it.party != null && it.shownHolds }
                 .thenByDescending { it.text.coversBy.firstOrNull() ?: 0.0 }
                 .thenByDescending { if (it.shownOf == null || it.shownOf == 0) -1.0 else it.shown!!.toDouble() / it.shownOf }
                 .thenByDescending { it.namesHold }
@@ -465,20 +479,23 @@ object BestEffort {
 
     /** The globals the decoders read the running game's tables by ([activeGame] and friends). */
     private object Globals {
-        class Saved(val game: GameKind, val lang: Char, val code: String, val sg12: Boolean, val am141: Boolean, val uv: Boolean)
+        class Saved(
+            val game: GameKind, val lang: Char, val code: String, val sg12: Boolean, val am141: Boolean, val mm13: Boolean, val uv: Boolean,
+        )
 
-        fun save() = Saved(activeGame, romLanguage, romGameCode, soulGoldV12, amethystV141, ultraViolet)
+        fun save() = Saved(activeGame, romLanguage, romGameCode, soulGoldV12, amethystV141, mariomonV13, ultraViolet)
         fun restore(s: Saved) {
             activeGame = s.game; romLanguage = s.lang; romGameCode = s.code; soulGoldV12 = s.sg12; amethystV141 = s.am141
-            ultraViolet = s.uv
+            mariomonV13 = s.mm13; ultraViolet = s.uv
         }
         fun set(c: Candidate) {
             activeGame = c.kind
             romLanguage = c.cfg.language
             romGameCode = c.cfg.gameCode
-            soulGoldV12 = c.cfg === NATIVE_SOULGOLD_V1_2 || c.cfg === NATIVE_SOULGOLD_V1_2B
+            soulGoldV12 = c.cfg === NATIVE_SOULGOLD_V1_2 || c.cfg === NATIVE_SOULGOLD_V1_2B || c.cfg === NATIVE_SOULGOLD_V1_2C
             amethystV141 = c.cfg === NATIVE_AMETHYST_V1_4_1
             ultraViolet = c.cfg === NATIVE_ULTRA_VIOLET
+            mariomonV13 = c.cfg === NATIVE_MARIOMON_V1_3 || c.cfg === NATIVE_MARIOMON_V1_2_2 || c.cfg === NATIVE_MARIOMON_V1_2_1
         }
     }
 }

@@ -374,6 +374,24 @@ private val RoweBag = BagPalette(
 )
 
 /**
+ * Sampled 1:1 from Super Mariomon's bag (headless, its MEDICINE pocket): a sky-blue list window -
+ * a slate line, a light edge, a deeper blue band - with white names on a grey-brown shadow, a
+ * white description box and icon box in grey lines, black text, the pocket banner's orange
+ * arrows, and the screen's brown chevrons behind.
+ */
+private val MariomonBag = BagPalette(
+    panelLayers = listOf(Color(0xFF293942) to 1, Color(0xFF9CBDFF) to 1, Color(0xFF638CDE) to 2),
+    tabLayerCount = 2,
+    fill = Color(0xFF9CBDFF), divider = null,
+    text = Color.White, textShadow = Color(0xFF736B63),
+    tabText = Color.White, tabTextShadow = Color(0xFF736B63), tabUnderline = Color(0xFFFF5200),
+    descLayers = listOf(Color(0xFF7B7B7B) to 1), descFill = Color.White,
+    descText = Color.Black, descTextShadow = Color(0xFFB5B5B5),
+    iconBox = Color.White, iconBoxEdge = Color(0xFF7B7B7B),
+    backdrop = Color(0xFFC69C7B) to Color(0xFFA57B63),
+)
+
+/**
  * Sampled from SoulGold's bag screen (headless): white list and description
  * windows in a charcoal / slate / blue frame, black text with a light grey
  * shadow, and its night sky behind - one still frame of the game's slowly
@@ -470,6 +488,7 @@ private fun lightBagFor(game: GameKind): BagPalette = when (game) {
     GameKind.ROWE -> RoweBag
     GameKind.SOULGOLD -> SoulGoldBag
     GameKind.YELLOW -> YellowBag
+    GameKind.MARIOMON -> MariomonBag
     // Too Many Types 2's, Glazed's, Imperium's and Quetzal's bags are Emerald's; Gaia's and Celia's are FireRed's.
     GameKind.TMT2, GameKind.GLAZED, GameKind.IMPERIUM, GameKind.QUETZAL -> EmeraldBag
     else -> FireRedBag

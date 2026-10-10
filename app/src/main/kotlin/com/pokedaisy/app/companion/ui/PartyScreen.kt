@@ -252,6 +252,19 @@ val ImperiumPartyPalette = FireRedPartyPalette.copy(
 )
 
 /**
+ * Super Mariomon (headless, its party grid with a selected, a low-HP, a fainted and empty slots):
+ * FireRed's slot in greens - mint boxes in a dark brown line, pale green in a lilac line under the
+ * cursor - the fainted slot FireRed's orange in its own darker line, empty slots the menu's wood
+ * planks (two browns) in the brown line. Text, HP bar and Poké Ball are FireRed's.
+ */
+val MariomonPartyPalette = FireRedPartyPalette.copy(
+    normal = PartySlotColors(Color(0xFF4A4239), Color(0xFFB5FFA5), Color(0xFF7BDE84), Color(0xFF42A521)),
+    selected = PartySlotColors(Color(0xFFA573FF), Color(0xFFC6F7B5), Color(0xFF84D694), Color(0xFF84D694)),
+    fainted = PartySlotColors(Color(0xFFA54A00), Color(0xFFD6A521), Color(0xFFC66B10), Color(0xFFA54A00)),
+    empty = PartySlotColors(Color(0xFF4A4239), Color(0xFFC69C7B), Color(0xFFC69C7B), Color(0xFFA57B63)),
+)
+
+/**
  * R.O.W.E. (headless, its party grid with a selected, a poisoned, a fainted, a low-HP and empty
  * slots): slate boxes in a white line, the cursor's box charcoal in red; a fainted slot looks like
  * any other (its FNT pill says it); empty slots are the charcoal grid in a white line. Its own
@@ -367,6 +380,7 @@ fun partyPaletteFor(game: GameKind): PartyPalette = when (game) {
     GameKind.GLAZED, GameKind.QUETZAL -> GlazedPartyPalette
     GameKind.IMPERIUM -> ImperiumPartyPalette
     GameKind.SWORD_SHIELD -> SwordShieldPartyPalette
+    GameKind.MARIOMON -> MariomonPartyPalette
     // Celia's and Too Many Types 2's slots are FireRed's own colors (only TMT2's backdrop differs).
     else -> FireRedPartyPalette
 }
@@ -403,6 +417,11 @@ fun partySlotStyleFor(game: GameKind): PartySlotStyle? = when (game) {
     GameKind.SWORD_SHIELD -> SwordShieldPartyStyle
     // Orange Islands kept FireRed's party menu art (its own backdrop: theme's backdropColors).
     GameKind.ORANGE_ISLANDS -> FireRedPartyStyle
+    // Recharged Yellow's party menu is FireRed's, slots and teal backdrop alike (sampled headless: 216B63
+    // stripes, the bag FireRed's too). Its ROM changed the backdrop tiles, the status icons
+    // and the small font (RomArt finds only the slot frames and Poké Ball there), so the slot art comes from a
+    // FireRed ROM's scan; without one, FireRed's palette slot.
+    GameKind.RECHARGED_YELLOW -> FireRedPartyStyle
     else -> null
 }
 

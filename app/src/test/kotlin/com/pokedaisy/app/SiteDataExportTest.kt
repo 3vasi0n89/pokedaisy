@@ -36,9 +36,10 @@ class SiteDataExportTest {
     private val hackCodeBases = mapOf(TelemetrySampler.ULTRA_VIOLET_CODE to "BPRE")
 
     /** `LAZARUS_V2_0_SHA1` -> v2.0, `EMERALD_ROGUE_V2_2_1_EX_SHA1` -> v2.2.1-EX, `SOULGOLD_V1_2B_SHA1` -> v1.2b,
-     * `QUETZAL_V9_0_ALPHA_ES_SHA1` -> v9.0-ALPHA-ES; a build with no version of its own is `*_UNVERSIONED_SHA1` -> "". */
+     * `QUETZAL_V9_0_ALPHA_ES_SHA1` -> v9.0-ALPHA-ES, `MARIOMON_V1_5_2_Anniversary_SHA1` -> v1.5.2-Anniversary (a tag
+     * keeps its own case); a build with no version of its own is `*_UNVERSIONED_SHA1` -> "". */
     private val hackVersions: Map<String, String> by lazy {
-        val name = Regex("""_V(\d+(?:_\d+)*)([A-Z]?)((?:_[A-Z]+)*)_SHA1$""")
+        val name = Regex("""_V(\d+(?:_\d+)*)([A-Z]?)((?:_[A-Z][A-Za-z]*)*)_SHA1$""")
         TelemetrySampler::class.java.declaredFields
             .filter { java.lang.reflect.Modifier.isStatic(it.modifiers) && it.type == String::class.java }
             .mapNotNull { f ->

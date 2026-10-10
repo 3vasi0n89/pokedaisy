@@ -344,9 +344,10 @@ class TelemetrySampler {
             }
             activeGame = kind ?: GameKind.FIRERED
             val base = baseCfg ?: nativeCfg
-            soulGoldV12 = base === NATIVE_SOULGOLD_V1_2 || base === NATIVE_SOULGOLD_V1_2B
+            soulGoldV12 = base === NATIVE_SOULGOLD_V1_2 || base === NATIVE_SOULGOLD_V1_2B || base === NATIVE_SOULGOLD_V1_2C
             amethystV141 = base === NATIVE_AMETHYST_V1_4_1
             ultraViolet = base === NATIVE_ULTRA_VIOLET
+            mariomonV13 = base === NATIVE_MARIOMON_V1_3 || base === NATIVE_MARIOMON_V1_2_2 || base === NATIVE_MARIOMON_V1_2_1
             romLanguage = nativeCfg?.language ?: 'E'
             romGameCode = nativeCfg?.gameCode.orEmpty()
             // Quetzal picks each kind of name's language from its own options (a few bytes a sample).
@@ -454,6 +455,12 @@ class TelemetrySampler {
                 nativeCfg = NATIVE_ORANGE_ISLANDS
                 return
             }
+            // Recharged Yellow: a 16 MB rebuild of pokefirered, one config per release.
+            rechargedYellowConfig(hash)?.let {
+                kind = GameKind.RECHARGED_YELLOW
+                nativeCfg = it
+                return
+            }
             retailHash = hash in RETAIL_SHA1S
         }
 
@@ -520,10 +527,16 @@ class TelemetrySampler {
                 SOULGOLD_V1_1_4_SHA1 -> { kind = GameKind.SOULGOLD; nativeCfg = NATIVE_SOULGOLD }
                 SOULGOLD_V1_2_SHA1 -> { kind = GameKind.SOULGOLD; nativeCfg = NATIVE_SOULGOLD_V1_2 }
                 SOULGOLD_V1_2B_SHA1 -> { kind = GameKind.SOULGOLD; nativeCfg = NATIVE_SOULGOLD_V1_2B }
+                SOULGOLD_V1_2C_SHA1 -> { kind = GameKind.SOULGOLD; nativeCfg = NATIVE_SOULGOLD_V1_2C }
                 GLAZED_V9_2_0_SHA1 -> { kind = GameKind.GLAZED; nativeCfg = NATIVE_GLAZED }
                 IMPERIUM_V1_3_1_SHA1 -> { kind = GameKind.IMPERIUM; nativeCfg = NATIVE_IMPERIUM }
                 QUETZAL_V9_0_ALPHA_SHA1 -> { kind = GameKind.QUETZAL; nativeCfg = NATIVE_QUETZAL }
                 QUETZAL_V9_0_ALPHA_ES_SHA1 -> { kind = GameKind.QUETZAL; nativeCfg = NATIVE_QUETZAL_ES }
+                MARIOMON_V1_5_2_Anniversary_SHA1 -> { kind = GameKind.MARIOMON; nativeCfg = NATIVE_MARIOMON_V1_5_2 }
+                MARIOMON_V1_5_1_Anniversary_SHA1 -> { kind = GameKind.MARIOMON; nativeCfg = NATIVE_MARIOMON_V1_5_1 }
+                MARIOMON_V1_3_SHA1 -> { kind = GameKind.MARIOMON; nativeCfg = NATIVE_MARIOMON_V1_3 }
+                MARIOMON_V1_2_2_SHA1 -> { kind = GameKind.MARIOMON; nativeCfg = NATIVE_MARIOMON_V1_2_2 }
+                MARIOMON_V1_2_1_SHA1 -> { kind = GameKind.MARIOMON; nativeCfg = NATIVE_MARIOMON_V1_2_1 }
                 else -> {
                     kind = GameKind.EMERALD
                     unsupportedRom(reader, code, size, hash, "unrecognized Emerald-based ROM hack " +
@@ -753,6 +766,9 @@ class TelemetrySampler {
         // A second build released as SoulGold v1.2 (its title screen says v1.2 too) - masked hash
         // (GPIO bytes zero).
         const val SOULGOLD_V1_2B_SHA1 = "5d6a036260fdbde96f85b5c1b92d0256d3aebafb"
+        // A third build released as SoulGold v1.2 ("v1.2" on its title screen too) - masked hash
+        // (GPIO bytes zero).
+        const val SOULGOLD_V1_2C_SHA1 = "2be7c99aa473308debe1d03ff2015bab7d9addb5"
         // Pokémon Glazed 9.2.0 (BPEE, 32 MB) - host-side masked hash (GPIO bytes zero).
         const val GLAZED_V9_2_0_SHA1 = "e10105d8544469c6a11ca2cf510289981df3c3b0"
         // Pokémon Emerald Imperium v1.3.1 (BPEE, 32 MB) - host-side masked hash (GPIO bytes zero).
@@ -782,6 +798,29 @@ class TelemetrySampler {
 
         /** Hacks under a game code of their own that detect() reads as their base game (by hash). */
         val HACK_GAME_CODES = setOf(ULTRA_VIOLET_CODE)
+        // Pokémon Recharged Yellow (BPRE rev 0, 16 MB, a pokefirered rebuild): four releases, each
+        // its own build (NATIVE_RECHARGED_YELLOW_*). Host-side masked hashes (GPIO bytes zero).
+        const val RECHARGED_YELLOW_V1_8_0_SHA1 = "be5033598e91d0e80fa93e551406f02a7876d7c2"
+        const val RECHARGED_YELLOW_V1_9_0_SHA1 = "ac30d1ed80e75104a3fb92f71e2b9a51c26e80c8"
+        const val RECHARGED_YELLOW_V1_9_4_SHA1 = "7d9fae6cf31c07bc7fa5cf7afe137ad5385cefb1"
+        const val RECHARGED_YELLOW_V1_9_7_SHA1 = "ed60654d7525ba005bfc8f799bf0ecba2ef08a2e"
+
+        /** Recharged Yellow's config for a release's hash; null for any other ROM. */
+        fun rechargedYellowConfig(hash: String?): NativeConfig? = when (hash) {
+            RECHARGED_YELLOW_V1_8_0_SHA1 -> NATIVE_RECHARGED_YELLOW_V1_8_0
+            RECHARGED_YELLOW_V1_9_0_SHA1 -> NATIVE_RECHARGED_YELLOW_V1_9_0
+            RECHARGED_YELLOW_V1_9_4_SHA1 -> NATIVE_RECHARGED_YELLOW_V1_9_4
+            RECHARGED_YELLOW_V1_9_7_SHA1 -> NATIVE_RECHARGED_YELLOW_V1_9_7
+            else -> null
+        }
+
+        // Super Mariomon (Too Many Productions; BPEE, 32 MB): every release the user has, host-side
+        // masked hashes (GPIO bytes zero, so a plain `shasum`).
+        const val MARIOMON_V1_2_1_SHA1 = "43dd208b23eade69aa3384301e934ecafbf6c2b3"
+        const val MARIOMON_V1_2_2_SHA1 = "08d1c275c0ba4d559b33427292702d61ad49fb5c"
+        const val MARIOMON_V1_3_SHA1 = "043512c2497871c018df606fb90ffbd4c81430f4"
+        const val MARIOMON_V1_5_1_Anniversary_SHA1 = "831fe0f97301f17b24a9cd4a64ef0520835c4dde"
+        const val MARIOMON_V1_5_2_Anniversary_SHA1 = "06e79d12afa578db97c23c1f7ba771fe2f8fe905"
 
         // Pokémon Yellow (USA, Europe) - the Game Boy cart (pret/pokeyellow builds it byte for byte).
         const val YELLOW_SHA1 = "cc7d03262ebfaf2f06772c1a480c7d9d5f4a38e1"
@@ -798,16 +837,20 @@ class TelemetrySampler {
         const val GAME_BOY_SUPPORT = true
 
         /** Every hack detect() has RAM addresses for - the >16 MB ones it
-         * hashes, plus Seaglass, Orange Islands and Ultra Violet (16 MB). [CompanionSupport] checks imports against it. */
+         * hashes, plus Seaglass, Orange Islands, Recharged Yellow and Ultra Violet (16 MB). [CompanionSupport] checks imports against it. */
         val SUPPORTED_HACK_SHA1S = setOf(
             UNBOUND_V2_1_1_1_SHA1, GAIA_V3_2_SHA1, RADICAL_RED_V4_1_SHA1, ODYSSEY_V4_1_1_SHA1,
             AMETHYST_V1_3_0_SHA1, AMETHYST_V1_4_1_SHA1, CELIA_V1_1_4_SHA1, HEART_AND_SOUL_V2_0_6_SHA1, LAZARUS_V2_0_SHA1,
             ROWE_V2_1_9_1_SHA1, EMERALD_ROGUE_V2_2_1_EX_SHA1, TMT2_V1_5_2_SHA1, EMERALD_SEAGLASS_V3_0_SHA1,
-            SOULGOLD_V1_1_4_SHA1, SOULGOLD_V1_2_SHA1, SOULGOLD_V1_2B_SHA1, GLAZED_V9_2_0_SHA1, IMPERIUM_V1_3_1_SHA1,
+            SOULGOLD_V1_1_4_SHA1, SOULGOLD_V1_2_SHA1, SOULGOLD_V1_2B_SHA1, SOULGOLD_V1_2C_SHA1, GLAZED_V9_2_0_SHA1, IMPERIUM_V1_3_1_SHA1,
             QUETZAL_V9_0_ALPHA_SHA1, QUETZAL_V9_0_ALPHA_ES_SHA1, UNBOUND_V2_1_1_1_FR_SHA1,
             ORANGE_ISLANDS_V5_7_BETA_SHA1, ORANGE_ISLANDS_UNVERSIONED_SHA1,
             ULTRA_VIOLET_V1_22_SHA1, SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_SHA1, SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_CASUAL_SHA1,
             SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_PERFORMANCE_SHA1, SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_CASUAL_PERFORMANCE_SHA1,
+            RECHARGED_YELLOW_V1_8_0_SHA1, RECHARGED_YELLOW_V1_9_0_SHA1, RECHARGED_YELLOW_V1_9_4_SHA1,
+            RECHARGED_YELLOW_V1_9_7_SHA1,
+            MARIOMON_V1_2_1_SHA1, MARIOMON_V1_2_2_SHA1, MARIOMON_V1_3_SHA1, MARIOMON_V1_5_1_Anniversary_SHA1,
+            MARIOMON_V1_5_2_Anniversary_SHA1,
         )
     }
 }

@@ -49,8 +49,12 @@ import com.pokedaisy.app.companion.data.NATIVE_IMPERIUM
 import com.pokedaisy.app.companion.data.NATIVE_QUETZAL
 import com.pokedaisy.app.companion.data.NATIVE_QUETZAL_ES
 import com.pokedaisy.app.companion.data.NATIVE_ORANGE_ISLANDS
+import com.pokedaisy.app.companion.data.NATIVE_RECHARGED_YELLOW_V1_8_0
+import com.pokedaisy.app.companion.data.NATIVE_RECHARGED_YELLOW_V1_9_7
 import com.pokedaisy.app.companion.data.NATIVE_UNBOUND_FR
 import com.pokedaisy.app.companion.data.NATIVE_ROWE
+import com.pokedaisy.app.companion.data.NATIVE_MARIOMON_V1_3
+import com.pokedaisy.app.companion.data.NATIVE_MARIOMON_V1_5_1
 import com.pokedaisy.app.companion.data.NATIVE_EMERALD_SEAGLASS
 import com.pokedaisy.app.companion.data.NATIVE_LAZARUS
 import com.pokedaisy.app.companion.data.NATIVE_SOULGOLD
@@ -629,6 +633,7 @@ open class CompanionScreenshotTest {
         activeGame = kind
         amethystV141 = cfg === NATIVE_AMETHYST_V1_4_1 // the Poller sets these with activeGame
         com.pokedaisy.app.companion.data.ultraViolet = cfg === com.pokedaisy.app.companion.data.NATIVE_ULTRA_VIOLET
+        com.pokedaisy.app.companion.data.mariomonV13 = cfg === NATIVE_MARIOMON_V1_3
         romLanguage = cfg.language
         romGameCode = cfg.gameCode
         resetNativeBagCache()
@@ -869,6 +874,18 @@ open class CompanionScreenshotTest {
     @Test fun roweBattle() = retail("rowe_battle", NATIVE_ROWE, ROWE_ROM, GameKind.ROWE, "BATTLE", art = true)
     @Test fun roweDexEntry() = retail("rowe", NATIVE_ROWE, ROWE_ROM, GameKind.ROWE, "DEX", entry = 884, art = true)
     @Test fun glazedBattle() = retail("glazed_battle", NATIVE_GLAZED, GLAZED_ROM, GameKind.GLAZED, "BATTLE", art = true)
+    // Super Mariomon: its own species / names (CAPTURES, POCKETS), its party / bag colours, its world map.
+    @Test fun mariomonParty() = retail("mariomon_v1_5_1", NATIVE_MARIOMON_V1_5_1, MARIOMON_ROM, GameKind.MARIOMON, "PARTY", art = true)
+    @Test fun mariomonItems() = retail("mariomon_v1_5_1", NATIVE_MARIOMON_V1_5_1, MARIOMON_ROM, GameKind.MARIOMON, "ITEMS", art = true)
+    @Test fun mariomonItemDescription() = retail("mariomon_v1_5_1", NATIVE_MARIOMON_V1_5_1, MARIOMON_ROM, GameKind.MARIOMON, "ITEMS", art = true, describe = true)
+    @Test fun mariomonMap() = retail("mariomon_v1_5_1", NATIVE_MARIOMON_V1_5_1, MARIOMON_ROM, GameKind.MARIOMON, "MAP", art = true)
+    @Test fun mariomonBattle() = retail("mariomon_v1_5_1_battle", NATIVE_MARIOMON_V1_5_1, MARIOMON_ROM, GameKind.MARIOMON, "BATTLE", art = true)
+    @Test fun mariomonDex() = retail("mariomon_v1_5_1", NATIVE_MARIOMON_V1_5_1, MARIOMON_ROM, GameKind.MARIOMON, "DEX", art = true)
+    @Test fun mariomonDexEntry() = retail("mariomon_v1_5_1", NATIVE_MARIOMON_V1_5_1, MARIOMON_ROM, GameKind.MARIOMON, "DEX", entry = 7, art = true)
+    @Test fun mariomonGuideBoss() = retailGuide("mariomon_v1_5_1", NATIVE_MARIOMON_V1_5_1, MARIOMON_ROM, "NEXT BOSS", kind = GameKind.MARIOMON)
+    @Test fun mariomonGuideHere() = retailGuide("mariomon_v1_5_1", NATIVE_MARIOMON_V1_5_1, MARIOMON_ROM, "HERE", kind = GameKind.MARIOMON)
+    @Test fun mariomonV13Party() = retail("mariomon_v1_3", NATIVE_MARIOMON_V1_3, MARIOMON_V13_ROM, GameKind.MARIOMON, "PARTY", art = true)
+    @Test fun mariomonV13Items() = retail("mariomon_v1_3", NATIVE_MARIOMON_V1_3, MARIOMON_V13_ROM, GameKind.MARIOMON, "ITEMS", art = true)
     // Pokémon Orange Islands (FireRed 1.0 edited in place): its names, CRYSTL type and own archipelago map.
     @Test fun orangeIslandsParty() = retail("orange_islands", NATIVE_ORANGE_ISLANDS, OI_ROM, GameKind.ORANGE_ISLANDS, "PARTY", art = true)
     @Test fun orangeIslandsItems() = retail("orange_islands", NATIVE_ORANGE_ISLANDS, OI_ROM, GameKind.ORANGE_ISLANDS, "ITEMS", art = true)
@@ -894,6 +911,21 @@ open class CompanionScreenshotTest {
     @Test fun swordShieldDexEvolve() = dexSection("sword_shield_up", NATIVE_SS, SS_ROM, GameKind.SWORD_SHIELD, 813, DexSection.EVOLVE)
     @Test fun swordShieldGuideBoss() = retailGuide("sword_shield_up", NATIVE_SS, SS_ROM, "NEXT BOSS", kind = GameKind.SWORD_SHIELD)
     @Test fun swordShieldGuideHere() = retailGuide("sword_shield_up", NATIVE_SS, SS_ROM, "HERE", kind = GameKind.SWORD_SHIELD)
+    // Recharged Yellow (v1.9.7; the user's v1.8.0 save): FireRed's look, its own names, FireRed's region map from its ROM.
+    @Test fun rechargedYellowParty() = retail("recharged_yellow", NATIVE_RECHARGED_YELLOW_V1_9_7, RY_ROM, GameKind.RECHARGED_YELLOW, "PARTY", art = true)
+    @Test fun rechargedYellowItems() = retail("recharged_yellow", NATIVE_RECHARGED_YELLOW_V1_9_7, RY_ROM, GameKind.RECHARGED_YELLOW, "ITEMS", art = true, describe = true)
+    @Test fun rechargedYellowMap() = retail("recharged_yellow", NATIVE_RECHARGED_YELLOW_V1_9_7, RY_ROM, GameKind.RECHARGED_YELLOW, "MAP", art = true)
+    @Test fun rechargedYellowBattle() = retail("recharged_yellow_battle", NATIVE_RECHARGED_YELLOW_V1_9_7, RY_ROM, GameKind.RECHARGED_YELLOW, "BATTLE", art = true)
+    @Test fun rechargedYellowTrainerBattle() =
+        retail("recharged_yellow_trainer", NATIVE_RECHARGED_YELLOW_V1_9_7, RY_ROM, GameKind.RECHARGED_YELLOW, "BATTLE", art = true)
+    @Test fun rechargedYellowDex() = retail("recharged_yellow", NATIVE_RECHARGED_YELLOW_V1_9_7, RY_ROM, GameKind.RECHARGED_YELLOW, "DEX", art = true)
+    @Test fun rechargedYellowDexEntry() = retail("recharged_yellow", NATIVE_RECHARGED_YELLOW_V1_9_7, RY_ROM, GameKind.RECHARGED_YELLOW, "DEX", entry = 25, art = true)
+    @Test fun rechargedYellowGuideBoss() =
+        retailGuide("recharged_yellow", NATIVE_RECHARGED_YELLOW_V1_9_7, RY_ROM, "NEXT BOSS", kind = GameKind.RECHARGED_YELLOW)
+    @Test fun rechargedYellowGuideWhereIs() =
+        retailGuide("recharged_yellow", NATIVE_RECHARGED_YELLOW_V1_9_7, RY_ROM, "WHERE IS", kind = GameKind.RECHARGED_YELLOW)
+    @Test fun rechargedYellowV180Party() =
+        retail("recharged_yellow_v180", NATIVE_RECHARGED_YELLOW_V1_8_0, RY180_ROM, GameKind.RECHARGED_YELLOW, "PARTY", art = true)
     // Unbound's French translation: English's RAM, French names / descriptions / dex text / map names.
     @Test fun unboundFrParty() = retail("unbound_fr", NATIVE_UNBOUND_FR, UB_FR_ROM, GameKind.UNBOUND, "PARTY", art = true)
     @Test fun unboundFrItems() = retail("unbound_fr", NATIVE_UNBOUND_FR, UB_FR_ROM, GameKind.UNBOUND, "ITEMS", art = true, describe = true)
@@ -990,6 +1022,7 @@ open class CompanionScreenshotTest {
         activeGame = kind
         amethystV141 = cfg === NATIVE_AMETHYST_V1_4_1 // the Poller sets these with activeGame
         com.pokedaisy.app.companion.data.ultraViolet = cfg === com.pokedaisy.app.companion.data.NATIVE_ULTRA_VIOLET
+        com.pokedaisy.app.companion.data.mariomonV13 = cfg === NATIVE_MARIOMON_V1_3
         romLanguage = cfg.language
         romGameCode = cfg.gameCode
         com.pokedaisy.app.companion.data.quetzalNames =
@@ -1111,6 +1144,7 @@ open class CompanionScreenshotTest {
         activeGame = kind
         amethystV141 = cfg === NATIVE_AMETHYST_V1_4_1 // the Poller sets these with activeGame
         com.pokedaisy.app.companion.data.ultraViolet = cfg === com.pokedaisy.app.companion.data.NATIVE_ULTRA_VIOLET
+        com.pokedaisy.app.companion.data.mariomonV13 = cfg === NATIVE_MARIOMON_V1_3
         romLanguage = cfg.language
         romGameCode = cfg.gameCode
         val t = cfg.pokedex!!
@@ -1283,8 +1317,12 @@ private const val UV_ROM = "ultra-violet-v1.22.gba"
 private const val SS_ROM = "Sword and Shield Ultimate Plus (1.2.1.2).gba"
 private val NATIVE_UV get() = com.pokedaisy.app.companion.data.NATIVE_ULTRA_VIOLET
 private val NATIVE_SS get() = com.pokedaisy.app.companion.data.NATIVE_SWORD_SHIELD
+private const val RY_ROM = "Recharged Yellow v1.9.7.gba"
+private const val RY180_ROM = "Recharged Yellow v1.8.0.gba"
 private const val UB_FR_ROM = "Pokémon Unbound v2.1.1.1 FR.gba"
 private const val ROWE_ROM = "Pokémon R.O.W.E. (v2.1.9.1 Experimental).gba"
+private const val MARIOMON_ROM = "Super Mariomon v1.5.1-Anniversary.gba"
+private const val MARIOMON_V13_ROM = "Super Mariomon v1.3.gba"
 private const val SAPPHIRE_ROM = "Pokemon - Sapphire Version (USA, Europe) (Rev 1).gba"
 private const val HNS_ROM = "Pokémon Heart and Soul (v2.0.6).gba"
 

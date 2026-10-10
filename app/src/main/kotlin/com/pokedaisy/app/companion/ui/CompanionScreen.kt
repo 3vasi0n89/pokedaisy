@@ -591,7 +591,7 @@ object CompanionStatusBar {
 /**
  * A tab id's label: the bag tab takes the game's own word from its START menu
  * (every ROM's checked headless, native-capture/menu-shots/<rom>/start.png) -
- * BAG nearly everywhere, Unbound's CUBE, R.O.W.E.'s INVENTORY. ACHIEVEMENTS
+ * BAG nearly everywhere, Unbound's CUBE, R.O.W.E.'s INVENTORY, Super Mariomon's POCKETS. ACHIEVEMENTS
  * doesn't fit a chip: CHEEVOS, RetroAchievements' own nickname for them.
  */
 internal fun companionTabLabel(id: String): String = when (id) {
@@ -608,6 +608,7 @@ internal fun companionTabLabel(id: String): String = when (id) {
     "ITEMS" -> when (activeGame) {
         GameKind.UNBOUND -> "CUBE"
         GameKind.ROWE -> "INVENTORY"
+        GameKind.MARIOMON -> "POCKETS"
         else -> tr("BAG")
     }
     else -> id

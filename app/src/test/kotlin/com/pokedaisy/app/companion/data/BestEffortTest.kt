@@ -32,6 +32,12 @@ class BestEffortTest {
         Game("Pokémon Unbound (v2.1.1.1).gba", "unbound", "BPRE", "UNBOUND"),
         Game("Pokémon Unbound v2.1.1.1 FR.gba", "unbound_fr", "BPRE", "UNBOUND_FR"),
         Game("Pokemon Orange Islands.gba", "orange_islands", "BPRE", "ORANGE_ISLANDS"),
+        // Recharged Yellow's ROM carries other languages' name tables too (French species after its own): no config's
+        // names cover it, so never sure - but its own reads the party name for name and comes first (below).
+        Game("Recharged Yellow v1.8.0.gba", "recharged_yellow_v180", "BPRE", null),
+        Game("Recharged Yellow v1.9.0.gba", "recharged_yellow_v190", "BPRE", null),
+        Game("Recharged Yellow v1.9.4.gba", "recharged_yellow_v194", "BPRE", null),
+        Game("Recharged Yellow v1.9.7.gba", "recharged_yellow", "BPRE", null),
         Game("Pokemon - Gaia (v3.2).gba", "gaia", "BPRE", "GAIA_V3_2"),
         Game("Pokemon - Radical Red (v4.1).gba", "radical_red", "BPRE", "RADICAL_RED_V4_1"),
         Game("Pokémon Odyssey (English) (v4.1.1).gba", "odyssey", "BPRE", "ODYSSEY"),
@@ -54,6 +60,8 @@ class BestEffortTest {
         // FireRed 1.0 under its own game code: only its own config is tried.
         Game("ultra-violet-v1.22.gba", "ultra_violet", "PUVV", "ULTRA_VIOLET"),
         Game("Sword and Shield Ultimate Plus (1.2.1.2).gba", "sword_shield_up", "BPRE", "SWORD_SHIELD"),
+        Game("Super Mariomon v1.5.1-Anniversary.gba", "mariomon_v1_5_1", "BPEE", "MARIOMON_V1_5_1"),
+        Game("Super Mariomon v1.3.gba", "mariomon_v1_3", "BPEE", "MARIOMON_V1_3"),
     )
 
     /**
@@ -96,6 +104,18 @@ class BestEffortTest {
             assertEquals("${g.fixture}: ${v.fits.take(3)}", g.id, v.sure?.candidate?.id)
             assertEquals(g.fixture, g.id, v.fits.first().candidate.id)
         }
+    }
+
+    /** Each Recharged Yellow release: its own config first in the picker, with nothing off. */
+    @Test fun rechargedYellowRanksItsOwnConfigFirst() = each { g, l ->
+        if (!g.fixture.startsWith("recharged_yellow")) return@each
+        val first = BestEffort.evaluate(l.reader, g.code, l.size, l.text).fits.first()
+        val want = "RECHARGED_YELLOW_V" + mapOf(
+            "recharged_yellow_v180" to "1_8_0", "recharged_yellow_v190" to "1_9_0",
+            "recharged_yellow_v194" to "1_9_4", "recharged_yellow" to "1_9_7",
+        ).getValue(g.fixture)
+        assertEquals("${g.fixture}: $first", want, first.candidate.id)
+        assertTrue(first.off.isEmpty() && first.shownHolds)
     }
 
     @Test fun anUnknownGameIsNeverReadAsAnotherQuietly() = each { g, l ->

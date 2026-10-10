@@ -134,6 +134,37 @@ class HackGuidesTest {
         assertEquals("LEADER SPARKY", GUIDE_GLAZED.bosses.first { !it.isDone(progress) }.title)
     }
 
+    /** Super Mariomon: the eight STARS' leaders in every release, WORLD 1-1's grass (a GOOMBA Lv2 met there
+     * headlessly, walking it), and the save's next boss. */
+    private val mariomon = listOf(
+        Game("Super Mariomon v1.5.2-Anniversary.gba", GameKind.MARIOMON, NATIVE_MARIOMON_V1_5_2, "mariomon_v1_5_2"),
+        Game("Super Mariomon v1.5.1-Anniversary.gba", GameKind.MARIOMON, NATIVE_MARIOMON_V1_5_1, "mariomon_v1_5_1"),
+        Game("Super Mariomon v1.3.gba", GameKind.MARIOMON, NATIVE_MARIOMON_V1_3, "mariomon_v1_3"),
+        Game("Super Mariomon v1.2.2.gba", GameKind.MARIOMON, NATIVE_MARIOMON_V1_2_2, "mariomon_v1_2_2"),
+        Game("Super Mariomon v1.2.1.gba", GameKind.MARIOMON, NATIVE_MARIOMON_V1_2_1, "mariomon_v1_2_1"),
+    )
+
+    @Test fun `mariomon stars, WORLD 1-1 and the next star`() = mariomon.forEach { g ->
+        val progress = readSaveProgress(FixtureMemoryReader.load(g.fixture), g.cfg, g.t)!!
+        assertEquals("STAR 1 PEACH", GUIDE_MARIOMON.bosses.first { !it.isDone(progress) }.title)
+        val rom = load(g) ?: return@forEach
+        mariomonV13 = g.cfg.guideTables !== GUIDE_TABLES_MARIOMON_V1_5_1 && g.cfg.guideTables !== GUIDE_TABLES_MARIOMON_V1_5_2
+        assertTrue(g.rom, guideTablesMatchRom(rom, g.t))
+        val levels = GUIDE_MARIOMON.bosses.map { boss ->
+            val team = GuideRomSource.party(g.t, boss.trainer(noProgress))!!
+            assertTrue(boss.title, team.size in 1..6 && team.all { it.species in 906..1100 && it.level in 1..100 && it.moves.isNotEmpty() })
+            team.maxOf { it.level }
+        }
+        assertEquals(g.rom, listOf(11, 17, 24, 24, 40, 45, 47, 56), levels) // its level caps: the leaders' strongest
+        // PEACH: BIDDYBUD / CRAZEE D. Lv10, BABY YOSHI Lv11; no moves of their own, so the level-up ones.
+        val peach = GuideRomSource.party(g.t, 102)!!
+        assertEquals(listOf("BIDDYBUD", "CRAZEE D.", "BABY YOSHI"), peach.map { activeSpeciesNames[it.species] })
+        val here = GuideRomSource.encounters(g.t, 2, 4)!! // WORLD 1-1
+        assertEquals(100, here.grass.sumOf { it.percent })
+        assertEquals(setOf("GOOMBA", "KOOPA T.", "TWIRLIP", "ANTROOPER"), here.grass.map { activeSpeciesNames[it.species] }.toSet())
+        assertEquals(2 to 4, here.grass.minOf { it.minLevel } to here.grass.maxOf { it.maxLevel })
+    }
+
     private val orangeIslands = Game("Pokemon Orange Islands.gba", GameKind.ORANGE_ISLANDS, NATIVE_ORANGE_ISLANDS, "orange_islands")
     private val quetzalEs = Game("QuetzalDaisy/PokemonQuetzalSpanishAlpha9v0.gba", GameKind.QUETZAL, NATIVE_QUETZAL_ES, "quetzal_es")
     private val unboundFr = Game("Pokémon Unbound v2.1.1.1 FR.gba", GameKind.UNBOUND, NATIVE_UNBOUND_FR, "unbound_fr")
@@ -177,6 +208,35 @@ class HackGuidesTest {
         assertEquals("LEADER MILO", GUIDE_SWORD_SHIELD.bosses.first { !it.isDone(p) }.title)
         assertTrue(GuideRomSource.wildMapKeys(swordShield.t).isNotEmpty())
         assertNotNull(generatedWhereIs(GuideId.SWORD_SHIELD, { "AREA $it" }) { false })
+    }
+
+    /** Recharged Yellow, every release: the tables, each boss's NORMAL and HARD teams (BROCK 2 / 3 Pokémon - the
+     * NORMAL pair is the one a scripted battle sent out), the next boss on the three-badge save, Route 1's grass and
+     * the generated WHERE IS. */
+    @Test fun `recharged yellow`() {
+        for ((v, cfg, fixture) in listOf(
+            Triple("1.8.0", NATIVE_RECHARGED_YELLOW_V1_8_0, "recharged_yellow_v180"), Triple("1.9.0", NATIVE_RECHARGED_YELLOW_V1_9_0, "recharged_yellow_v190"),
+            Triple("1.9.4", NATIVE_RECHARGED_YELLOW_V1_9_4, "recharged_yellow_v194"), Triple("1.9.7", NATIVE_RECHARGED_YELLOW_V1_9_7, "recharged_yellow"),
+        )) {
+            val g = Game("Recharged Yellow v$v.gba", GameKind.RECHARGED_YELLOW, cfg, fixture)
+            val rom = load(g) ?: continue
+            assertTrue(v, guideTablesMatchRom(rom, g.t))
+            for (boss in GUIDE_RECHARGED_YELLOW.bosses) for ((label, id) in boss.teams(noProgress)) {
+                val team = GuideRomSource.party(g.t, id)
+                val what = "$v ${boss.title} $label ($id)"
+                assertTrue(what, team != null && team.size in 1..6 && team.all { it.species in 1..411 && it.level in 1..100 && it.moves.isNotEmpty() })
+            }
+            assertEquals(listOf(74 to 12, 95 to 14), GuideRomSource.party(g.t, 414)!!.map { it.species to it.level })
+            assertEquals(listOf(74, 138, 95), GuideRomSource.party(g.t, 414 or (1 shl TRAINER_TABLE_SHIFT))!!.map { it.species })
+            val p = readSaveProgress(FixtureMemoryReader.load(fixture), cfg, g.t)!!
+            assertEquals(v, "LEADER ERIKA", GUIDE_RECHARGED_YELLOW.bosses.first { !it.isDone(p) }.title)
+            // Route 1 (3.19): PIDGEY, RATTATA, ODDISH and BELLSPROUT in its grass.
+            val route1 = GuideRomSource.encounters(g.t, 3, 19)!!
+            assertEquals(100, route1.grass.sumOf { it.percent })
+            assertEquals(setOf(16, 19, 43, 69), route1.grass.map { it.species }.toSet())
+            val whereIs = generatedWhereIs(g.t.guide, { "AREA $it" }) { false }!!
+            assertTrue(v, whereIs.sections.flatMap { it.entries }.any { it.title == "Linking Cord" })
+        }
     }
 
     /** The translations: their own tables (Quetzal Spanish) or English's (Unbound French), names in their language. */
@@ -235,7 +295,8 @@ class HackGuidesTest {
     private val soulgold = Game("Pokemon-SoulGold-v1.1.4.gba", GameKind.SOULGOLD, NATIVE_SOULGOLD, "soulgold")
     private val soulgold12 = Game("Soulgold (v1.2).gba", GameKind.SOULGOLD, NATIVE_SOULGOLD_V1_2, "soulgold_v12")
     private val soulgold12b = Game("Pokemon-SoulGold-v1.2.gba", GameKind.SOULGOLD, NATIVE_SOULGOLD_V1_2B, "soulgold_v12b")
-    private val expansion = listOf(lazarus, seaglass, tmt2, soulgold, soulgold12, soulgold12b)
+    private val soulgold12c = Game("Soulgold (v1.2) (1).gba", GameKind.SOULGOLD, NATIVE_SOULGOLD_V1_2C, "soulgold_v12c")
+    private val expansion = listOf(lazarus, seaglass, tmt2, soulgold, soulgold12, soulgold12b, soulgold12c)
 
     /** The expansion hacks' tables and every team (SoulGold's Kanto BROCK has mons with no moves listed: the game fills them). */
     @Test fun `expansion hacks tables and teams`() = expansion.forEach { g ->
@@ -252,7 +313,7 @@ class HackGuidesTest {
     }
 
     /** HERE on a map each was walked on headless until a wild battle came (that foe is in the table). */
-    @Test fun `expansion hacks HERE`() = listOf(lazarus to (0 to 79), seaglass to (0 to 16), tmt2 to (0 to 32), soulgold to (0 to 16)).forEach { (g, map) ->
+    @Test fun `expansion hacks HERE`() = listOf(lazarus to (0 to 79), seaglass to (0 to 16), tmt2 to (0 to 32), soulgold to (0 to 16), soulgold12c to (0 to 16)).forEach { (g, map) ->
         load(g) ?: return@forEach
         val here = GuideRomSource.encounters(g.t, map.first, map.second)
         assertNotNull(g.fixture, here)

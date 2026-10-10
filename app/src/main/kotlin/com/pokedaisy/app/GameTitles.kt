@@ -60,6 +60,7 @@ object GameTitles {
         "ea5d369cc8a31cbf1cfacb7c9470ea670f08957b" to "Pokémon SoulGold",
         "805d880ee229fb6dc3ce03d7b03baf48f0d759d0" to "Pokémon SoulGold",
         "5d6a036260fdbde96f85b5c1b92d0256d3aebafb" to "Pokémon SoulGold",
+        "2be7c99aa473308debe1d03ff2015bab7d9addb5" to "Pokémon SoulGold",
         "e10105d8544469c6a11ca2cf510289981df3c3b0" to "Pokémon Glazed",
         "1d20091c4d936f5eb122db8780554dd0829ffb63" to "Pokémon Emerald Imperium",
         "d0658315da1e8827f66f15c3d3a000fe747e163e" to "Pokémon Quetzal",
@@ -72,6 +73,15 @@ object GameTitles {
         "daa2f89934d2c0447d5271dabeba86bfba04e1fd" to "Pokémon Sword and Shield Ultimate Plus",
         "4858cc3d7b335bb5eed553861d7a4a17bad9ce2c" to "Pokémon Sword and Shield Ultimate Plus",
         "932323d1fa3732d8673d1319fa86ed4df41087b9" to "Pokémon Sword and Shield Ultimate Plus",
+        "be5033598e91d0e80fa93e551406f02a7876d7c2" to "Pokémon Recharged Yellow",
+        "ac30d1ed80e75104a3fb92f71e2b9a51c26e80c8" to "Pokémon Recharged Yellow",
+        "7d9fae6cf31c07bc7fa5cf7afe137ad5385cefb1" to "Pokémon Recharged Yellow",
+        "ed60654d7525ba005bfc8f799bf0ecba2ef08a2e" to "Pokémon Recharged Yellow",
+        "43dd208b23eade69aa3384301e934ecafbf6c2b3" to "Super Mariomon",
+        "08d1c275c0ba4d559b33427292702d61ad49fb5c" to "Super Mariomon",
+        "043512c2497871c018df606fb90ffbd4c81430f4" to "Super Mariomon",
+        "831fe0f97301f17b24a9cd4a64ef0520835c4dde" to "Super Mariomon",
+        "06e79d12afa578db97c23c1f7ba771fe2f8fe905" to "Super Mariomon",
         // Game Boy (pret/pokeyellow's roms.sha1).
         "cc7d03262ebfaf2f06772c1a480c7d9d5f4a38e1" to "Pokémon Yellow",
     )

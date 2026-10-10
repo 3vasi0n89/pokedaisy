@@ -268,7 +268,7 @@ The tab shows the card cropped to itself (no BG2 backdrop) at the largest whole 
 Thor); a tap flips it (squash, like the game), and the time colon blinks via an infinite transition
 (a`delay`loop never lets Compose tests go idle, which hung ui-preview once).
 **SoulGold v1.1.4** (`NATIVE_SOULGOLD`; v1.2 = `NATIVE_SOULGOLD_V1_2`, a rebuild at shifted addresses, same save
-format, v1.1.4's generated tables but TM75 via `soulGoldV12`; a second v1.2 build = `NATIVE_SOULGOLD_V1_2B`, same RAM, ROM data 0x98-0xA4 earlier; gPartyMenu comes from `NativeConfig.partyMenu`, newer expansion, no source) breaks several vanilla
+format, v1.1.4's generated tables but TM75 via `soulGoldV12`; a second v1.2 build = `NATIVE_SOULGOLD_V1_2B`, same RAM, ROM data 0x98-0xA4 earlier; a third = `NATIVE_SOULGOLD_V1_2C`, same RAM, ROM data 0x18C-0x198 later, wild / map tables 0x2DF30; gPartyMenu comes from `NativeConfig.partyMenu`, newer expansion, no source) breaks several vanilla
 assumptions, each a `NativeConfig` field now: its struct Pokemon is 96 bytes and plaintext
 (`SOULGOLD_PARTY_MON`: 12-char nicknames push the egg flags to +0x15, status at +0x4C, level/HP
 from +0x50), BattlePokemon is 0x98 bytes (`SOULGOLD_BATTLE_MON`), mapsec ids are u16 with mapType a
@@ -749,6 +749,31 @@ backdrop border (FireRed's tilemap in the hack's tiles: S&S's and Odyssey's), it
 Its gyms reuse FireRed's gym maps (their sections are leftovers), so NEXT BOSS names them by badge; badges 4 and 6 have a
 second leader's script (BEA / GORDIE), both listed. Headless battles for both: `setwildbattle` through rev 0's
 `ScriptContext_SetupScript` (0x08069AE5, kept by both), fixtures `*_battle`.
+**Recharged Yellow (2026-10-11)** (`GameKind.RECHARGED_YELLOW`, `NATIVE_RECHARGED_YELLOW_V1_8_0` .. `_V1_9_7`): a 16 MB BPRE
+rev 0 that is pokefirered rebuilt with modern gcc - no retail address, literal-pool trick or `RomRegionMap` applies (it's kept
+off RomRegionMap; FireRed's region map art, rects and grids, from its own ROM, fit). The one save (v1.8.0's) loads in every
+release, so each has field + battle fixtures of it. Its GF ROM header (0x08000100) gives the icon / name / base-stat / item tables
+and SaveBlock1's own layout (flags +0xEFB, party +0x44); no encryption key (`encryptionKeyOff = -1`, money +0x29C). v1.9.x moved
+EWRAM past 0x02005000 +8, v1.9.7 the save-block pointers +0x1C. Gotchas: trainer records carry a NORMAL and a HARD party
+(`GuideTables.trainerHardPartyOff`, size nibbles at +0x1F); its system flags moved (badges 0x880, game clear 0x864) and the
+hidden-item flag base wasn't found (HERE marks none); its script commands differ (`gen_guide_areas_rom.py --ops`, see
+`gen_recharged_yellow_tables.py`'s doc); its song ids are Emerald-ordered (`isRechargedYellowRom`: fanfare 367, all BGM
+prefetched) and `RegionMapWatch` reads sRegionMap two pool words before 0x4796. It has a text-language option and other
+languages' name tables in the ROM - the companion shows English, and best effort is never SURE of it (ranked first instead).
+Its trainer card is FireRed's frame with its own pictures / font and moved save fields: no CARD.
+**Super Mariomon (2026-10-11)**: five releases (`NATIVE_MARIOMON_*`, `GameKind.MARIOMON`), an old pokeemerald-expansion
+built with agbcc - retail Emerald's code word for word where the expansion left it, so its RAM came from retail's literal
+pools (`pref`-style: the bytes before each pool word matched in the ROM) and was then checked in captures. Two RAM layouts
+(v1.5.x; v1.2.1-v1.3, most EWRAM 0x100-0xA00 lower) and two table sets (`mariomonV13`, set by the Poller like
+`amethystV141`; `gen_mariomon_tables.py`). Gotchas: its saves use 4084-byte sectors and v1.5 grew SaveBlock1 (a Medicine
+pocket at its end), so v1.3 / v1.2.x call the v1.5.1 save corrupt - `scripts/trim_save_block1.py` cuts it to 0x3E28 and
+they load it with the same party (their fixtures). Species names 387-905 are blank (the Mario species start at 906: dex
+No. != species id); gTypeEffectiveness is u32 uq4.12 (not u16); struct Item has no itemId (0x28 bytes); struct Trainer is
+0x2C bytes with two more parties picked by flags 0x29 / 0x885 (NEXT BOSS shows the default one) and TrainerMons without
+moves get their level-up moves (`GuideTables.learnsetPairs`). Its region map's tilemap names 21 tiles past its graphics
+(bottom right, under the game's text box): `emeraldRegionMap` leaves such cells transparent. The party menu is a 2-column
+grid where DOWN walks 0 -> 2 -> 4 -> 5 (`grid = true`). The TATTLEDEX is its WORLD dex (sHoennToNationalOrder): 152
+entries in v1.5, the 153rd (BOWSER) hidden like Emerald's Jirachi / Deoxys. No CARD: its MARIO card is its own art.
 **USE on the ITEMS tab** (`FieldItems.kt`, retail FireRed rev 1 / Emerald): a Repel is used by calling the game's own
 VarGet / VarSet / CheckBagHasItem / RemoveBagItem between frames (`MgbaCore.pkCall`, the main core's pk_call returning r0),
 only while ArePlayerFieldControlsLocked is 0 and no battle / menu screen is up; the functions' code is CRC-checked first

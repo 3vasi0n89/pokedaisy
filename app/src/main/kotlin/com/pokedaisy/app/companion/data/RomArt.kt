@@ -27,7 +27,7 @@ object RomArt {
     const val DIR = "rom-art"
 
     /** Bump when [OUTPUTS] grows, so ROMs scanned before get scanned again. */
-    private const val SCAN_VERSION = 15
+    private const val SCAN_VERSION = 16
 
     /** Bumped whenever new art lands on disk, so loaders can retry. */
     val updates: StateFlow<Int> get() = _updates
@@ -113,6 +113,8 @@ object RomArt {
         "player_leaf" to (RomBlob.FR_PLAYER_LEAF_GFX to RomBlob.FR_PLAYER_PAL),
         "player_brendan" to (RomBlob.EM_PLAYER_BRENDAN_GFX to RomBlob.EM_PLAYER_BRENDAN_PAL),
         "player_may" to (RomBlob.EM_PLAYER_MAY_GFX to RomBlob.EM_PLAYER_MAY_PAL),
+        // Super Mariomon's own head for its map, in Brendan's slot (May's is retail's).
+        "player_mario" to (RomBlob.MM_PLAYER_MARIO_GFX to RomBlob.MM_PLAYER_MARIO_PAL),
     )
 
     /**
@@ -137,7 +139,7 @@ object RomArt {
             (slots + "empty").map { "partycfru/slot_$it.png" } + CFRU_STATUS.map { "partycfru/${it.first}/status_icons.png" } +
             listOf(SWSH_BACKDROP) + (slots + "empty").map { "$SWSH_PARTY_DIR/slot_$it.png" } +
             listOf("kanto", "sevii123", "sevii45", "sevii67", "hoenn", "seaglass", "lazarus", "soulgold", "glazed", "imperium", "hns", "rowe_hoenn", "rowe_kanto", "rowe_sevii",
-                "quetzal_kanto", "quetzal_sevii123", "quetzal_sevii45", "quetzal_sevii67").map { "regionmap/$it.png" } +
+                "mariomon", "quetzal_kanto", "quetzal_sevii123", "quetzal_sevii45", "quetzal_sevii67").map { "regionmap/$it.png" } +
             PLAYER_ICONS.map { "regionmap/${it.first}.png" } +
             listOf(BAG_STARS_SOULGOLD) +
             TrainerCardArt.BLOBS.map { rawPath(it) }
@@ -409,6 +411,8 @@ object RomArt {
             "hns" to Triple(RomBlob.HNS_REGION_GFX, RomBlob.EM_REGION_PAL, RomBlob.HNS_REGION_MAP),
             // Imperium added markers for its new places, on Emerald's palette.
             "imperium" to Triple(RomBlob.IMP_REGION_GFX, RomBlob.EM_REGION_PAL, RomBlob.IMP_REGION_MAP),
+            // Super Mariomon's world map: its own tiles, tilemap and palette.
+            "mariomon" to Triple(RomBlob.MM_REGION_GFX, RomBlob.MM_REGION_PAL, RomBlob.MM_REGION_MAP),
             // Quetzal: FireRed's Kanto and Sevii maps, redrawn for this code (MapSecDataQuetzal's note).
             "quetzal_kanto" to Triple(RomBlob.QTZ_KANTO_GFX, RomBlob.QTZ_REGION_PAL, RomBlob.QTZ_KANTO_MAP),
             "quetzal_sevii123" to Triple(RomBlob.QTZ_SEVII123_GFX, RomBlob.QTZ_REGION_PAL, RomBlob.QTZ_SEVII123_MAP),
@@ -434,12 +438,15 @@ object RomArt {
     /**
      * Emerald's region_map.c screen: 8bpp tiles through a 64-wide one-byte
      * affine map; the palette is loaded at BG palette 7, so colour index 112
-     * is its first entry.
+     * is its first entry. A cell past the tiles the ROM has (Super Mariomon's
+     * map names 21 of them in its bottom-right corner - whatever VRAM holds
+     * there, under the game's own text box) stays transparent.
      */
     private fun emeraldRegionMap(tiles: ByteArray, pal: IntArray, map: ByteArray): Image {
         val img = Image(240, 160)
         for (ty in 0 until 20) for (tx in 0 until 30) {
             val t = map[ty * 64 + tx].toInt() and 0xFF
+            if ((t + 1) * 64 > tiles.size) continue
             for (y in 0 until 8) for (x in 0 until 8) {
                 val v = (tiles[t * 64 + y * 8 + x].toInt() and 0xFF) - 112
                 img.argb[(ty * 8 + y) * 240 + tx * 8 + x] = pal.getOrElse(v) { pal[0] }

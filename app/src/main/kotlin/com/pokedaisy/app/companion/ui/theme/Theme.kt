@@ -392,6 +392,8 @@ private fun backdropColors(game: GameKind): IntArray? = when (game) {
     // Imperium's party grid: grey / near-black rows.
     GameKind.IMPERIUM -> intArrayOf(0xFF424242.toInt(), 0xFF101821.toInt(), 0xFF101821.toInt())
     GameKind.ROWE -> IntArray(3) { 0xFF292929.toInt() }
+    // Super Mariomon's party menu: flat brown behind its wood-plank slots.
+    GameKind.MARIOMON -> IntArray(3) { 0xFF845A4A.toInt() }
     // SoulGold's party list: light-blue stripes, a deeper blue edge.
     GameKind.SOULGOLD -> intArrayOf(0xFF84CEEF.toInt(), 0xFF7BC6EF.toInt(), 0xFF429CD6.toInt())
     // Orange Islands' party menu: FireRed's layout in cream stripes (sampled headless).

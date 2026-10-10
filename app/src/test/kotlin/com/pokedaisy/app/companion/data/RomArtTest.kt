@@ -46,6 +46,18 @@ class RomArtTest {
         assertEquals("a9c4cfb6", pixels(images.getValue("regionmap/imperium.png")))
     }
 
+    /** Super Mariomon's world map (MM_REGION_*, the same bytes in every release) and MARIO's head for it. */
+    @Test fun mariomonSuppliesItsRegionMap() {
+        for (v in listOf("v1.2.1", "v1.2.2", "v1.3", "v1.5.1-Anniversary", "v1.5.2-Anniversary")) {
+            val path = System.getProperty("user.home") + "/Downloads/Game ROMs & Emulation/gba/Super Mariomon $v.gba"
+            if (!File(path).isFile) continue
+            val images = RomArt.compose(RomArt.find(File(path).readBytes()))
+            assertEquals(v, "4031a74a", pixels(images.getValue("regionmap/mariomon.png")))
+            assertEquals(v, "c29e9f3a", pixels(images.getValue("regionmap/player_mario.png")))
+            assertTrue("regionmap/hoenn.png" !in images)
+        }
+    }
+
     /** Quetzal's Kanto / Sevii maps: FireRed's art redrawn for Emerald's region_map.c (QTZ_*). */
     @Test fun quetzalSuppliesItsRegionMaps() {
         val images = composed(System.getProperty("user.home") + "/Downloads/Game ROMs & Emulation/gba/PokemonQuetzalEnglishAlpha9v0.gba")

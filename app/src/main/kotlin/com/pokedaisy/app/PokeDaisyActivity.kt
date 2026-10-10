@@ -281,6 +281,14 @@ class PokeDaisyActivity : Activity() {
             BattleInputController.SwitchAddrs(partyMenu = 0x0201B67CL, party = 0x0201B960L, grid = true)
         game == com.pokedaisy.app.companion.data.GameKind.EMERALD_SEAGLASS ->
             BattleInputController.SwitchAddrs(partyMenu = 0x02019964L, party = 0x02019C20L)
+        // Recharged Yellow: FireRed's one-column party menu (DOWN steps gPartyMenu.slotId 0, 1, 2 in battle),
+        // at each release's own address - its config carries it.
+        game == com.pokedaisy.app.companion.data.GameKind.RECHARGED_YELLOW ->
+            telemetry.knownPartyMenu()?.let { (menu, party) -> BattleInputController.SwitchAddrs(partyMenu = menu, party = party) }
+        // Super Mariomon: two RAM layouts across its releases (NATIVE_MARIOMON_*); a 2-column grid
+        // (DOWN walks 0 -> 2 -> 4 -> 5 -> CANCEL, headless).
+        game == com.pokedaisy.app.companion.data.GameKind.MARIOMON ->
+            telemetry.knownPartyMenu()?.let { (menu, party) -> BattleInputController.SwitchAddrs(partyMenu = menu, party = party, grid = true) }
         game == com.pokedaisy.app.companion.data.GameKind.SOULGOLD ->
             // Two releases at different addresses: their configs carry them.
             telemetry.knownPartyMenu()?.let { (menu, party) ->

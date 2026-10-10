@@ -27,7 +27,7 @@ package com.pokedaisy.app.companion.data
 // hacks above, via NATIVE_HEART_AND_SOUL/NATIVE_LAZARUS/NATIVE_ROWE in
 // NativeReader.kt. Heart and Soul and Lazarus now have their own
 // ROM-extracted tables (*Hns.kt / *Lazarus.kt, scripts/gen_expansion_tables.py).
-enum class GameKind { FIRERED, EMERALD, UNBOUND, GAIA, RADICAL_RED, ODYSSEY, HEART_AND_SOUL, LAZARUS, ROWE, EMERALD_ROGUE, AMETHYST, EMERALD_SEAGLASS, CELIA, TMT2, SOULGOLD, YELLOW, GLAZED, IMPERIUM, QUETZAL, ORANGE_ISLANDS, SWORD_SHIELD }
+enum class GameKind { FIRERED, EMERALD, UNBOUND, GAIA, RADICAL_RED, ODYSSEY, HEART_AND_SOUL, LAZARUS, ROWE, EMERALD_ROGUE, AMETHYST, EMERALD_SEAGLASS, CELIA, TMT2, SOULGOLD, YELLOW, GLAZED, IMPERIUM, QUETZAL, ORANGE_ISLANDS, RECHARGED_YELLOW, MARIOMON, SWORD_SHIELD }
 
 @Volatile
 var activeGame: GameKind = GameKind.FIRERED
@@ -61,8 +61,14 @@ private inline val glazed get() = activeGame == GameKind.GLAZED
 private inline val imperium get() = activeGame == GameKind.IMPERIUM
 private inline val quetzal get() = activeGame == GameKind.QUETZAL
 private inline val rowe get() = activeGame == GameKind.ROWE
+// Super Mariomon: an old pokeemerald-expansion with its own species from 906 (gen_mariomon_tables.py).
+private inline val mariomon get() = activeGame == GameKind.MARIOMON
 // Pokémon Orange Islands: FireRed 1.0 edited in place, its own names / types / chart (gen_orange_islands_tables.py).
 private inline val orangeIslands get() = activeGame == GameKind.ORANGE_ISLANDS
+// Pokémon Recharged Yellow: a pokefirered rebuild with FireRed's species / move ids, types, gender ratios
+// and type chart (its generator checks them against FireRed's bytes), its own names and items
+// (gen_recharged_yellow_tables.py) and FireRed's map sections under its own names.
+private inline val rechargedYellow get() = activeGame == GameKind.RECHARGED_YELLOW
 // Pokémon Yellow (Game Boy): Gen 1's own tables (gen_gen1_tables.py), keyed by National Dex number.
 private inline val yellow get() = activeGame == GameKind.YELLOW
 
@@ -87,6 +93,9 @@ private val speciesTypeDataUltraVioletMerged by lazy { speciesTypeData + species
 private val mapSecDataUltraViolet by lazy {
     mapSecData + mapSecNamesUltraViolet.mapNotNull { (id, n) -> mapSecData[id]?.let { id to it.copy(name = n) } }
 }
+/** Super Mariomon v1.2.1 / v1.2.2 / v1.3 share their tables, v1.5.x has its own (a species and seven
+ * moves added, types and the cursor grid changed): set with [activeGame] by the Poller. */
+var mariomonV13 = false
 private inline val gaia get() = activeGame == GameKind.GAIA
 private inline val radicalRed get() = activeGame == GameKind.RADICAL_RED
 private inline val amethyst get() = activeGame == GameKind.AMETHYST
@@ -135,6 +144,8 @@ val activeSpeciesNames: Map<Int, String> get() = localText?.species ?: when {
     orangeIslands -> speciesNamesOrangeIslands
     swordShield -> speciesNamesSwordShield
     uv -> speciesNamesUltraVioletMerged
+    rechargedYellow -> speciesNamesRechargedYellow
+    mariomon -> if (mariomonV13) speciesNamesMariomonV13 else speciesNamesMariomon
     else -> speciesNames
 }
 val activeMoveData: Map<Int, MoveInfo> get() = localText?.moveData ?: when {
@@ -155,6 +166,8 @@ val activeMoveData: Map<Int, MoveInfo> get() = localText?.moveData ?: when {
     orangeIslands -> moveDataOrangeIslands
     swordShield -> moveDataSwordShield
     uv -> moveDataUltraVioletMerged
+    rechargedYellow -> moveDataRechargedYellow
+    mariomon -> if (mariomonV13) moveDataMariomonV13 else moveDataMariomon
     else -> moveData
 }
 val activeItemNames: Map<Int, String> get() = localText?.items ?: when {
@@ -176,6 +189,8 @@ val activeItemNames: Map<Int, String> get() = localText?.items ?: when {
     orangeIslands -> itemNamesOrangeIslands
     swordShield -> itemNamesSwordShield
     uv -> itemNamesUltraVioletMerged
+    rechargedYellow -> itemNamesRechargedYellow
+    mariomon -> itemNamesMariomon
     else -> itemNames
 }
 val activeSpeciesTypeData: Map<Int, SpeciesTypes> get() = when {
@@ -196,6 +211,7 @@ val activeSpeciesTypeData: Map<Int, SpeciesTypes> get() = when {
     orangeIslands -> speciesTypeDataOrangeIslands
     swordShield -> speciesTypeDataSwordShield
     uv -> speciesTypeDataUltraVioletMerged
+    mariomon -> if (mariomonV13) speciesTypeDataMariomonV13 else speciesTypeDataMariomon
     else -> speciesTypeData
 }
 val activeTypeEffectiveness: Map<Int, Int> get() = when {
@@ -214,6 +230,7 @@ val activeTypeEffectiveness: Map<Int, Int> get() = when {
     quetzal -> typeEffectivenessQuetzal
     rowe -> typeEffectivenessRowe
     orangeIslands -> typeEffectivenessOrangeIslands
+    mariomon -> typeEffectivenessMariomon
     else -> typeEffectiveness
 }
 val activeTypeNames: Map<Int, String> get() = when {
@@ -232,6 +249,7 @@ val activeTypeNames: Map<Int, String> get() = when {
     quetzal -> typeNamesQuetzal
     rowe -> typeNamesRowe
     orangeIslands -> typeNamesOrangeIslands
+    mariomon -> typeNamesMariomon
     else -> typeNames
 }
 val activeMapSecData: Map<Int, MapSecInfo> get() = localText?.mapSecData ?: when {
@@ -252,6 +270,8 @@ val activeMapSecData: Map<Int, MapSecInfo> get() = localText?.mapSecData ?: when
     // Galar, renamed in place over FireRed's sections; its map is drawn from the ROM (RomRegionMap).
     swordShield -> mapSecDataSwordShield
     uv -> mapSecDataUltraViolet
+    rechargedYellow -> mapSecDataRechargedYellow
+    mariomon -> if (mariomonV13) mapSecDataMariomonV13 else mapSecDataMariomon
     else -> mapSecData
 }
 /**
@@ -294,6 +314,10 @@ private val mapSecDataQuetzalLa by lazy { mapSecDataQuetzalOnMap.renamedSecs(map
 private fun Map<Int, MoveInfo>.renamed(names: Map<Int, String>) = mapValues { (id, m) -> names[id]?.let { m.copy(name = it) } ?: m }
 private fun Map<Int, MapSecInfo>.renamedSecs(names: Map<Int, String>) = mapValues { (id, m) -> names[id]?.let { m.copy(name = it) } ?: m }
 
+// FireRed's map sections, boxes and region maps (the ROM keeps FireRed's art: RomArt rebuilds it from
+// Recharged Yellow's own ROM) under the game's title-cased names ("Undergound Path" included).
+private val mapSecDataRechargedYellow by lazy { mapSecData.renamedSecs(mapSecNamesRechargedYellow) }
+
 private fun quetzalMoves(lang: Int) = when (lang) { 1 -> moveDataQuetzalEs; 2 -> moveDataQuetzalLa; else -> moveDataQuetzal }
 private fun quetzalItems(lang: Int) = when (lang) { 1 -> itemNamesQuetzalSpanish; 2 -> itemNamesQuetzalLatam; else -> itemNamesQuetzal }
 private fun quetzalMapSecs(lang: Int) = when (lang) { 1 -> mapSecDataQuetzalEs; 2 -> mapSecDataQuetzalLa; else -> mapSecDataQuetzalOnMap }
@@ -314,6 +338,8 @@ val activeRegionMapImages: Array<String> get() = when {
     imperium -> regionMapImagesImperium
     quetzal -> regionMapImagesQuetzalOnMap
     rowe -> regionMapImagesRowe
+    // Its own world map (Emerald's region_map.c, its art: RomArt's MM_REGION_*), the same in every release.
+    mariomon -> regionMapImagesMariomon
     // Their own maps (the Orange Archipelago, Galar), drawn from the ROM (RomRegionMap) - none bundled.
     orangeIslands || swordShield -> emptyArray()
     else -> regionMapImages
@@ -362,4 +388,6 @@ fun GameKind.displayName(): String = when (this) {
     GameKind.QUETZAL -> "Pokémon Quetzal"
     GameKind.ORANGE_ISLANDS -> "Pokémon Orange Islands"
     GameKind.SWORD_SHIELD -> "Sword and Shield Ultimate Plus"
+    GameKind.RECHARGED_YELLOW -> "Pokémon Recharged Yellow"
+    GameKind.MARIOMON -> "Super Mariomon"
 }
