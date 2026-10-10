@@ -268,6 +268,8 @@ fun CompanionScreen(
         val canUseControls = battleInput != null && !snapshot.isDoubleBattle && isMyTurn
         val showHints = settings?.showHints ?: true
         val showFoeIvs = settings?.showFoeIvs ?: false
+        // FOE DETAILS: the button's last state, for every battle after.
+        var foeDetails by remember { mutableStateOf(settings?.foeDetails ?: false) }
         val current = if (selectedLabel in tabs || selectedLabel in hiddenTabs) selectedLabel else tabs[0]
         // A hidden tab was opened from SETTINGS: the gear stays lit.
         val selectedIdx = tabs.indexOf(if (current in hiddenTabs) "SETTINGS" else current)
@@ -530,6 +532,9 @@ fun CompanionScreen(
                                         foeHeading = foeHeading,
                                         // Tapping the one shown goes back to following the battle.
                                         onSelectFoe = { selectedFoe = if (it == shownFoe && selectedFoe != null) null else it },
+                                        foeDetails = foeDetails,
+                                        onToggleFoeDetails = { foeDetails = !foeDetails; settings?.setFoeDetails(foeDetails) },
+                                        dexTables = snapshot.pokedex?.tables,
                                     )
                                 }
                             }

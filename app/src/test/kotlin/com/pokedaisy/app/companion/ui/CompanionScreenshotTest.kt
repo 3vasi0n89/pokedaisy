@@ -342,7 +342,29 @@ open class CompanionScreenshotTest {
 
     /** A trainer battle: move verdicts against an Onix, the FOE TEAM strip, an out-of-PP move. */
     @Test
-    fun battleInfoTrainer() = paparazzi.snapshot {
+    fun battleInfoTrainer() = trainerBattle(foeDetails = false)
+
+    /** FOE DETAILS (GitHub #34): the foe's side widened, the player's narrowed to a column. */
+    @Test
+    fun battleInfoFoeDetails() = trainerBattle(foeDetails = true)
+
+    /** FOE DETAILS in a double battle: two sprites / HP bars on the player's strip, two foe cards. */
+    @Test
+    fun battleInfoFoeDetailsDouble() = paparazzi.snapshot {
+        QolTheme {
+            val party = SampleCompanion.snapshot.party
+            // The sample party has two: each side gets both.
+            val foes = listOf(party[1], party[0]).map {
+                it.copy(abilityName = "KEEN EYE", heldItem = "", battleStats = listOf(12, 11, 15, 10, 10), statStages = List(7) { 0 })
+            }
+            BattleInfoScreen(
+                listOf(party[0], party[1]).map { it.withMovesVs(foes) }, foes, isDouble = true, showHints = true,
+                onBack = {}, onShowSuggestions = {}, foeDetails = true, onToggleFoeDetails = {},
+            )
+        }
+    }
+
+    private fun trainerBattle(foeDetails: Boolean) = paparazzi.snapshot {
         QolTheme {
             fun foe(species: Int, level: Int, hp: Int, maxHp: Int): MonView {
                 val mu = com.pokedaisy.app.companion.data.typeMatchups(
@@ -352,7 +374,14 @@ open class CompanionScreenshotTest {
                 return MonView(
                     species, if (species == 95) "ONIX" else "GEODUDE", level, hp, maxHp, "", listOf("Rock", "Ground"),
                     spriteAsset("pokemon", species), GENDER_SYMBOL_MALE,
+                    moves = listOf(
+                        MoveView("Tackle", "Normal", 35, 35), MoveView("Bind", "Normal", 20, 15),
+                        MoveView("Rock Tomb", "Rock", 9, 50), MoveView("Harden", "Normal", 30, 0),
+                    ),
                     weaknesses = mu.weaknesses, resistances = mu.resistances, immunities = mu.immunities,
+                    // Brock's Onix after a Harden: Defense +1.
+                    abilityName = "STURDY", heldItem = "",
+                    battleStats = listOf(18, 41, 21, 13, 16), statStages = listOf(0, 1, 0, 0, 0, 0, 0),
                 )
             }
             val team = listOf(foe(74, 12, 0, 33), foe(95, 14, 21, 40), foe(74, 12, 33, 33))
@@ -361,6 +390,7 @@ open class CompanionScreenshotTest {
             BattleInfoScreen(
                 listOf(me), listOf(team[1]), isDouble = false, showHints = true, onBack = {}, onShowSuggestions = {},
                 foeTeam = team, seenFoes = setOf(0, 1), shownFoe = 1,
+                foeDetails = foeDetails, onToggleFoeDetails = {},
             )
         }
     }

@@ -96,6 +96,10 @@ interface CompanionSettings {
     val showFoeIvs: Boolean get() = false
     fun setShowFoeIvs(on: Boolean) {}
 
+    /** Whether battle INFO shows FOE DETAILS - see [Prefs.foeDetails]. */
+    val foeDetails: Boolean get() = false
+    fun setFoeDetails(on: Boolean) {}
+
     /** Whether a launch picks up where the game was left - see [Prefs.autoResume]; off, CLOSE GAME warns. */
     val autoResume: Boolean get() = true
 

@@ -12,7 +12,9 @@ import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
+import android.view.InputDevice
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -186,13 +188,43 @@ class SettingsActivity : ComponentActivity() {
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
         if (capturing == null && capturingCtrl == null) return super.onKeyDown(keyCode, event)
         if (keyCode == KeyEvent.KEYCODE_BACK) { cancelCapture(); return true }
-        if (keyCode !in captured) captured = captured + keyCode
-        stillHeld.add(keyCode)
+        captureDown(keyCode)
         return true
     }
 
     override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
         if (capturing == null && capturingCtrl == null) return super.onKeyUp(keyCode, event)
+        captureUp(keyCode)
+        return true
+    }
+
+    // Analog L2 / R2 (Retroid's triggers send no keys): captured as BUTTON_L2 / R2, the keys the game
+    // screen turns them into.
+    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+        if ((capturing == null && capturingCtrl == null) || !event.isFromSource(InputDevice.SOURCE_JOYSTICK)) {
+            return super.dispatchGenericMotionEvent(event)
+        }
+        captureTrigger(KeyEvent.KEYCODE_BUTTON_L2, maxOf(event.getAxisValue(MotionEvent.AXIS_LTRIGGER), event.getAxisValue(MotionEvent.AXIS_BRAKE)))
+        captureTrigger(KeyEvent.KEYCODE_BUTTON_R2, maxOf(
+            event.getAxisValue(MotionEvent.AXIS_RTRIGGER), event.getAxisValue(MotionEvent.AXIS_GAS),
+            event.getAxisValue(MotionEvent.AXIS_THROTTLE),
+        ))
+        return true
+    }
+
+    private fun captureTrigger(keyCode: Int, value: Float) {
+        val down = value > 0.5f
+        if (down == (keyCode in stillHeld)) return
+        if (down) captureDown(keyCode) else captureUp(keyCode)
+    }
+
+    private fun captureDown(keyCode: Int) {
+        if (keyCode !in captured) captured = captured + keyCode
+        stillHeld.add(keyCode)
+    }
+
+    private fun captureUp(keyCode: Int) {
+        if (capturing == null && capturingCtrl == null) return
         stillHeld.remove(keyCode)
         if (stillHeld.isEmpty() && captured.isNotEmpty()) {
             capturing?.let { action ->
@@ -205,7 +237,6 @@ class SettingsActivity : ComponentActivity() {
             revision++
             cancelCapture()
         }
-        return true
     }
 
     private fun cancelCapture() {

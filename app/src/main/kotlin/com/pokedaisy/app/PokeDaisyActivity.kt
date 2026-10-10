@@ -456,6 +456,8 @@ class PokeDaisyActivity : Activity() {
         override fun setShowFoeIvs(on: Boolean) {
             Prefs(this@PokeDaisyActivity).showFoeIvs = on
         }
+        override val foeDetails get() = Prefs(this@PokeDaisyActivity).foeDetails
+        override fun setFoeDetails(on: Boolean) { Prefs(this@PokeDaisyActivity).foeDetails = on }
         override val cheats get() = cheatStore()?.load().orEmpty()
         override val cheatsEnabled get() = Prefs(this@PokeDaisyActivity).cheatsEnabled
         override fun setCheatsEnabled(on: Boolean) {
@@ -687,6 +689,7 @@ class PokeDaisyActivity : Activity() {
         com.pokedaisy.app.companion.i18n.L10n.apply(Prefs(this).appLanguage, gameCode)
         romRev = header?.let { it[0x10].toInt() and 0xFF } ?: -1
         FfMenuWatch.load(gameCode, menuField, menuBattle)
+        com.pokedaisy.app.companion.data.ShopWatch.load()
         val appContext = applicationContext
         FfMenuWatch.onLearned = { field, battle -> Prefs(appContext).setFfMenuCallbacks(crc, field, battle) }
 
@@ -1189,10 +1192,7 @@ class PokeDaisyActivity : Activity() {
             return super.dispatchKeyEvent(event)
         }
         val down = event.action == KeyEvent.ACTION_DOWN
-        if (::hotkeys.isInitialized && hotkeysOn) {
-            for (e in hotkeys.onKey(event.keyCode, down)) handleHotkey(e)
-            if (hotkeys.consumes(event.keyCode)) return true   // key is completing a chord
-        }
+        if (hotkeyTakes(event.keyCode, down)) return true
         if (input.onKey(event.keyCode, down)) {
             if (down && !physicalPadUsed && event.device?.isVirtual == false) {
                 physicalPadUsed = true
@@ -1242,8 +1242,17 @@ class PokeDaisyActivity : Activity() {
         } else if (!sidePanel.onBack() && !portraitPanel.onBack()) { companionBack.back(); mirrorBack.back() }
     }
 
-    // Many Android handhelds report L2/R2 as analog axes, not BUTTON_L2/R2 keys.
-    // RetroArch-style: right trigger = hold fast-forward, left trigger = hold slow-mo.
+    /** Feeds a key change to the hotkeys (only while they're on); true when it's completing a chord,
+     *  so the game mustn't see it. */
+    private fun hotkeyTakes(keyCode: Int, down: Boolean): Boolean {
+        if (!::hotkeys.isInitialized || !hotkeysOn) return false
+        for (e in hotkeys.onKey(keyCode, down)) handleHotkey(e)
+        return hotkeys.consumes(keyCode)
+    }
+
+    // Many Android handhelds (Retroid's) report L2/R2 as analog axes, not BUTTON_L2/R2 keys: a trigger
+    // crossing half way is that key, through the hotkeys (their switch and bindings, issue #54) and
+    // then the game's controls. Hard-wired to FF / slow-mo holds, they used to ignore both.
     private var rtDown = false
     private var ltDown = false
 
@@ -1265,11 +1274,17 @@ class PokeDaisyActivity : Activity() {
                 event.getAxisValue(MotionEvent.AXIS_LTRIGGER),
                 event.getAxisValue(MotionEvent.AXIS_BRAKE),
             )
-            if ((rt > 0.5f) != rtDown) { rtDown = rt > 0.5f; engine.setFastForwardHeld(rtDown) }
-            if ((lt > 0.5f) != ltDown) { ltDown = lt > 0.5f; engine.setSlowmoHeld(ltDown) }
+            if ((rt > 0.5f) != rtDown) { rtDown = rt > 0.5f; triggerKey(KeyEvent.KEYCODE_BUTTON_R2, rtDown) }
+            if ((lt > 0.5f) != ltDown) { ltDown = lt > 0.5f; triggerKey(KeyEvent.KEYCODE_BUTTON_L2, ltDown) }
         }
         if (input.onMotion(event)) return true
         return super.onGenericMotionEvent(event)
+    }
+
+    /** An analog trigger as its key. A pad that also sends the key itself is harmless: the hotkeys
+     *  fire a chord once while it's held, and the game's button is just set twice. */
+    private fun triggerKey(keyCode: Int, down: Boolean) {
+        if (!hotkeyTakes(keyCode, down)) input.onKey(keyCode, down)
     }
 
     /** Turns the hotkeys on/off from the companion. Off lets go of any held one (FF / slow-mo

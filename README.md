@@ -89,7 +89,8 @@ it. You can also check from **Settings > VERSION**.
 - **BAG** - every pocket, with item icons and descriptions.
 - **BATTLE** - opens by itself when a battle starts.
   - **INFO**: both Pokémon, your moves rated SUPER / RESISTED / NEUTRAL / IMMUNE,
-    and the foe's weaknesses.
+    and the foe's weaknesses. Scroll down for the foe's ability, held item, stats
+    (with any boosts) and moves, or tap the corner button to give the foe the whole page.
   - **SUGGESTIONS**: the best Pokémon and move for this fight.
   - **FOE TEAM**: the trainer's remaining Pokémon.
   - **STATS**: the foe's IVs, EVs and nature next to yours (off by default: turn on FOE IVS in Settings).

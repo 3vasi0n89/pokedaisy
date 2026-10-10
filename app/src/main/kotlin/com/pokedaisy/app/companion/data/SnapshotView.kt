@@ -35,6 +35,16 @@ data class MonView(
     val personality: Long = 0,
     /** IVs / EVs / nature (native reads only); null = unknown. */
     val stats: MonStats? = null,
+    /** Battlers (native reads): the ability's id in the game's table; 0 = unknown. Its name is
+     * read from the ROM where it's shown ([PokedexSource.abilityName]) unless [abilityName] has it. */
+    val abilityId: Int = 0,
+    val abilityName: String? = null,
+    /** Battlers: the held item's name ("" = none); null = unknown. */
+    val heldItem: String? = null,
+    /** Battlers: Attack, Defense, Speed, Sp. Atk, Sp. Def as the battle has them; null = unknown. */
+    val battleStats: List<Int>? = null,
+    /** Battlers: the stages on [battleStats], then accuracy, evasion (-6..+6); null = unknown. */
+    val statStages: List<Int>? = null,
 )
 
 /** [total] EXP; this level starts at [levelStart], the next at [nextLevel] (== levelStart at Lv100). */
@@ -181,15 +191,23 @@ val SnapshotView.hasData: Boolean
 
 /** This battler's moves with their effectiveness against [foe] instead of the
  * foe that's out (BATTLE INFO showing another of the trainer's Pokémon). */
-fun MonView.withMovesVs(foe: MonView): MonView {
-    val t = foe.types.map(::typeIdOf)
-    val t1 = t.getOrElse(0) { TYPE_NONE }
-    val t2 = t.getOrElse(1) { TYPE_NONE }
-    return copy(moves = moves.map { mv ->
-        val atk = typeIdOf(mv.type)
+fun MonView.withMovesVs(foe: MonView): MonView = withMovesVs(listOf(foe))
+
+/** [withMovesVs] against every one of [targets] (a double battle's two). */
+fun MonView.withMovesVs(targets: List<MonView>): MonView = copy(moves = moves.map { mv ->
+    val atk = typeIdOf(mv.type)
+    mv.copy(vs = targets.map { foe ->
+        val t = foe.types.map(::typeIdOf)
+        val t1 = t.getOrElse(0) { TYPE_NONE }
+        val t2 = t.getOrElse(1) { TYPE_NONE }
         val pct = if (atk != TYPE_NONE && t1 != TYPE_NONE) typeMultiplierPct(atk, t1, t2) else 100
-        mv.copy(vs = listOf(MoveVsFoe(foe.name, formatMultiplier(pct), pct)))
+        MoveVsFoe(foe.name, formatMultiplier(pct), pct)
     })
+})
+
+/** A moveset's views: [ids] with their [pp], empty slots (0) dropped. */
+private fun moveViews(ids: IntArray, pp: IntArray): List<MoveView> = ids.toList().mapIndexedNotNull { idx, moveId ->
+    if (moveId == 0) null else lookupMove(moveId).let { MoveView(it.name, typeName(it.type), pp.getOrElse(idx) { 0 }, it.power) }
 }
 
 private const val REGION_MAP_TILE_SIZE = 8
@@ -323,6 +341,13 @@ fun buildSnapshotView(t: Telemetry): SnapshotView {
                 hp = b.hp, maxHp = b.maxHp, status = statusLabel(b.status1),
                 types = monTypes(b.type1, b.type2),
                 iconAsset = spriteAsset("pokemon", b.species),
+                // The foe's moveset (battle INFO's FOE MOVES); verdicts against
+                // the player's battlers are worked out where they're shown.
+                moves = moveViews(b.moves, b.pp),
+                abilityId = b.ability,
+                heldItem = if (b.stats == null) null else if (b.item == 0) "" else itemName(b.item),
+                battleStats = b.stats?.toList(),
+                statStages = b.statStages?.map { it - 6 },
                 weaknesses = matchups.weaknesses,
                 resistances = matchups.resistances,
                 immunities = matchups.immunities,
@@ -384,6 +409,7 @@ fun buildSnapshotView(t: Telemetry): SnapshotView {
                 hp = m.hp, maxHp = m.maxHp, status = statusLabel(m.status),
                 types = monTypes(type1, type2),
                 iconAsset = spriteAsset("pokemon", m.species),
+                moves = moveViews(m.moves, m.pp),
                 weaknesses = matchups.weaknesses,
                 resistances = matchups.resistances,
                 immunities = matchups.immunities,

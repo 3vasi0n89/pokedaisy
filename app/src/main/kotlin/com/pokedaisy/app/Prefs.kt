@@ -129,6 +129,12 @@ class Prefs(context: Context) {
         get() = p.getBoolean("show_foe_ivs", false)
         set(v) = p.edit().putBoolean("show_foe_ivs", v).apply()
 
+    /** Whether battle INFO opens with FOE DETAILS (the foe's side widened, GitHub #34) -
+     * its button's last state, kept across battles. */
+    var foeDetails: Boolean
+        get() = p.getBoolean("foe_details", false)
+        set(v) = p.edit().putBoolean("foe_details", v).apply()
+
     /** The CHEATS master switch (cheats/Cheats.kt): off, no cheat reaches the game,
      * whatever each one is set to. Off by default. */
     var cheatsEnabled: Boolean

@@ -695,6 +695,7 @@ val NATIVE_HEART_AND_SOUL = NATIVE_EMERALD.copy(
     battleMonLayout = BattleMonLayout(
         size = 0x88, moves = 0x0C, type1 = 0x22, type2 = 0x23, pp = 0x25,
         hp = 0x2A, level = 0x2C, maxHp = 0x2E, status1 = 0x50,
+        ability = 0x20, abilityU16 = true, item = 0x30,
     ),
     monIconTable = 0x087E65B0L,           // gSpeciesInfo[0].iconSprite
     monIconStride = 0x10C,

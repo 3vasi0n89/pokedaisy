@@ -93,6 +93,11 @@ internal val trCompanion: Map<String, Tr> = mapOf(
     "3RD" to Tr(ja = "3ばん", fr = "3E", de = "3.", it = "3°", es = "3.º"),
     "VS" to Tr(ja = "VS", fr = "VS", de = "VS", it = "VS", es = "VS"),
     "Unknown foe Pokémon" to Tr(ja = "わからない あいての ポケモン", fr = "Pokémon ennemi inconnu", de = "Unbekanntes gegnerisches Pokémon", it = "Pokémon nemico sconosciuto", es = "Pokémon enemigo desconocido"),
+    "Show foe details" to Tr(ja = "あいての くわしい じょうほうを みる", fr = "Afficher les détails de l'ennemi", de = "Gegnerdetails zeigen", it = "Mostra i dettagli del nemico", es = "Ver detalles del enemigo"),
+    "HELD ITEM" to Tr(ja = "もちもの", fr = "OBJET", de = "ITEM", it = "STRUMENTO", es = "OBJETO"),
+    "ACCURACY" to Tr(ja = "めいちゅう", fr = "PRÉCISION", de = "GENAUIGKEIT", it = "PRECISIONE", es = "PRECISIÓN"),
+    "EVASION" to Tr(ja = "かいひ", fr = "ESQUIVE", de = "AUSWEICHEN", it = "ELUSIONE", es = "EVASIÓN"),
+    "Hide foe details" to Tr(ja = "あいての くわしい じょうほうを とじる", fr = "Masquer les détails de l'ennemi", de = "Gegnerdetails ausblenden", it = "Nascondi i dettagli del nemico", es = "Ocultar detalles del enemigo"),
     "{0} Lv {1}" to Tr(ja = "{0} Lv {1}", fr = "{0} N. {1}", de = "{0} Lv {1}", it = "{0} Lv {1}", es = "{0} Nv {1}"),
 
     // Battle panes: buttons, the controls' states.

@@ -1181,6 +1181,18 @@ object PokedexSource {
         }.getOrNull()?.also { footprints[species] = it }
     }
 
+    private val abilityNames = ConcurrentHashMap<Pair<PokedexTables, Int>, String>()
+
+    /** Ability [id]'s name in the running game (battle INFO's FOE DETAILS); null = no table / unreadable. */
+    fun cachedAbilityName(t: PokedexTables, id: Int): String? = abilityNames[t to id]
+    fun abilityName(t: PokedexTables, id: Int): String? {
+        if (id <= 0 || t.abilityNames == 0L) return null
+        abilityNames[t to id]?.let { return it }
+        // The ROM's own casing, as the DEX shows it.
+        return runCatching { ability(t, id) }.getOrNull()?.trim()?.takeIf { it.isNotEmpty() }
+            ?.also { abilityNames[t to id] = it }
+    }
+
     private fun ability(t: PokedexTables, id: Int): String {
         val stride = if (t.abilityNameStride > 0) t.abilityNameStride else t.abilityNameLength
         return Gen3Text.decode(rd(t.abilityNames + id.toLong() * stride, t.abilityNameLength))

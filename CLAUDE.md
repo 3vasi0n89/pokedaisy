@@ -176,7 +176,14 @@ bottom-right — sized to fit a single battle without scrolling. The FOE TEAM
 Poké Balls until tapped (a tapped foe gets a NEXT / FAINTED / RESERVE / UNSEEN pill by its name). SUGGESTIONS (`SuggestionsScreen.kt`) is built from INFO's pieces
 (`BattlerCard`, `BattleMoveRow`, `FoeTeamStrip`): a VS line for the foe, then the top three
 picks, each split 50/50 like INFO — the Pokémon's card (1ST/2ND/3RD, OUT on the one already
-in battle), then its best move with the verdict. Change the shared pieces, and both panes follow. Everything is hint-first (title, tap = hint, tap = answer) and only one entry
+in battle), then its best move with the verdict. Change the shared pieces, and both panes follow. **FOE DETAILS** (GitHub #34): the foe column scrolls on past
+its matchups to `FoeFacts` (ability named from the ROM via `PokedexSource.abilityName`, held item, gBattleMons'
+stats + stage pills) and its moves, verdicts flipped to what they do to *you* (`BattleMoveRow(threat = true)`). The
+floating bottom-right button (`PixelIcons.expand` / `shrink`, `Prefs.foeDetails`, kept across battles) gives the
+foe the page; the player shrinks to a strip (YOU + sprite level with the foe card's side label / icon, upright HP
+bars). The ability / item / stats offsets live on `BattleMonLayout` (vanilla / CFRU: u8 ability +0x20, item +0x2E;
+expansion, SoulGold, HnS: u16 +0x20, item +0x30; stats +0x02, stages +0x18 everywhere), checked on every `*_battle`
+fixture. A reserve foe (FOE TEAM tap) shows its party stats; its ability isn't read yet. Everything is hint-first (title, tap = hint, tap = answer) and only one entry
 is open at a time. The first GUIDE open per game shows an "AI-written, may be wrong" notice.
 Guide facts come from the game's own data (the decomp's map scripts for FireRed/Emerald),
 written in our own words — never copied from community docs; mark a guide
@@ -419,6 +426,11 @@ the field's (checked headless on FireRed QoL, Emerald, Rogue). gMain is found by
 apart (vblankCounter1 at +0x20 moving exactly that much; FireRed's is a pointer, so counter2 at +0x24 then); the
 field's callback2 is learned from the player moving (snapshot positions), the battle's from frames in battle,
 both persisted per ROM CRC (`Prefs.ffMenuCallbacks`). Ruby/Sapphire's inBattle byte is +0x43D.
+**Shops stay fast** (GitHub #41, the user's call: the clerk's lines are printed inside the buy screen and crawled at
+1x): `ShopWatch` says a menu screen is a shop's while a script context's scriptPtr sits just past a `pokemart` /
+`pokemartdecoration(2)` command (0x86-0x88 + a ROM pointer) - the clerk's script waits there through the menu, the buy
+screen and the sell bag. The contexts are found by shape in IWRAM (ROM command table + its end at +0x5C / +0x60), no
+per-game table; captured headless on retail Emerald and FireRed (`fixtures/ff_shop`).
 **Settings search / subtitles / setup buttons**: top-screen Settings HOME has a search box (`filterRows`, SettingRows.kt):
 a row matches on its label (English and translated), value, `subtitle` and its words in `SETTING_KEYWORDS` (by English
 label, shared by both screens: "rebind", "keybinds", "turbo"... - give a new row its words). The companion's SETTINGS has
@@ -622,6 +634,9 @@ both bits; joystick motion is taken in `dispatchGenericMotionEvent` before a foc
 window sees it; a real button used for the game hides the AUTO touch pad even when the device doesn't report
 itself as a gamepad (`physicalPadUsed`, reset when a device goes); an unbound BUTTON_MODE (HOME / guide) is a
 BACK tap (`companionBackTap`); connect / disconnect show a HUD notice. Not tried on real controllers yet.
+Analog L2 / R2 (Retroid's triggers send no keys) are the BUTTON_L2 / R2 keys past half way (`triggerKey`): hotkeys first
+(their switch and bindings), then the game's controls, and the top-screen rebind capture takes them too. They used to be
+hard-wired to FF / slow-mo holds, which ignored HOTKEYS OFF and any rebinding (issue #54).
 **Device BACK**: a BACK tap (from either screen - the Presentation forwards every key to
 `PokeDaisyActivity`) is the companion's back; a hold still leaves the game. Anything that
 opens over / inside a tab registers `CompanionBackHandler` (`companion/ui/CompanionBack.kt`,
