@@ -26,8 +26,16 @@ class Prefs(context: Context) {
 
     fun pushRecentRom(path: String) {
         val updated = (listOf(path) + recentRomPaths().filter { it != path }).take(RECENT_CAP)
-        p.edit().putString("recent_roms", updated.joinToString("\n")).apply()
+        p.edit().putString("recent_roms", updated.joinToString("\n")).putLong("played_$path", System.currentTimeMillis()).apply()
     }
+
+    /** When the ROM at [path] was last started (the library's LAST PLAYED order); 0 = never, or before this was kept. */
+    fun romLastPlayed(path: String): Long = p.getLong("played_$path", 0L)
+
+    /** The library's order: a [LibrarySort] id (NAME, LAST PLAYED, DATE ADDED). */
+    var librarySort: Int
+        get() = p.getInt("library_sort", 0)   // LibrarySort.NAME
+        set(v) = p.edit().putInt("library_sort", v).apply()
 
     /** 0 = list, 1 = grid — Library screen's view-mode toggle. */
     var libraryViewMode: Int
@@ -287,6 +295,11 @@ class Prefs(context: Context) {
     var hiddenRoms: Set<String>
         get() = p.getString("hidden_roms", null)?.split("\n")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
         set(v) = p.edit().putString("hidden_roms", v.joinToString("\n")).apply()
+
+    /** The player's favorite games (by path): first in the library whatever its order, a star on each. */
+    var favoriteRoms: Set<String>
+        get() = p.getString("favorite_roms", null)?.split("\n")?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+        set(v) = p.edit().putString("favorite_roms", v.joinToString("\n")).apply()
 
     /** First-time setup finished or skipped; it only shows while this is false and the library is empty. */
     var setupDone: Boolean

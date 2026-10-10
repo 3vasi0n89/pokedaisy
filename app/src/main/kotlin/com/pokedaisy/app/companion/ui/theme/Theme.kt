@@ -1,5 +1,8 @@
 package com.pokedaisy.app.companion.ui.theme
 
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -200,12 +203,10 @@ object QolColors {
     val hpMid = Color(0xFFF8C838)
     val hpLow = Color(0xFFF04838)
 
-    // D-pad / keyboard focus ring. Deliberately NOT slotSelected (orange) — that
-    // color already means "this is the active/chosen item" (PLAYING row, checked
-    // setting, party lead); reusing it for focus made "where's my cursor" and
-    // "what's already picked" indistinguishable. Bright cyan reads clearly on
-    // both the teal and cream backgrounds and matches nothing else in the app.
-    val focusRing = Color(0xFF2EE6FF)
+    // D-pad / keyboard focus ring: a bright orange (the user's call - it was cyan), a
+    // lighter, yellower one than slotSelected's so the cursor and "what's already
+    // picked" stay apart; the screens' chosen items now mostly use the white cursor row.
+    val focusRing = Color(0xFFFFB238)
 
     val statusSlp = Color(0xFF8A8A8A)
     val statusPsn = Color(0xFFA259D9)
@@ -457,18 +458,38 @@ private fun buildGameBackground(context: android.content.Context, game: GameKind
 }
 
 /**
- * A thick, high-contrast [QolColors.focusRing] border drawn outside whatever
- * shape the element already uses — the shared D-pad/keyboard "here's your
- * cursor" indicator. Apply first in a modifier chain, before any background.
- * No-op (zero-width transparent border, so layout doesn't jump) when not
- * focused.
+ * A thick, high-contrast [QolColors.focusRing] ring drawn just inside whatever
+ * shape the element already uses (over its own edge) — the shared D-pad/keyboard
+ * "here's your cursor" indicator. [shape] is the element's own outline (its frame's
+ * corner radius): the ring's outer edge is that outline, so none of the frame peeks out
+ * at the corners. Drawing only: the element keeps its size and place as the cursor moves
+ * (a border + padding used to shrink the focused one by 3 dp a side).
  */
-fun Modifier.gbaFocusRing(focused: Boolean, shape: androidx.compose.ui.graphics.Shape): Modifier = this
-    .border(if (focused) 4.dp else 0.dp, if (focused) QolColors.focusRing else Color.Transparent, shape)
-    .padding(if (focused) 3.dp else 0.dp)
+fun Modifier.gbaFocusRing(focused: Boolean, shape: androidx.compose.ui.graphics.Shape): Modifier =
+    if (!focused) this else drawWithContent {
+        drawContent()
+        val width = 4.dp.toPx()
+        // The element's outline, minus the same shape [width] smaller: a ring flush with its edge.
+        val outer = shape.createOutline(size, layoutDirection, this).asPath()
+        val inner = shape.createOutline(
+            androidx.compose.ui.geometry.Size((size.width - 2 * width).coerceAtLeast(0f), (size.height - 2 * width).coerceAtLeast(0f)),
+            layoutDirection, this,
+        ).asPath().apply { translate(androidx.compose.ui.geometry.Offset(width, width)) }
+        val ring = androidx.compose.ui.graphics.Path().apply {
+            op(outer, inner, androidx.compose.ui.graphics.PathOperation.Difference)
+        }
+        drawPath(ring, QolColors.focusRing)
+    }
+
+/** An [androidx.compose.ui.graphics.Outline] as a path. */
+private fun androidx.compose.ui.graphics.Outline.asPath(): androidx.compose.ui.graphics.Path = when (this) {
+    is androidx.compose.ui.graphics.Outline.Generic -> androidx.compose.ui.graphics.Path().apply { addPath(path) }
+    is androidx.compose.ui.graphics.Outline.Rounded -> androidx.compose.ui.graphics.Path().apply { addRoundRect(roundRect) }
+    is androidx.compose.ui.graphics.Outline.Rectangle -> androidx.compose.ui.graphics.Path().apply { addRect(rect) }
+}
 
 /**
- * Translucent cyan wash over an item's own fill when it has D-pad/keyboard
+ * Translucent orange wash over an item's own fill when it has D-pad/keyboard
  * focus — paired with [gbaFocusRing] so focus reads as a highlighted
  * background too, not just an outline. Apply last, right before `.clickable`,
  * over the item's innermost (already-drawn) fill color.
@@ -501,7 +522,7 @@ fun GbaWindow(
  * FR/LG "menu button": a cream key with the blue double-frame, pressable. Used
  * everywhere in place of Material `Button`/`OutlinedButton`, which vanish on the
  * teal backdrop. [selected] gives it the blue "highlighted option" fill; keyboard
- * / D-pad focus draws a thick cyan [QolColors.focusRing] ring around the whole
+ * / D-pad focus draws a thick orange [QolColors.focusRing] ring around the whole
  * key, kept a different color from "selected" so the two are never ambiguous.
  * [danger] tints it red for destructive actions (e.g. the confirm button on a
  * delete dialog).

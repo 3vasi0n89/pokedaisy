@@ -92,6 +92,15 @@ internal val trLibrary: Map<String, Tr> = mapOf(
     "SECOND SCREEN" to Tr(ja = "サブがめん", fr = "2ND ÉCRAN", de = "2. BILDSCHIRM", it = "SECONDO SCHERMO", es = "2.ª PANTALLA"),
     "Supported" to Tr(ja = "たいおう", fr = "Pris en charge", de = "Unterstützt", it = "Supportato", es = "Compatible"),
     "Not supported" to Tr(ja = "たいおうがい", fr = "Non pris en charge", de = "Nicht unterstützt", it = "Non supportato", es = "No compatible"),
+    // The library's order and its just-added games.
+    "NEW" to Tr(ja = "NEW", fr = "NOUVEAU", de = "NEU", it = "NUOVO", es = "NUEVO"),
+    "Sort" to Tr(ja = "ならびかえ", fr = "Trier", de = "Sortieren", it = "Ordina", es = "Ordenar"),
+    "SORT BY" to Tr(ja = "ならびかえ", fr = "TRIER PAR", de = "SORTIEREN NACH", it = "ORDINA PER", es = "ORDENAR POR"),
+    "DATE ADDED" to Tr(ja = "ついかした ひ", fr = "DATE D'AJOUT", de = "HINZUGEFÜGT", it = "DATA AGGIUNTA", es = "FECHA AÑADIDO"),
+    // The library menu's favorite toggle: short, the menu is narrow.
+    "FAVORITE" to Tr(ja = "おきにいり", fr = "FAVORI", de = "FAVORIT", it = "PREFERITO", es = "FAVORITO"),
+    "UNFAVORITE" to Tr(ja = "おきにいり はずす", fr = "RETIRER FAVORI", de = "KEIN FAVORIT", it = "TOGLI PREFERITO", es = "QUITAR FAVORITO"),
+    "Favorite" to Tr(ja = "おきにいり", fr = "Favori", de = "Favorit", it = "Preferito", es = "Favorito"),
     "LAST PLAYED" to Tr(ja = "さいきん プレイ", fr = "DERNIÈRE PARTIE", de = "ZULETZT", it = "ULTIMA PARTITA", es = "ÚLTIMA PARTIDA"),
     "#{0} in recent games" to Tr(ja = "さいきんの ゲームで {0}ばんめ", fr = "N° {0} des jeux récents", de = "Nr. {0} der letzten Spiele", it = "N. {0} tra i giochi recenti", es = "N.º {0} de los juegos recientes"),
     "COVER" to Tr(ja = "カバー", fr = "JAQUETTE", de = "COVER", it = "COPERTINA", es = "PORTADA"),

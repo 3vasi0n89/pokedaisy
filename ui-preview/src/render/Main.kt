@@ -519,6 +519,32 @@ fun withHidden(make: () -> androidx.activity.ComponentActivity): androidx.activi
 }
 
 /** Runs the activity's onCreate against a fake library and returns what it passed to setContent. */
+/** The preview library dated ([com.pokedaisy.app.RomAdded]): every game set up a week ago, but
+ * Gaia and Lazarus added an hour and a day-and-a-half ago (only Gaia still NEW), Unbound just now. */
+fun datedLibrary() {
+    val ctx = android.content.Context()
+    val now = System.currentTimeMillis()
+    val hour = 3_600_000L
+    val roms = File(ctx.filesDir, "roms").listFiles().orEmpty().filter { it.isFile }
+    val fresh = mapOf("Pokemon - Gaia (v3.2).gba" to now - hour, "Pokemon Lazarus (v2.0).gba" to now - 36 * hour, "Pokemon - Unbound (v2.1.1.1).gba" to now)
+    File(ctx.filesDir, "rom-added.tsv").writeText(roms.joinToString("") { f ->
+        val at = fresh[f.name]
+        "${f.absolutePath}\t${at ?: now - 7 * 24 * hour}\t${if (at == null) 1 else 0}\n"
+    })
+    com.pokedaisy.app.RomAdded.reload()
+    Prefs(ctx).librarySort = com.pokedaisy.app.LibrarySort.NAME.id
+    Prefs(ctx).favoriteRoms = emptySet()
+}
+
+/** [datedLibrary] with two favorites: Radical Red and Emerald. */
+fun favoriteLibrary() {
+    datedLibrary()
+    val ctx = android.content.Context()
+    val roms = File(ctx.filesDir, "roms")
+    Prefs(ctx).favoriteRoms = setOf("1636 - Pokemon Radical Red.gba", "Pokemon - Emerald Version (USA, Europe).gba")
+        .map { File(roms, it).absolutePath }.toSet()
+}
+
 fun activity(make: () -> androidx.activity.ComponentActivity): () -> (@Composable () -> Unit) = {
     val ctx = android.content.Context()
     val roms = File(ctx.filesDir, "roms").apply { mkdirs() }
@@ -904,6 +930,51 @@ fun main(args: Array<String>) {
             LibraryActivity().apply { unsupportedRoms = setOf(qol) }
         }) {
             onNodeWithContentDescription("Toggle view").performClick()
+        },
+        // Games added in the last day (not by setup): a green NEW tag, in the list and the grid; SORT BY,
+        // and the library by DATE ADDED (newest first).
+        Shot("library-new", tw, th, td, activity { LibraryActivity().also { datedLibrary() } }),
+        Shot("library-new-grid", tw, th * 2, td, activity {
+            datedLibrary()
+            Prefs(android.content.Context()).librarySort = com.pokedaisy.app.LibrarySort.DATE_ADDED.id
+            LibraryActivity()
+        }) {
+            onNodeWithContentDescription("Toggle view").performClick()
+        },
+        Shot("library-sort", tw, th, td, activity { LibraryActivity().also { datedLibrary() } }) {
+            onNodeWithContentDescription("Sort").performClick()
+        },
+        Shot("library-sorted-added", tw, th, td, activity {
+            datedLibrary()
+            val ctx = android.content.Context()
+            Prefs(ctx).librarySort = com.pokedaisy.app.LibrarySort.DATE_ADDED.id
+            LibraryActivity()
+        }),
+        // Favorites first (Radical Red and Emerald starred), in the list and the grid; a long press on a
+        // list row opens its menu like a grid tile's (ADD TO / REMOVE FROM FAVORITES on top).
+        Shot("library-favorites", tw, th, td, activity { favoriteLibrary(); LibraryActivity() }),
+        Shot("library-favorites-grid", tw, th * 2, td, activity { favoriteLibrary(); LibraryActivity() }) {
+            onNodeWithContentDescription("Toggle view").performClick()
+        },
+        Shot("library-list-menu", tw, th, td, activity { favoriteLibrary(); LibraryActivity() }) {
+            onAllNodesWithText("Pokémon Radical Red")[0].performSemanticsAction(SemanticsActions.OnLongClick)
+        },
+        // A phone held upright has no room for two: one column, scrolling.
+        Shot("library-list-menu-phone", 1080, 2400, 2.625f, activity { favoriteLibrary(); LibraryActivity() }) {
+            onAllNodesWithText("Pokémon Radical Red")[0].performSemanticsAction(SemanticsActions.OnLongClick)
+        },
+        // D-pad focus on a row: the orange ring around it, the row's own size and place unchanged.
+        Shot("library-list-focus", tw, th, td, activity { favoriteLibrary(); LibraryActivity() }) {
+            onAllNodesWithText("Pokémon Radical Red")[0].performSemanticsAction(SemanticsActions.RequestFocus)
+        },
+        Shot("library-grid-focus", tw, th * 2, td, activity { favoriteLibrary(); LibraryActivity() }) {
+            onNodeWithContentDescription("Toggle view").performClick()
+            mainClock.advanceTimeBy(500)
+            onAllNodesWithText("Pokémon Radical Red")[0].performSemanticsAction(SemanticsActions.RequestFocus)
+        },
+        // The RECENTLY PLAYED row scrolled to its end: the last tile meets the screen's edge, not an inner box's.
+        Shot("library-list-phone-recent-end", 1080, 2400, 2.625f, activity { LibraryActivity() }) {
+            onAllNodesWithText("Pokémon Emerald")[0].performScrollTo()
         },
         // A phone held upright (1080x2400 @ 2.625, a Pixel 6): the library before a game opens.
         Shot("library-list-phone", 1080, 2400, 2.625f, activity { LibraryActivity() }),

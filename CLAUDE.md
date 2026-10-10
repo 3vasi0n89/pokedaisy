@@ -887,6 +887,32 @@ The site's REPORT A BUG / REQUEST A GAME / SUGGEST A FEATURE go there (it links 
 NO GITHUB ACCOUNT? next to ASK FOR SUPPORT, filled in through the URL's #hash. Astro needs Node 22.12+ (this Mac's
 default 22.1 can't build it: use `~/.nvm/versions/node/v22.23.3/bin`).
 
+**Library order + NEW** (`LibraryOrder.kt`): the header's sort button picks NAME / LAST PLAYED / DATE ADDED
+(`Prefs.librarySort`, a `LibrarySort` id). LAST PLAYED reads `Prefs.romLastPlayed` (set by `pushRecentRom`, so frontend
+launches count), older plays by their place in the recent list. DATE ADDED and the green NEW tag (24 h) come from
+`RomAdded` (`filesDir/rom-added.tsv`): `listRoms()` dates every ROM the library lists for the first time - as `initial`
+(dated, never NEW) while first-time setup runs or a newly linked folder's first scan lands (`linkingFolder`), and for
+the whole library on the store's first write (an app update mustn't tag everything NEW). DELETE forgets the date.
+`RomAddedTest`; ui-preview `library-new*`, `library-sort*`. Favorites (`Prefs.favoriteRoms`, by path; FAVORITE /
+UNFAVORITE at the top of a game's menu - short: Material menus cap their width) come first whatever the order
+(`sortLibrary`), a gold star (`OptionColors.favorite`) beside the title. A long press opens a game's menu in the list
+as in the grid, with the device's long-press haptic (`longPressMenu` - the library's one haptic; the companion stays
+click-sound only). The menu goes to two columns (down the first, then the second, DELETE last) when one wouldn't
+fit the screen's height and two fit across it (`screenSize`, measured by the library screen). ui-preview
+`library-favorites*`, `library-list-menu*`. The library's lists scroll out to the screen's edges (their 16 dp margin is
+`contentPadding`; the RECENTLY PLAYED row bleeds past it, `bleedHorizontally`), so cards slide off the screen instead of
+being cut at an inner box. D-pad focus (`gbaFocusRing`) is a ring flush inside the element's own outline (pass the frame's real corner radius: the
+library cards 2u, OptionButton 3u - a rounder ring let the frame's corners show), layout untouched - a border +
+padding shrank the focused item - in a bright orange (`QolColors.focusRing`, the user's call; it was cyan).
+D-pad in the library: focusing a RECENTLY PLAYED tile brings the whole section (its title too) into view, and UP from
+the games' top row (those tiles, else the first list row / grid row 0) goes to the header's leftmost button
+(`toHeader`, a `focusProperties { up }` on those cards - the lazy list's top row had nowhere to go). ui-preview can't
+check D-pad moves (desktop Compose doesn't move focus on arrow keys); the emulator can: `input keyevent KEYCODE_DPAD_UP`.
+**A game always starts on the main display** (`Screens.mainDisplayLaunch`: `setLaunchDisplayId(DEFAULT_DISPLAY)` +
+NEW_TASK, from the library and `LaunchActivity`): opened on the bottom screen, the game once ran there with the
+companion over it and nothing on top. Checked on the API 32 emulator with an overlay display
+(`settings put global overlay_display_devices 1280x960/240`, `am start --display 2`, `input -d 2 tap`; a pushed ROM
+needs `restorecon -R /data/media/0/Android/data/<pkg>` or the app can't read it).
 **Library names** (`GameTitles.kt`): a game shows as its own name ("Pokémon FireRed") - the player's
 RENAME first, then the whole-file SHA1 looked up in `GameTitles.BY_SHA1` (retail from the pret
 decomps' `*.sha1`, every supported hack), else the file name minus dump tags (`tidy`: "(USA, Europe)",
