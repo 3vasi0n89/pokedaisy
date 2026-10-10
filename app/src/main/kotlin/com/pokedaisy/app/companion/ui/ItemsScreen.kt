@@ -461,6 +461,10 @@ fun ItemsScreen(
     itemUse: com.pokedaisy.app.companion.ItemUse? = null,
     /** The item whose description is open first - for screenshot tests, which can't tap. */
     initialItemId: Int? = null,
+    /** More under an open item's description, in the bar's text colours (a TM's party row). */
+    itemExtra: (@Composable (item: ItemView, text: Color, shadow: Color) -> Unit)? = null,
+    /** TM / HM items' moves, shown after their names ("TM06 TOXIC") as the games' TM cases do. */
+    tmMoves: Map<Int, String> = emptyMap(),
 ) {
     var selectedCategory by remember { mutableStateOf<Int?>(null) } // null = All
     var sort by remember { mutableStateOf(ItemSort.DEFAULT) }
@@ -468,7 +472,10 @@ fun ItemsScreen(
     var selectedKey by remember { mutableStateOf(selectedItem?.let { "${it.itemId}#0" }) }
     val pal = bagPaletteFor(activeGame)
     val caps = gameItemNames(activeGame)
-    val shown = if (caps == null) items else items.map { it.copy(name = caps[it.itemId] ?: it.name) }
+    val shown = items.map { item ->
+        val name = caps?.get(item.itemId) ?: item.name
+        item.copy(name = tmMoves[item.itemId]?.let { "$name $it" } ?: name)
+    }
     val m = rememberGbaTextMetrics()
     val u = m.u
 
@@ -619,6 +626,7 @@ fun ItemsScreen(
                 item, pal, m,
                 onDismiss = { selectedItem = null },
                 itemUse = itemUse,
+                extra = itemExtra,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .onSizeChanged { descHeight = with(density) { it.height.toDp() } },
@@ -810,14 +818,14 @@ private fun BagCursor(pal: BagPalette, m: GbaTextMetrics) {
 private fun ItemDescriptionBar(
     item: ItemView, pal: BagPalette, m: GbaTextMetrics, onDismiss: () -> Unit, modifier: Modifier = Modifier,
     itemUse: com.pokedaisy.app.companion.ItemUse? = null,
+    extra: (@Composable (item: ItemView, text: Color, shadow: Color) -> Unit)? = null,
 ) {
     val u = m.u
     val noRipple = remember { MutableInteractionSource() }
     // What the last USE did, shown in place of the description until another item is picked.
     var used by remember(item.itemId) { mutableStateOf<String?>(null) }
-    Row(
-        verticalAlignment = Alignment.Top,
-        modifier = modifier
+    Column(
+        modifier
             .fillMaxWidth()
             .drawBehind {
                 drawLayeredBox(pal.descLayers.inPx(u.toPx()), pal.descFill, radius = 4 * u.toPx())
@@ -825,6 +833,7 @@ private fun ItemDescriptionBar(
             .soundClickable(interactionSource = noRipple, indication = null, onClick = onDismiss)
             .padding(start = u * 7, end = u * 7, top = u * 7, bottom = u * 7),
     ) {
+    Row(verticalAlignment = Alignment.Top) {
         // No icon box where the game has no item icons (Gen 1): the text takes the room.
         val hasIcon = item.iconAsset != null
         if (hasIcon) Box(
@@ -855,6 +864,8 @@ private fun ItemDescriptionBar(
                 modifier = Modifier.padding(start = u * 6),
             )
         }
+    }
+    extra?.invoke(item, pal.descText, pal.descTextShadow)
     }
 }
 

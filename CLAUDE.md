@@ -387,6 +387,17 @@ is found by shape in the first 16 MB), plus gifts / trades from the area data. M
 `GuideTables.learnsets` / `SpeciesInfoDex.levelUpOff` / `PokedexTables.levelUpLearnsets`, then TM / HM
 (`tmhmLearnsets` + `tmhmMoves`, retail only, checked on BULBASAUR) or expansion's `teachableOff` list; CFRU / Gaia /
 Glazed / Odyssey say level-up only. Celia has no evolutions or learnsets located; Rogue no learnsets (its baked profiles).
+**Move advice (GitHub #45, phases 1-2: the original games only)**: `MoveAdvisor` (`data/MoveAdvice.kt`) scores a moveset
+as the mean over defending types of its best hit (power x accuracy x1.5 own type x the stat it runs on - Gen 3 splits
+physical / special by type) plus status / side-effect tiers by gBattleMoves effect (a share of that score, less for a second
+of a kind); the best swap wins, SKIP under `MIN_GAIN` (`MIN_GAIN_HM` to learn an HM); HMs are never forgotten. Ties prefer
+forgetting a weaker move of the new move's type. Data: `MoveStatsGen.kt` (`scripts/gen_move_stats.py`, pokefirered's
+gBattleMoves - shared by FR/LG/R/S/E, `movesAreVanilla` = FIRERED / EMERALD kinds), TM items 289..346 -> `DexDetails.tmhmMoves`.
+`MoveLearning` gathers a mon's next 4 level-up moves + bag TMs (`options`) and a TM's party fit (`learners`), on IO, cached for
+the UI to start from. UI: the summary's LEARN button (`CanLearnSection`, moves left with a FORGET tag on the pick's victim) and
+the ITEMS bar's `TmLearnersRow` (`ItemsScreen(itemExtra = ...)`); verdicts follow BATTLE HINTS, facts don't. Hacks need their
+own move stats (their generators read gBattleMoves already) and TM item -> move mapping; phase 3 (the game's "forget a move?"
+prompt) needs per-game addresses.
 **IVs / EVs (summary STATS, battle INFO STATS)**: `decodePartyMon` reads them from the BoxPokemon itself
 into `Mon.stats` (`MonStats.kt`): EVs substruct, Misc +4's IV word (plaintext CFRU boxes: +0x38 / +0x48),
 nature = PID % 25 XOR expansion's `hiddenNatureModifier` (+0x12 bits 3-7, 0 elsewhere: Mints), stats from the

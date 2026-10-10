@@ -268,6 +268,10 @@ fun CompanionScreen(
         val canUseControls = battleInput != null && !snapshot.isDoubleBattle && isMyTurn
         val showHints = settings?.showHints ?: true
         val showFoeIvs = settings?.showFoeIvs ?: false
+        // The move advice (PARTY > LEARN, a TM's party row on ITEMS): the original games for now.
+        val learnContext = snapshot.pokedex?.tables
+            ?.takeIf { com.pokedaisy.app.companion.data.MoveLearning.available(it, snapshot.guideTables) }
+            ?.let { LearnContext(it, snapshot.guideTables, snapshot.items, showHints) }
         // FOE DETAILS: the button's last state, for every battle after.
         var foeDetails by remember { mutableStateOf(settings?.foeDetails ?: false) }
         val current = if (selectedLabel in tabs || selectedLabel in hiddenTabs) selectedLabel else tabs[0]
@@ -422,6 +426,7 @@ fun CompanionScreen(
                                 snapshot.party, lastDetail.value.coerceIn(0, (snapshot.party.size - 1).coerceAtLeast(0)),
                                 onIndexChange = { detailIndex = it },
                                 onBack = { detailIndex = null },
+                                learn = learnContext,
                             )
                         } else if (tab == "DEX" && dex != null) {
                             if (paneKey == "DEX/DETAIL") PokedexEntryScreen(dex, dexUi, lastDexEntry.value, guide = snapshot.guideTables)
@@ -466,7 +471,14 @@ fun CompanionScreen(
                         } else if (tab == "ITEMS") {
                             // Draws its own bag-screen panels (folder tabs + list
                             // window) straight over the game backdrop, like PARTY.
-                            ItemsScreen(snapshot.items, modifier = Modifier.fillMaxSize(), itemUse = itemUse)
+                            val tmTables = learnContext?.tables
+                            val tmMoves = rememberLoaded(tmTables, cached = { null }, load = {
+                                tmTables?.let { com.pokedaisy.app.companion.data.MoveLearning.tmMoveNames(it) }
+                            }).orEmpty()
+                            ItemsScreen(
+                                snapshot.items, modifier = Modifier.fillMaxSize(), itemUse = itemUse, tmMoves = tmMoves,
+                                itemExtra = learnContext?.let { ctx -> { item, text, shadow -> TmLearnersRow(ctx, snapshot.party, item, text, shadow, rememberGbaTextMetrics()) } },
+                            )
                         } else if (tab == "BATTLE") {
                             // Three full-tab panes: the touch controls, and the
                             // INFO / SUGGESTIONS summaries they open (each with

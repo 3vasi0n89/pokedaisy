@@ -960,6 +960,8 @@ open class CompanionScreenshotTest {
     private fun retail(
         fixture: String, cfg: NativeConfig, romFile: String, kind: GameKind, tab: String, entry: Int? = null, art: Boolean = false,
         describe: Boolean = false, romMap: Boolean = false,
+        /** The move advice: PARTY > LEARN on the first Pokémon with something to replace, or a TM's party row. */
+        learn: Boolean = false, tmRow: Boolean = false,
     ) {
         val rom = RomFileReader.load(RETAIL_ROM_DIR + romFile) ?: return
         if (art) RomArt.extractTo(java.io.File(RETAIL_ROM_DIR + romFile).readBytes(), RomArt.dirOverride!!)
@@ -990,8 +992,32 @@ open class CompanionScreenshotTest {
             val species = PokedexSource.speciesFor(dex.tables, entry)
             PokedexSource.entry(dex.tables, entry); PokedexSource.frontSprite(dex.tables, species); PokedexSource.footprint(dex.tables, species)
         }
+        val ctx = if (learn || tmRow) LearnContext(dex!!.tables, v.guideTables, v.items, showHints = true) else null
+        // The advice is read on IO in the app; worked out here first, the screens start from it.
+        val learnAt = if (!learn) -1 else v.party.indices.firstOrNull { i ->
+            com.pokedaisy.app.companion.data.MoveLearning.options(ctx!!.tables, ctx.guide, v.party[i], v.items)
+                .any { it.advice.verdict == com.pokedaisy.app.companion.data.Verdict.REPLACE }
+        } ?: 0
+        val learnPick = if (!learn) null else com.pokedaisy.app.companion.data.MoveLearning.options(ctx!!.tables, ctx.guide, v.party[learnAt], v.items)
+            .let { o -> o.firstOrNull { it.advice.verdict == com.pokedaisy.app.companion.data.Verdict.REPLACE } ?: o.firstOrNull() }?.move ?: 0
+        // A TM someone in the party is BEST for, else the first.
+        val tms = if (!tmRow) emptyList() else v.items.filter { com.pokedaisy.app.companion.data.MoveLearning.isTm(it.itemId) }
+        val tm = tms.firstOrNull { item ->
+            com.pokedaisy.app.companion.data.MoveLearning.learners(ctx!!.tables, ctx.guide, v.party, item.itemId)
+                ?.let { com.pokedaisy.app.companion.data.MoveLearning.best(it) } != null
+        } ?: tms.firstOrNull()
         paparazzi.snapshot {
-            if (describe) QolTheme { ItemsScreen(v.items, androidx.compose.ui.Modifier.fillMaxSize(), initialItemId = v.items.first().itemId) }
+            if (learn) QolTheme { MonDetailScreen(v.party, learnAt, {}, {}, learn = ctx, initialLearnPick = learnPick) }
+            else if (tmRow) QolTheme {
+                // The TMs & HMs alone, so their rows ("TM06 TOXIC") show above the bar.
+                ItemsScreen(
+                    v.items.filter { com.pokedaisy.app.companion.data.MoveLearning.isTm(it.itemId) },
+                    androidx.compose.ui.Modifier.fillMaxSize(), initialItemId = tm?.itemId,
+                    tmMoves = com.pokedaisy.app.companion.data.MoveLearning.tmMoveNames(ctx!!.tables),
+                    itemExtra = { item, text, shadow -> TmLearnersRow(ctx!!, v.party, item, text, shadow, rememberGbaTextMetrics()) },
+                )
+            }
+            else if (describe) QolTheme { ItemsScreen(v.items, androidx.compose.ui.Modifier.fillMaxSize(), initialItemId = v.items.first().itemId) }
             else if (entry == null) CompanionScreen(v, SampleCompanion.Slots, SampleCompanion.Settings(), initialTab = tab)
             else QolTheme {
                 val ui = DexUiState(androidx.compose.foundation.lazy.rememberLazyListState())
@@ -1089,6 +1115,11 @@ open class CompanionScreenshotTest {
     }
 
     // The dex page's EVOLVE / AREA / MOVES (GitHub #28), each from the game's own ROM and save.
+    // The move advice (original games): PARTY > LEARN with a pick, and a TM's party row on ITEMS.
+    @Test fun fireRedLearn() = retail("firered_vanilla", NATIVE_FIRERED_REV1, FR_ROM, GameKind.FIRERED, "PARTY", art = true, learn = true)
+    @Test fun fireRedTmRow() = retail("firered_vanilla", NATIVE_FIRERED_REV1, FR_ROM, GameKind.FIRERED, "ITEMS", art = true, tmRow = true)
+    @Test fun emeraldLearn() = retail("emerald_vanilla", NATIVE_EMERALD_RETAIL, EM_ROM, GameKind.EMERALD, "PARTY", art = true, learn = true)
+    @Test fun emeraldTmRow() = retail("emerald_vanilla", NATIVE_EMERALD_RETAIL, EM_ROM, GameKind.EMERALD, "ITEMS", art = true, tmRow = true)
     @Test fun fireRedDexInfo() = dexSection("firered_vanilla", NATIVE_FIRERED_REV1, FR_ROM, GameKind.FIRERED, 133, DexSection.INFO)
     @Test fun fireRedDexEvolve() = dexSection("firered_vanilla", NATIVE_FIRERED_REV1, FR_ROM, GameKind.FIRERED, 133, DexSection.EVOLVE)
     @Test fun fireRedDexArea() = dexSection("firered_vanilla", NATIVE_FIRERED_REV1, FR_ROM, GameKind.FIRERED, 129, DexSection.AREA)

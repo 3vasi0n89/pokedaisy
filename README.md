@@ -86,7 +86,10 @@ it. You can also check from **Settings > VERSION**.
 - **PARTY** - your team with HP, levels and status, in your game's own party
   screen. Tap a Pokémon for its full summary: stats, moves, EXP, and what it's
   weak or resistant to. STATS shows its exact IVs and EVs, nature and Hidden Power.
-- **BAG** - every pocket, with item icons and descriptions.
+  LEARN lists the moves it learns next and the TMs in your bag it can use, each
+  rated LEARN / FORGET a move / SKIP, with the reasons (original games so far).
+- **BAG** - every pocket, with item icons and descriptions. Pick a TM to see who
+  can learn it, and who it suits best (original games so far).
 - **BATTLE** - opens by itself when a battle starts.
   - **INFO**: both Pokémon, your moves rated SUPER / RESISTED / NEUTRAL / IMMUNE,
     and the foe's weaknesses. Scroll down for the foe's ability, held item, stats

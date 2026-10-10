@@ -14,6 +14,7 @@ open class ComponentActivity : Context() {
     open fun onResume() {}
     open fun onKeyDown(keyCode: Int, event: android.view.KeyEvent): Boolean = false
     open fun onKeyUp(keyCode: Int, event: android.view.KeyEvent): Boolean = false
+    open fun dispatchGenericMotionEvent(event: android.view.MotionEvent): Boolean = false
     fun finish() {}
     fun startActivity(i: Intent) {}
     fun startActivity(i: Intent, options: android.os.Bundle?) {}

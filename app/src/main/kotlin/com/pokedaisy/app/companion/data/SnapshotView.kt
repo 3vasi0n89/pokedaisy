@@ -3,7 +3,7 @@ package com.pokedaisy.app.companion.data
 import com.pokedaisy.app.companion.i18n.tr
 
 data class MoveVsFoe(val vsName: String, val label: String, val pct: Int)
-data class MoveView(val name: String, val type: String, val pp: Int, val power: Int, val vs: List<MoveVsFoe> = emptyList())
+data class MoveView(val name: String, val type: String, val pp: Int, val power: Int, val vs: List<MoveVsFoe> = emptyList(), val id: Int = 0)
 
 /**
  * Doubles as the party-mon detail view: Types/Moves/Weaknesses/Resistances/
@@ -207,7 +207,7 @@ fun MonView.withMovesVs(targets: List<MonView>): MonView = copy(moves = moves.ma
 
 /** A moveset's views: [ids] with their [pp], empty slots (0) dropped. */
 private fun moveViews(ids: IntArray, pp: IntArray): List<MoveView> = ids.toList().mapIndexedNotNull { idx, moveId ->
-    if (moveId == 0) null else lookupMove(moveId).let { MoveView(it.name, typeName(it.type), pp.getOrElse(idx) { 0 }, it.power) }
+    if (moveId == 0) null else lookupMove(moveId).let { MoveView(it.name, typeName(it.type), pp.getOrElse(idx) { 0 }, it.power, id = moveId) }
 }
 
 private const val REGION_MAP_TILE_SIZE = 8
@@ -264,7 +264,7 @@ fun buildSnapshotView(t: Telemetry): SnapshotView {
             if (moveId == 0) null
             else {
                 val info = lookupMove(moveId)
-                MoveView(info.name, typeName(info.type), m.pp[idx], info.power)
+                MoveView(info.name, typeName(info.type), m.pp[idx], info.power, id = moveId)
             }
         }
         val isEgg = m.isEgg || isVanillaEgg(m.species)
@@ -320,7 +320,7 @@ fun buildSnapshotView(t: Telemetry): SnapshotView {
                         val pct = if (info.type != TYPE_NONE) typeMultiplierPct(info.type, foe.type1, foe.type2) else 100
                         MoveVsFoe(speciesName(foe.species), formatMultiplier(pct), pct)
                     }
-                    MoveView(info.name, typeName(info.type), b.pp[idx], info.power, vs)
+                    MoveView(info.name, typeName(info.type), b.pp[idx], info.power, vs, id = moveId)
                 }
             }
             return MonView(

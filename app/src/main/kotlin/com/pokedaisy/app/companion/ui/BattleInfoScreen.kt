@@ -24,11 +24,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
 import com.pokedaisy.app.companion.data.PokedexSource
 import com.pokedaisy.app.companion.data.PokedexTables
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -252,9 +249,11 @@ private fun UprightHpBar(hp: Int, maxHp: Int, u: androidx.compose.ui.unit.Dp, mo
 @Composable
 private fun FoeFacts(foe: MonView, dexTables: PokedexTables?, m: GbaTextMetrics, small: GbaTextMetrics, wide: Boolean) {
     val u = m.u
-    val ability by produceState(foe.abilityName ?: dexTables?.let { PokedexSource.cachedAbilityName(it, foe.abilityId) }, dexTables, foe.abilityId) {
-        if (value == null && dexTables != null && foe.abilityId > 0) value = withContext(Dispatchers.IO) { PokedexSource.abilityName(dexTables, foe.abilityId) }
-    }
+    val ability = rememberLoaded(
+        foe.abilityName, dexTables, foe.abilityId,
+        cached = { foe.abilityName ?: dexTables?.let { PokedexSource.cachedAbilityName(it, foe.abilityId) } },
+        load = { dexTables?.let { PokedexSource.abilityName(it, foe.abilityId) } },
+    )
     // Attack, Defense, Speed, Sp. Atk, Sp. Def - the battle's, else the party struct's.
     val stats = foe.battleStats ?: foe.stats?.stats?.drop(1)
     if (ability == null && foe.heldItem == null && stats == null) return

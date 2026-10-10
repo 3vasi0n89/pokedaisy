@@ -63,7 +63,9 @@ import com.pokedaisy.app.companion.ui.theme.QolColors
  * Takes the whole party plus an index (not one [MonView]) so it keeps
  * following live telemetry while open. STATS (when the read has IVs, i.e.
  * the native paths) swaps the moves for [MonStatsSection], and stays swapped
- * while cycling through the party.
+ * while cycling through the party. LEARN ([learn], the original games for now)
+ * puts the moves on the left and [CanLearnSection] on the right: a picked option
+ * tags the move it would replace FORGET.
  */
 @Composable
 fun MonDetailScreen(
@@ -74,11 +76,19 @@ fun MonDetailScreen(
     modifier: Modifier = Modifier,
     /** Open on the STATS page (screenshot tests). */
     initialShowStats: Boolean = false,
+    /** The move advice's game data; null = no LEARN page. */
+    learn: LearnContext? = null,
+    /** Open on the LEARN page with this option (a move id) picked (screenshot tests). */
+    initialLearnPick: Int? = null,
 ) {
     val m = rememberGbaTextMetrics()
     val small = rememberGbaTextMetrics(1f)
     val gap = m.u * 3
     var showStats by remember { mutableStateOf(initialShowStats) }
+    var showLearn by remember { mutableStateOf(initialLearnPick != null) }
+    // The picked CAN LEARN option, by move id (0 = none); kept while cycling through the party.
+    var learnPick by remember { mutableStateOf(initialLearnPick ?: 0) }
+    val canLearn = learn != null && com.pokedaisy.app.companion.data.MoveLearning.available(learn.tables, learn.guide)
     Column(modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         AnimatedContent(
             targetState = index,
@@ -99,12 +109,22 @@ fun MonDetailScreen(
                 // on the left, the moves on the right.
                 OptionListWindow(m, Modifier.fillMaxSize(), fill = OptionColors.titleFill) {
                     Row(Modifier.fillMaxSize()) {
-                        SummaryLeftColumn(mon, m, small, gap, Modifier.weight(0.5f).fillMaxHeight().padding(end = gap))
-                        Separator(m, Modifier.fillMaxHeight(), vertical = true)
-                        val right = Modifier.weight(0.5f).fillMaxHeight().padding(start = gap)
-                        val stats = mon.stats
-                        if (showStats && stats != null) MonStatsSection(stats, m, small, right)
-                        else MovesSection(mon, m, small, right)
+                        if (showLearn && canLearn) {
+                            val options = rememberLearnOptions(learn!!, mon)
+                            val pick = options?.firstOrNull { it.move == learnPick }
+                            val forget = pick?.advice?.forget?.takeIf { learn.showHints } ?: 0
+                            MovesSection(mon, m, small, Modifier.weight(0.5f).fillMaxHeight().padding(end = gap), forget = forget)
+                            Separator(m, Modifier.fillMaxHeight(), vertical = true)
+                            CanLearnSection(options, learnPick, { learnPick = it }, learn.showHints, m, small,
+                                Modifier.weight(0.5f).fillMaxHeight().padding(start = gap))
+                        } else {
+                            SummaryLeftColumn(mon, m, small, gap, Modifier.weight(0.5f).fillMaxHeight().padding(end = gap))
+                            Separator(m, Modifier.fillMaxHeight(), vertical = true)
+                            val right = Modifier.weight(0.5f).fillMaxHeight().padding(start = gap)
+                            val stats = mon.stats
+                            if (showStats && stats != null) MonStatsSection(stats, m, small, right)
+                            else MovesSection(mon, m, small, right)
+                        }
                     }
                 }
             }
@@ -113,8 +133,11 @@ fun MonDetailScreen(
         CompanionBackHandler(onBack = onBack)
         // No up / down arrows (STATS needed the room): the party strip's buttons pick the Pokémon.
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (party.getOrNull(index)?.stats != null) {
+            if (party.getOrNull(index)?.stats != null && !showLearn) {
                 TextNavButton(if (showStats) tr("MOVES") else tr("STATS"), StatsPurple, StatsPurpleDark) { showStats = !showStats }
+            }
+            if (canLearn && party.getOrNull(index)?.isEgg == false) {
+                TextNavButton(if (showLearn) tr("MOVES") else tr("LEARN"), SuggestGold, SuggestGoldDark) { showLearn = !showLearn; learnPick = 0 }
             }
             PartyStrip(party, index, onIndexChange, Modifier.weight(1f))
             NavButton(PixelIcons.back, tr("Back"), RunBlue, RunBlueDark, enabled = true, onClick = onBack)
@@ -379,18 +402,19 @@ internal fun MatchupGroup(heading: String, list: List<TypeMatchup>, small: GbaTe
 
 /** The four moves, sharing out the column's height, separated by rules. */
 @Composable
-private fun MovesSection(mon: MonView, m: GbaTextMetrics, small: GbaTextMetrics, modifier: Modifier = Modifier) {
+private fun MovesSection(mon: MonView, m: GbaTextMetrics, small: GbaTextMetrics, modifier: Modifier = Modifier, forget: Int = 0) {
     Column(modifier) {
         for (i in 0 until 4) {
             if (i > 0) Separator(m, Modifier.fillMaxWidth())
-            MoveRow(mon.moves.getOrNull(i), m, small, Modifier.weight(1f).fillMaxWidth())
+            val mv = mon.moves.getOrNull(i)
+            MoveRow(mv, m, small, Modifier.weight(1f).fillMaxWidth(), forget = forget != 0 && mv?.id == forget)
         }
     }
 }
 
-/** One move: a type-colored stripe, then name, type badge, power and PP. */
+/** One move: a type-colored stripe, then name, type badge, power and PP; [forget] tags it FORGET (LEARN's pick). */
 @Composable
-private fun MoveRow(mv: MoveView?, m: GbaTextMetrics, small: GbaTextMetrics, modifier: Modifier = Modifier) {
+private fun MoveRow(mv: MoveView?, m: GbaTextMetrics, small: GbaTextMetrics, modifier: Modifier = Modifier, forget: Boolean = false) {
     val u = m.u
     val edge = mv?.let { QolColors.typeColors[it.type] } ?: OptionColors.muted
     Box(
@@ -407,7 +431,10 @@ private fun MoveRow(mv: MoveView?, m: GbaTextMetrics, small: GbaTextMetrics, mod
         if (mv == null) {
             GbaText("—", OptionColors.muted, OptionColors.mutedShadow, m, modifier = Modifier.align(Alignment.CenterStart))
         } else Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly) {
-            GbaText(mv.name, OptionColors.label, OptionColors.labelShadow, m)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                GbaText(mv.name, OptionColors.label, OptionColors.labelShadow, m, Modifier.weight(1f, fill = false))
+                if (forget) { Spacer(Modifier.width(u * 4)); ForgetTag() }
+            }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 TypeBadge(mv.type)
                 Spacer(Modifier.weight(1f))
