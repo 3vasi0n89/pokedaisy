@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -215,8 +216,11 @@ fun CompanionSettingsScreen(
                 // SHADERS too: OptionRows shares the window out, so its 4 rows came out taller than SETTINGS'.
                 // TWEAKS: OptionRows has no subtitle line for each tweak's description.
                 if (rows.any { it.header } || page == Page.SHADERS || page == Page.TWEAKS) {
+                    // The row the page was opened for (SWAP SCREENS after the swap): the cursor onto it, scrolled to.
+                    val reveal = if (page == Page.HOME) ui.revealRow?.let { r -> rows.indexOfFirst { !it.header && it.label == r } } ?: -1 else -1
+                    if (reveal >= 0 && homeCursor != reveal) SideEffect { homeCursor = reveal }
                     GroupedRows(rows, m, cursor, onClick = { i -> moveCursor(i); rows[i].onClick() }, scroll = if (page == Page.HOME) homeScroll else rememberScrollState(),
-                        labelWeight = if (page == Page.TWEAKS) 0.8f else 0.58f) {
+                        labelWeight = if (page == Page.TWEAKS) 0.8f else 0.58f, reveal = reveal, onRevealed = { ui.revealRow = null }) {
                         // Actions, not settings: the list's last line, out of the way of the options.
                         if (page == Page.HOME && settings != null) {
                             // A summary-window line sets them apart from the last group.
@@ -312,8 +316,10 @@ fun CompanionSettingsScreen(
  * SETTINGS' place - the page, HOME's highlighted row and its scroll - kept outside the tab
  * (CompanionScreen remembers it), so a visit to MAP and back lands where the player was.
  */
-class SettingsUiState(initialPage: String? = null) {
+class SettingsUiState(initialPage: String? = null, initialRow: String? = null) {
     internal var page by mutableStateOf(Page.entries.firstOrNull { it.name == initialPage } ?: Page.HOME)
+    /** HOME's row (by its English label) to open on, its cursor there and scrolled to (null once done). */
+    internal var revealRow by mutableStateOf(initialRow)
     // HOME starts with a group title, so its first row is index 1.
     internal var homeCursor by mutableStateOf(1)
     internal val homeScroll = androidx.compose.foundation.ScrollState(0)

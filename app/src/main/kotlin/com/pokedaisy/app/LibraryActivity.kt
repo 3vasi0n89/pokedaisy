@@ -302,11 +302,14 @@ class LibraryActivity : ComponentActivity() {
 
         setContent {
             QolTheme {
-                val s = setup
-                when {
-                    s != null -> SetupHost(s)
-                    launcherOn -> LauncherMainWindow()
-                    else -> LibraryScreen()
+                // The library's windows (INFO, RENAME, the pick-lists...) register their BACK here, as on the companion.
+                androidx.compose.runtime.CompositionLocalProvider(com.pokedaisy.app.companion.ui.LocalCompanionBack provides libraryBack) {
+                    val s = setup
+                    when {
+                        s != null -> SetupHost(s)
+                        launcherOn -> LauncherMainWindow()
+                        else -> LibraryScreen()
+                    }
                 }
             }
         }
@@ -329,8 +332,14 @@ class LibraryActivity : ComponentActivity() {
         secondScreen.dismiss()
     }
 
+    override fun onPause() {
+        super.onPause()
+        isResumed = false
+    }
+
     override fun onResume() {
         super.onResume()
+        isResumed = true
         // Brought back on the bottom screen (its icon tapped there while open): over to the top one again.
         if (Screens.reopenOnMainDisplay(this)) return
         com.pokedaisy.app.companion.ui.OptionColors.inGame = false
@@ -634,10 +643,30 @@ class LibraryActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun HeaderIcon(icon: ImageVector, label: String, m: GbaTextMetrics, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    private fun HeaderIcon(
+        icon: ImageVector, label: String, m: GbaTextMetrics, modifier: Modifier = Modifier,
+        /** The launcher's cursor is on it (its own, not Compose focus): the focus ring. */
+        cursor: Boolean = false,
+        onClick: () -> Unit,
+    ) {
         Spacer(Modifier.width(m.u * 4))
-        OptionButton(null, m, onClick = onClick, modifier = modifier, icon = icon, contentDescription = label)
+        OptionButton(null, m, onClick = onClick, modifier = modifier.gbaFocusRing(cursor, PixelRoundedShape(m.u * 3)), icon = icon, contentDescription = label)
     }
+
+    /** One of the launcher header's buttons: drawn in [LauncherList], pressed by A there ([launcherKey]). */
+    private class HeaderButton(val icon: ImageVector, val label: String, val onClick: () -> Unit)
+
+    /** The launcher's header, left to right. */
+    private fun launcherHeader(): List<HeaderButton> = listOf(
+        HeaderButton(Icons.AutoMirrored.Filled.Sort, tr("Sort")) { pickingSort = true },
+        HeaderButton(if (gridView) Icons.AutoMirrored.Filled.ViewList else Icons.Filled.GridView, tr("Toggle view")) { gridView = !gridView },
+        HeaderButton(Icons.Filled.Add, tr("Import ROM")) { importRom.launch(arrayOf("*/*")) },
+        HeaderButton(Icons.Filled.Refresh, tr("Refresh")) { refreshLibrary() },
+        HeaderButton(Icons.AutoMirrored.Filled.HelpOutline, tr("Help")) {
+            startActivity(Intent(this, SettingsActivity::class.java).putExtra(SettingsActivity.EXTRA_SCREEN, SettingsActivity.SCREEN_HELP))
+        },
+        HeaderButton(Icons.Filled.Settings, tr("Settings")) { openSettings() },
+    )
 
     /** The header's leftmost button (sort). */
     private val headerFirst = FocusRequester()
@@ -728,6 +757,8 @@ class LibraryActivity : ComponentActivity() {
         onPlay: (File) -> Unit,
         /** The launcher's cursor: whether it's on this tile. */
         cursorOn: (File) -> Boolean = { false },
+        /** A long press: the launcher's menu (null = the classic library's dropdown). */
+        onMenu: ((File) -> Unit)? = null,
     ) {
         // A tile focused with the D-pad brings the whole section into view, its title too (the list
         // alone scrolled just far enough for the tile, leaving RECENTLY PLAYED off the top).
@@ -747,9 +778,9 @@ class LibraryActivity : ComponentActivity() {
             ) {
                 recentRoms.forEach { rom ->
                     if (gridView) {
-                        RecentTile(rom, m, small, cursor = cursorOn(rom), onClick = { onPlay(rom) })
+                        RecentTile(rom, m, small, cursor = cursorOn(rom), onMenu = onMenu?.let { { it(rom) } }, onClick = { onPlay(rom) })
                     } else {
-                        RecentListItem(rom, m, small, cursor = cursorOn(rom), onClick = { onPlay(rom) })
+                        RecentListItem(rom, m, small, cursor = cursorOn(rom), onMenu = onMenu?.let { { it(rom) } }, onClick = { onPlay(rom) })
                     }
                 }
             }
@@ -825,7 +856,8 @@ class LibraryActivity : ComponentActivity() {
     private var screenSize by mutableStateOf(DpSize.Zero)
 
     /** One entry of a game's menu: the classic view's dropdown and the launcher's B. */
-    private class RomMenuItem(val label: String, val icon: ImageVector, val danger: Boolean = false, val onClick: () -> Unit)
+    /** [opens]: it opens a window, a picker or another screen (the launcher's menu comes back when that closes). */
+    private class RomMenuItem(val label: String, val icon: ImageVector, val danger: Boolean = false, val opens: Boolean = false, val onClick: () -> Unit)
 
     @Composable
     private fun RomOptionsMenu(
@@ -848,24 +880,24 @@ class LibraryActivity : ComponentActivity() {
             } else {
                 add(RomMenuItem(tr("FAVORITE"), Icons.Filled.Star) { setFavorite(rom, true) })
             }
-            add(RomMenuItem(tr("INFO"), Icons.Filled.Info) { showInfo(rom) })
-            add(RomMenuItem(tr("RENAME"), Icons.Filled.Edit, onClick = onRename))
-            add(RomMenuItem(tr("REPLACE COVER"), Icons.Filled.Search) { coverError = null; coverPickerFor = rom })
-            add(RomMenuItem(tr("SET COVER"), Icons.Filled.Image) { pendingCoverTarget = rom; pickCoverImage.launch("image/*") })
+            add(RomMenuItem(tr("INFO"), Icons.Filled.Info, opens = true) { showInfo(rom) })
+            add(RomMenuItem(tr("RENAME"), Icons.Filled.Edit, opens = true, onClick = onRename))
+            add(RomMenuItem(tr("REPLACE COVER"), Icons.Filled.Search, opens = true) { coverError = null; coverPickerFor = rom })
+            add(RomMenuItem(tr("SET COVER"), Icons.Filled.Image, opens = true) { pendingCoverTarget = rom; pickCoverImage.launch("image/*") })
             if (prefs.romCoverManual(rom)) {
                 add(RomMenuItem(tr("RESET COVER"), Icons.Filled.Refresh) { resetCover(rom) })
             }
-            add(RomMenuItem(tr("LOAD SAVE"), Icons.Filled.FileOpen) { saveTarget = rom; pickSaveFile.launch(arrayOf("*/*")) })
-            add(RomMenuItem(tr("RESTORE BACKUP"), Icons.Filled.History) { showBackups(rom) })
+            add(RomMenuItem(tr("LOAD SAVE"), Icons.Filled.FileOpen, opens = true) { saveTarget = rom; pickSaveFile.launch(arrayOf("*/*")) })
+            add(RomMenuItem(tr("RESTORE BACKUP"), Icons.Filled.History, opens = true) { showBackups(rom) })
             // The save's party and PC boxes, read (and edited) from the file; Game Boy saves aren't Gen 3's. Behind a
             // feature flag until it's been tried on real saves (FeatureFlags).
             if (FeatureFlags.saveEditor(this@LibraryActivity) && rom.extension.lowercase() !in setOf("gb", "gbc")) {
-                add(RomMenuItem(tr("PC BOXES"), Icons.Filled.Inventory2) {
+                add(RomMenuItem(tr("PC BOXES"), Icons.Filled.Inventory2, opens = true) {
                     startActivity(Intent(this@LibraryActivity, SaveEditorActivity::class.java).putExtra(SaveEditorActivity.EXTRA_ROM, rom.absolutePath))
                 })
             }
             // This game's saves in a folder of its own (another emulator's), or back to the usual search.
-            add(RomMenuItem(tr("SAVE FOLDER"), Icons.Filled.Folder) {
+            add(RomMenuItem(tr("SAVE FOLDER"), Icons.Filled.Folder, opens = true) {
                 if (!StorageAccess.hasAllFilesAccess(this@LibraryActivity)) {
                     StorageAccess.requestAllFilesAccess(this@LibraryActivity)
                     Toast.makeText(this@LibraryActivity, tr("Grant \"All files access\", then tap the button again"), Toast.LENGTH_LONG).show()
@@ -878,13 +910,13 @@ class LibraryActivity : ComponentActivity() {
                 add(RomMenuItem(tr("DEFAULT SAVE FOLDER"), Icons.Filled.FolderOff) { setGameSaveFolder(rom, null) })
             }
             // The game's cheats, on Settings' CHEATS page.
-            add(RomMenuItem(tr("CHEATS"), Icons.Filled.Code) {
+            add(RomMenuItem(tr("CHEATS"), Icons.Filled.Code, opens = true) {
                 startActivity(Intent(this@LibraryActivity, SettingsActivity::class.java).putExtra(SettingsActivity.EXTRA_CHEATS_ROM, rom.absolutePath))
             })
             add(RomMenuItem(tr("HIDE"), Icons.Filled.VisibilityOff) { hideRom(rom) })
             // A linked folder's ROM is the player's own file: it can be hidden, never deleted.
             if (!RomFolder.isLinked(prefs, rom)) {
-                add(RomMenuItem(tr("DELETE"), Icons.Filled.Delete, danger = true, onClick = onDelete))
+                add(RomMenuItem(tr("DELETE"), Icons.Filled.Delete, danger = true, opens = true, onClick = onDelete))
             }
         }
     }
@@ -1140,17 +1172,25 @@ class LibraryActivity : ComponentActivity() {
     /** Compact, menu-less version of [RomTile] for the "Recently Played" row —
      * a shortcut, not a full library entry. */
     @Composable
-    private fun RecentTile(rom: File, m: GbaTextMetrics, small: GbaTextMetrics, cursor: Boolean = false, onClick: () -> Unit) {
+    private fun RecentTile(rom: File, m: GbaTextMetrics, small: GbaTextMetrics, cursor: Boolean = false, onMenu: (() -> Unit)? = null, onClick: () -> Unit) {
         val display = factsFor(rom).label
-        RomCard(false, m, Modifier.width(112.dp).cursorInView(cursor), upTo = toHeader, cursor = cursor, onClick = onClick) {
-            Column {
-                CoverThumb(rom, m, modifier = Modifier.fillMaxWidth())
-                Spacer(Modifier.height(m.u * 3))
-                GbaText(
-                    display, OptionColors.label, OptionColors.labelShadow, small, maxLines = 2,
-                    modifier = Modifier.height(small.lineHeight * 2),
-                )
+        // A long press opens the game's menu, as on its card under ALL GAMES (the launcher's own [onMenu]).
+        var menu by remember { mutableStateOf(false) }
+        Box {
+            RomCard(
+                false, m, Modifier.width(112.dp).cursorInView(cursor), upTo = toHeader, cursor = cursor,
+                onLongClick = longPressMenu { onMenu?.invoke() ?: run { menu = true } }, onClick = onClick,
+            ) {
+                Column {
+                    CoverThumb(rom, m, modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(m.u * 3))
+                    GbaText(
+                        display, OptionColors.label, OptionColors.labelShadow, small, maxLines = 2,
+                        modifier = Modifier.height(small.lineHeight * 2),
+                    )
+                }
             }
+            RomOptionsMenu(menu, onDismiss = { menu = false }, rom = rom, m = m, onRename = { renaming = rom }, onDelete = { deleting = rom })
         }
     }
 
@@ -1158,14 +1198,21 @@ class LibraryActivity : ComponentActivity() {
      * icon-left/text-right shape) for the "Recently Played" row while in
      * list view. */
     @Composable
-    private fun RecentListItem(rom: File, m: GbaTextMetrics, small: GbaTextMetrics, cursor: Boolean = false, onClick: () -> Unit) {
+    private fun RecentListItem(rom: File, m: GbaTextMetrics, small: GbaTextMetrics, cursor: Boolean = false, onMenu: (() -> Unit)? = null, onClick: () -> Unit) {
         val display = factsFor(rom).label
-        RomCard(false, m, Modifier.width(220.dp).cursorInView(cursor), upTo = toHeader, cursor = cursor, onClick = onClick) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                CoverThumb(rom, m, modifier = Modifier.height(44.dp))
-                Spacer(Modifier.width(m.u * 4))
-                GbaText(display, OptionColors.label, OptionColors.labelShadow, small, Modifier.weight(1f))
+        var menu by remember { mutableStateOf(false) }
+        Box {
+            RomCard(
+                false, m, Modifier.width(220.dp).cursorInView(cursor), upTo = toHeader, cursor = cursor,
+                onLongClick = longPressMenu { onMenu?.invoke() ?: run { menu = true } }, onClick = onClick,
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CoverThumb(rom, m, modifier = Modifier.height(44.dp))
+                    Spacer(Modifier.width(m.u * 4))
+                    GbaText(display, OptionColors.label, OptionColors.labelShadow, small, Modifier.weight(1f))
+                }
             }
+            RomOptionsMenu(menu, onDismiss = { menu = false }, rom = rom, m = m, onRename = { renaming = rom }, onDelete = { deleting = rom })
         }
     }
 
@@ -1531,8 +1578,24 @@ class LibraryActivity : ComponentActivity() {
             pendingImport != null || saveLoad != null || backupPick != null || updates.release != null || crashAsk ||
             (expandIntro && !crashAsk) || ssIntroShown
 
+    /** BACK for the library's windows (OptionOverlay & co.): the newest open one closes. */
+    private val libraryBack = com.pokedaisy.app.companion.ui.CompanionBack()
+    /** B / BACK went to a window: its key up is that window's too (or Android's own BACK would follow). */
+    private var backTaken = false
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (launcherOn && setup == null && !libraryDialogOpen && launcherKey(event)) return true
+        // B (or BACK) with a window open closes that window, back to what opened it: the launcher's menu comes back
+        // ([MenuReturnWatch]) - it used to drop to the games, or leave the library.
+        if (setup == null && (event.keyCode == KeyEvent.KEYCODE_BUTTON_B || event.keyCode == KeyEvent.KEYCODE_BACK)) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (event.repeatCount == 0 && libraryDialogOpen) backTaken = libraryBack.back()
+                if (backTaken) return true
+            } else if (event.action == KeyEvent.ACTION_UP && backTaken) {
+                backTaken = false
+                return true
+            }
+        }
         return super.dispatchKeyEvent(event)
     }
 
@@ -1558,6 +1621,19 @@ class LibraryActivity : ComponentActivity() {
             }
             return true
         }
+        // Up in the header: A presses the button, B goes back down to the list (as DOWN does).
+        if (launcher.headerCursor >= 0) {
+            when (code) {
+                KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> {
+                    if (first) launcherHeader().getOrNull(launcher.headerCursor)?.onClick?.invoke()
+                    return true
+                }
+                KeyEvent.KEYCODE_BUTTON_B -> {
+                    if (first) launcher.headerCursor = -1
+                    return true
+                }
+            }
+        }
         when (code) {
             KeyEvent.KEYCODE_DPAD_UP -> if (down) launcher.moveRow(-1)
             KeyEvent.KEYCODE_DPAD_DOWN -> if (down) launcher.moveRow(1)
@@ -1580,9 +1656,47 @@ class LibraryActivity : ComponentActivity() {
         val rom = launcher.current ?: return
         launcher.menu = LauncherMenu(
             romLabel(rom),
-            romMenuItems(rom, onRename = { renaming = rom }, onDelete = { deleting = rom })
-                .map { LauncherMenu.Item(it.label, it.danger, it.onClick) },
+            romMenuItems(rom, onRename = { renaming = rom }, onDelete = { deleting = rom }).mapIndexed { i, item ->
+                LauncherMenu.Item(item.label, item.icon, item.danger, item.opens) {
+                    // B / BACK out of what it opens lands back here, on this entry.
+                    if (item.opens) {
+                        menuReturn = MenuReturn(rom, i)
+                        menuReturnArmed = false
+                    }
+                    item.onClick()
+                }
+            },
         )
+    }
+
+    /** The launcher's menu to bring back (its game and entry) once what an entry opened has closed. */
+    private class MenuReturn(val rom: File, val cursor: Int)
+    private var menuReturn: MenuReturn? = null
+    /** What it opened has shown (a window over the library, or another screen in front of it). */
+    private var menuReturnArmed = false
+    /** Between onResume and onPause, as Compose state. */
+    private var isResumed by mutableStateOf(false)
+
+    /** Watches for [menuReturn]'s window / screen to close, then opens the menu again where it was - unless the game went
+     * (DELETE, HIDE). In the main window's composition: it needs the library's dialogs' state. */
+    @Composable
+    private fun MenuReturnWatch() {
+        LaunchedEffect(Unit) {
+            androidx.compose.runtime.snapshotFlow { libraryDialogOpen || !isResumed }.collect { busy ->
+                val r = menuReturn ?: return@collect
+                if (busy) {
+                    menuReturnArmed = true
+                    return@collect
+                }
+                if (!menuReturnArmed) return@collect
+                menuReturn = null
+                menuReturnArmed = false
+                if (launcher.games.none { it.absolutePath == r.rom.absolutePath }) return@collect
+                if (launcher.current?.absolutePath != r.rom.absolutePath) launcher.select(r.rom)
+                openLauncherMenu()
+                launcher.menu?.let { it.cursor = r.cursor.coerceIn(0, it.items.lastIndex) }
+            }
+        }
     }
 
     /** X: the list and the media trade screens, animated on both. */
@@ -1602,6 +1716,7 @@ class LibraryActivity : ComponentActivity() {
         val small = rememberGbaTextMetrics(textScale = 1f)
         val scope = rememberCoroutineScope()
         androidx.compose.runtime.SideEffect { launcherScope = scope }
+        MenuReturnWatch()
         Box(Modifier.fillMaxSize().background(OptionColors.imageWell)) {
             Box(Modifier.fillMaxSize().launcherSwapMotion(launcher, onMain = true)) {
                 if (launcher.swapped) LauncherMedia(m, small) else LauncherList(m, small, onMain = true)
@@ -1669,16 +1784,11 @@ class LibraryActivity : ComponentActivity() {
                 OptionTitleWindow("POKéDAISY", m, Modifier.padding(start = SCREEN_MARGIN, end = SCREEN_MARGIN, top = SCREEN_MARGIN), leading = {
                     PixelArt(LOGO_ROWS, LOGO_PALETTE, Modifier.size(m.lineHeight))
                 }) {
-                    HeaderIcon(Icons.AutoMirrored.Filled.Sort, tr("Sort"), m) { pickingSort = true }
-                    HeaderIcon(if (grid) Icons.AutoMirrored.Filled.ViewList else Icons.Filled.GridView, tr("Toggle view"), m) {
-                        gridView = !gridView
+                    val buttons = launcherHeader()
+                    SideEffect { launcher.headerCount = buttons.size }
+                    buttons.forEachIndexed { i, b ->
+                        HeaderIcon(b.icon, b.label, m, cursor = launcher.headerCursor == i, onClick = b.onClick)
                     }
-                    HeaderIcon(Icons.Filled.Add, tr("Import ROM"), m) { importRom.launch(arrayOf("*/*")) }
-                    HeaderIcon(Icons.Filled.Refresh, tr("Refresh"), m) { refreshLibrary() }
-                    HeaderIcon(Icons.AutoMirrored.Filled.HelpOutline, tr("Help"), m) {
-                        startActivity(Intent(this@LibraryActivity, SettingsActivity::class.java).putExtra(SettingsActivity.EXTRA_SCREEN, SettingsActivity.SCREEN_HELP))
-                    }
-                    HeaderIcon(Icons.Filled.Settings, tr("Settings"), m) { openSettings() }
                 }
                 Spacer(Modifier.height(m.u * 4))
                 // Room at the end for the legend, so the last game can scroll clear of it.
@@ -1721,7 +1831,7 @@ class LibraryActivity : ComponentActivity() {
                         ) {
                             if (recent.isNotEmpty()) {
                                 item(key = "recent", span = { GridItemSpan(maxLineSpan) }) {
-                                    RecentPlayedSection(recent, gridView = true, m, small, onPlay = { card(it, true).onTap() }, cursorOn = { launcher.isCursor(it, true) })
+                                    RecentPlayedSection(recent, gridView = true, m, small, onPlay = { card(it, true).onTap() }, cursorOn = { launcher.isCursor(it, true) }, onMenu = { card(it, true).onMenu() })
                                 }
                                 item(key = "all", span = { GridItemSpan(maxLineSpan) }) { BackdropText(tr("ALL GAMES"), small) }
                             }
@@ -1751,7 +1861,7 @@ class LibraryActivity : ComponentActivity() {
                     ) {
                         if (recent.isNotEmpty()) {
                             item(key = "recent") {
-                                RecentPlayedSection(recent, gridView = false, m, small, onPlay = { card(it, true).onTap() }, cursorOn = { launcher.isCursor(it, true) })
+                                RecentPlayedSection(recent, gridView = false, m, small, onPlay = { card(it, true).onTap() }, cursorOn = { launcher.isCursor(it, true) }, onMenu = { card(it, true).onMenu() })
                             }
                             item(key = "all") { BackdropText(tr("ALL GAMES"), small) }
                         }

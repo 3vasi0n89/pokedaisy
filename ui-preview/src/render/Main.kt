@@ -293,6 +293,8 @@ fun companion(
     /** With [items]: TAKE finds no room in the bag. */
     bagFull: Boolean = false,
     expand: Boolean = false,
+    /** SETTINGS opened on this row, as after SWAP SCREENS. */
+    settingsRow: String? = null,
     snap: () -> SnapshotView = ::snapshot,
 ): () -> (@Composable () -> Unit) = {
     DeviceBattery.status.value = battery
@@ -301,7 +303,7 @@ fun companion(
     val content: @Composable () -> Unit = {
         CompanionScreen(
             sv, FakeSlots(), FakeSettings(hints, oneTap = oneTap, expandOffer = expandOffer, expand = expand), FakeBattleInput(busy), initialTab = tab,
-            initialMonIndex = mon, initialCardBack = cardBack, back = back, itemUse = if (items) PreviewItemUse(sv.party, bagFull) else null,
+            initialMonIndex = mon, initialCardBack = cardBack, back = back, initialSettingsRow = settingsRow, itemUse = if (items) PreviewItemUse(sv.party, bagFull) else null,
         )
     }
     content
@@ -898,6 +900,8 @@ fun main(args: Array<String>) {
             onNodeWithContentDescription("Next Pokémon").performClick()
         },
         // In the game's home town, which its own region map shows (Emerald has no Pallet Town rect).
+        // After SWAP SCREENS: SETTINGS again, on that row and scrolled to it.
+        Shot("$g-settings-after-swap", bw, bh, bd, companion("SETTINGS", settingsRow = "SWAP SCREENS")),
         Shot("$g-settings-battery-low", bw, bh, bd, companion("SETTINGS", battery = BatteryStatus(9, charging = false))),
         Shot("$g-settings-battery-charging", bw, bh, bd, companion("SETTINGS", battery = BatteryStatus(100, charging = true))),
         Shot("$g-card", bw, bh, bd, companion("CARD", snap = ::card)),
@@ -1226,10 +1230,24 @@ fun main(args: Array<String>) {
         // After X: the media on the top screen (its wide layout), the list on the bottom.
         // RECENTLY PLAYED and the grid view, as the classic library has them; DOWN takes the cursor off the strip.
         Shot("launcher-main-down", tw, th, td, launcher()) { pressKey(android.view.KeyEvent.KEYCODE_DPAD_DOWN) },
+        // UP off RECENTLY PLAYED: the header's sort button; RIGHT walks the header.
+        Shot("launcher-header", tw, th, td, launcher()) { pressKey(android.view.KeyEvent.KEYCODE_DPAD_UP) },
+        Shot("launcher-header-right", tw, th, td, launcher()) {
+            pressKey(android.view.KeyEvent.KEYCODE_DPAD_UP)
+            pressKey(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+        },
         Shot("launcher-grid", tw, th, td, launcher(grid = true)),
         Shot("launcher-grid-down-right", tw, th, td, launcher(grid = true)) {
             pressKey(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
             pressKey(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+        },
+        // INFO from the menu, then B: back to the menu, on INFO (not to the games).
+        Shot("launcher-menu-info-back", tw, th, td, launcher()) {
+            runOnIdle { lastActivity?.onResume() }
+            pressKey(android.view.KeyEvent.KEYCODE_BUTTON_B)
+            pressKey(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+            pressKey(android.view.KeyEvent.KEYCODE_BUTTON_A)
+            pressKey(android.view.KeyEvent.KEYCODE_BUTTON_B)
         },
         Shot("launcher-swapped-main", tw, th, td, launcher(swapped = true)),
         Shot("launcher-swapped-second", bw, bh, bd, launcher(swapped = true, second = true)),
@@ -1357,6 +1375,8 @@ fun main(args: Array<String>) {
         // The one-time "send crash reports?" ask (CrashReports.shouldAsk).
         Shot("library-crash-ask", tw, th, td, activity { LibraryActivity().apply { crashAsk = true } }),
         // Settings' APP group, CRASH REPORTS included.
+        // Opened: D-pad focus on the first setting, not the search box.
+        Shot("settings-home-focus", tw, th, td, activity { SettingsActivity() }),
         Shot("settings-app", tw, th, td, activity { SettingsActivity() }) { onNodeWithText("CRASH REPORTS").performScrollTo() },
         Shot("library-grid", tw, th, td, activity { LibraryActivity() }) {
             onNodeWithContentDescription("Toggle view").performClick()

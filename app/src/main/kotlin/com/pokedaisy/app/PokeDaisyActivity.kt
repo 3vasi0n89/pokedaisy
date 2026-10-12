@@ -162,6 +162,8 @@ class PokeDaisyActivity : Activity() {
     private var mainCompanionOwner: ComposeHostOwner? = null
     /** The companion a swap opens on: SETTINGS when the swap came from there. */
     private var companionStartTab = "PARTY"
+    /** ...and SETTINGS' row it opens on (SWAP SCREENS after a swap), the same one time. */
+    private var companionStartRow: String? = null
 
     // scripts/capture_fixture.sh support: if the EXTRA_DUMP_FIXTURE extra is a
     // directory path, the next successful (connected) telemetry sample dumps
@@ -594,8 +596,9 @@ class PokeDaisyActivity : Activity() {
         }
         override fun setSwapScreens(on: Boolean) {
             Prefs(this@PokeDaisyActivity).swapScreens = on
-            // The companion that asked moves screens: it comes back on SETTINGS.
+            // The companion that asked moves screens: it comes back on SETTINGS, on SWAP SCREENS.
             companionStartTab = "SETTINGS"
+            companionStartRow = "SWAP SCREENS"
             runOnUiThread { syncPresentation() }
         }
         override val showHints get() = Prefs(this@PokeDaisyActivity).showHints
@@ -1165,11 +1168,12 @@ class PokeDaisyActivity : Activity() {
                 if (swap) stage
                 else DualScreenPresentation.companionView(
                     ctx, telemetry, stateSlots, companionSettings, battleInput, companionBack, playClick, RetroAchievements,
-                    initialTab = companionStartTab, statusBar = companionStatusBar, itemUse = itemUse, fly = flyAction, askForSupport = askForSupport, gamePick = gamePick, shareBestEffort = shareBestEffort,
+                    initialTab = companionStartTab, initialSettingsRow = companionStartRow, statusBar = companionStatusBar, itemUse = itemUse, fly = flyAction, askForSupport = askForSupport, gamePick = gamePick, shareBestEffort = shareBestEffort,
                 )
             }.also { it.show() }
         }.onFailure { Log.w("pokedaisy", "presentation failed", it) }.getOrNull()
         companionStartTab = "PARTY"
+        companionStartRow = null
         if (presentation == null && swap) {
             // The game has to be somewhere: back here, the companion beside it.
             showStage()
@@ -1221,7 +1225,7 @@ class PokeDaisyActivity : Activity() {
         val owner = ComposeHostOwner().apply { create(); resume() }
         val view = DualScreenPresentation.companionView(
             this, telemetry, stateSlots, companionSettings, battleInput, companionBack, playClick, RetroAchievements,
-            initialTab = companionStartTab, statusBar = companionStatusBar, itemUse = itemUse, fly = flyAction, askForSupport = askForSupport, gamePick = gamePick, shareBestEffort = shareBestEffort,
+            initialTab = companionStartTab, initialSettingsRow = companionStartRow, statusBar = companionStatusBar, itemUse = itemUse, fly = flyAction, askForSupport = askForSupport, gamePick = gamePick, shareBestEffort = shareBestEffort,
         ).apply {
             setViewTreeLifecycleOwner(owner)
             setViewTreeSavedStateRegistryOwner(owner)

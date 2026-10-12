@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,7 +71,6 @@ import com.pokedaisy.app.companion.ui.GbaTextMetrics
 import com.pokedaisy.app.companion.ui.OptionColors
 import com.pokedaisy.app.companion.ui.OptionLine
 import com.pokedaisy.app.companion.ui.OptionListWindow
-import com.pokedaisy.app.companion.ui.OptionOverlay
 import com.pokedaisy.app.companion.ui.OptionTitleWindow
 import com.pokedaisy.app.companion.ui.PixelPillShape
 import com.pokedaisy.app.companion.ui.PixelRoundedShape
@@ -104,6 +105,11 @@ class LauncherState {
     var recentCursor by mutableIntStateOf(-1)
     /** Games per row as last laid out: 1 in the list view, the grid's columns in the grid view. */
     var columns by mutableIntStateOf(1)
+    /** The cursor up in the header, on this button (-1 = in the list): UP off the list's top lands on the first. Where
+     * it was in the list is kept, for DOWN. */
+    var headerCursor by mutableIntStateOf(-1)
+    /** The header's buttons, as laid out. */
+    var headerCount = 0
     /** The list on the second screen, the media on the main one. */
     var swapped by mutableStateOf(false)
     /** 0 at rest; 1 = both screens' contents fully out, mid-swap. */
@@ -138,7 +144,13 @@ class LauncherState {
 
     /** UP / DOWN: a row (a grid row in the grid view); up off the games' top row onto the strip, down off it into them. */
     fun moveRow(delta: Int) {
+        if (headerCursor >= 0) {
+            if (delta > 0) headerCursor = -1
+            return
+        }
         if (recentCursor >= 0) {
+            // Up off the strip: the header's first button (sort).
+            if (delta < 0) headerCursor = 0
             if (delta > 0 && games.isNotEmpty()) {
                 selected = recentCursor.coerceAtMost(columns - 1).coerceAtMost(games.lastIndex)
                 recentCursor = -1
@@ -148,7 +160,9 @@ class LauncherState {
         if (games.isEmpty()) return
         val next = selected + delta * columns
         when {
-            next < 0 -> if (recent.isNotEmpty() && delta < 0) recentCursor = (selected % columns).coerceAtMost(recent.lastIndex)
+            next < 0 -> if (delta < 0) {
+                if (recent.isNotEmpty()) recentCursor = (selected % columns).coerceAtMost(recent.lastIndex) else headerCursor = 0
+            }
             // Down into a last row that's short of this column: its last game.
             next > games.lastIndex -> if (selected / columns < games.lastIndex / columns) selected = games.lastIndex
             else -> selected = next
@@ -158,6 +172,7 @@ class LauncherState {
     /** LEFT / RIGHT: along the strip or a grid row; in the list view, a page. */
     fun moveColumn(delta: Int) {
         when {
+            headerCursor >= 0 -> headerCursor = (headerCursor + delta).coerceIn(0, (headerCount - 1).coerceAtLeast(0))
             recentCursor >= 0 -> recentCursor = (recentCursor + delta).coerceIn(0, recent.lastIndex)
             columns > 1 -> if (games.isNotEmpty()) selected = (selected + delta).coerceIn(0, games.lastIndex)
             else -> page(delta)
@@ -166,7 +181,7 @@ class LauncherState {
 
     /** L / R: [PAGE] rows at a time (off the strip, into the games). */
     fun page(delta: Int) {
-        if (games.isEmpty()) return
+        if (games.isEmpty() || headerCursor >= 0) return
         if (recentCursor >= 0) {
             if (delta < 0) return
             recentCursor = -1
@@ -183,6 +198,7 @@ class LauncherState {
 
     /** A tap: the cursor onto [rom] - the strip's tile when [fromRecent]. */
     fun select(rom: File, fromRecent: Boolean = false) {
+        headerCursor = -1
         if (fromRecent) {
             recent.indexOfFirst { it.absolutePath == rom.absolutePath }.takeIf { it >= 0 }?.let { recentCursor = it }
             return
@@ -192,7 +208,8 @@ class LauncherState {
 
     /** Whether the cursor is on [rom] - on the strip's tile when [fromRecent], else in the games. */
     fun isCursor(rom: File, fromRecent: Boolean): Boolean =
-        if (fromRecent) recentCursor >= 0 && recent.getOrNull(recentCursor)?.absolutePath == rom.absolutePath
+        if (headerCursor >= 0) false
+        else if (fromRecent) recentCursor >= 0 && recent.getOrNull(recentCursor)?.absolutePath == rom.absolutePath
         else recentCursor < 0 && games.getOrNull(selected)?.absolutePath == rom.absolutePath
 
     /** X: out (130 ms), trade screens, in (210 ms). Needs a frame clock: launch it from a composition's scope. */
@@ -233,7 +250,8 @@ class LauncherState {
 
 /** A game's options (its library menu), opened with B; [cursor] moves with the D-pad. */
 class LauncherMenu(val title: String, val items: List<Item>) {
-    class Item(val label: String, val danger: Boolean = false, val onClick: () -> Unit)
+    /** [opens]: it opens a window or a screen, and the menu comes back when that closes (B there returns here). */
+    class Item(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector? = null, val danger: Boolean = false, val opens: Boolean = false, val onClick: () -> Unit)
     var cursor by mutableIntStateOf(0)
     /** Rows per column: all of them, or half when the list is drawn in two columns (it didn't fit). */
     var rows by mutableIntStateOf(items.size)
@@ -591,29 +609,50 @@ private fun Modifier.framed(m: GbaTextMetrics): Modifier {
 
 /**
  * B's options for the selected game, over the list's screen: the OPTION pick-list, its cursor the
- * white row (moved by the D-pad, A picks, B closes) - taps work too.
+ * white row (moved by the D-pad, A picks, B closes) - taps work too. As wide as its longest entry
+ * (each with the classic menu's icon), over a light scrim: the list stays readable behind it.
  */
 @Composable
 fun LauncherMenuOverlay(menu: LauncherMenu, m: GbaTextMetrics, onDismiss: () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxSize()) {
         // Two columns (down the first, then the second) when one runs past the screen's height.
         val chrome = m.rowHeight * 2 + m.u * 20 + 32.dp
-        val rows = if (m.rowHeight * menu.items.size + chrome <= maxHeight) menu.items.size else (menu.items.size + 1) / 2
+        // A little room in each entry: taller rows.
+        val rowHeight = m.rowHeight * 1.2f
+        val rows = if (rowHeight * menu.items.size + chrome <= maxHeight) menu.items.size else (menu.items.size + 1) / 2
         LaunchedEffect(rows) { menu.rows = rows }
-        val columns = (menu.items.size + rows - 1) / rows
-        OptionOverlay(onDismiss, Modifier.widthIn(max = if (columns > 1) 960.dp else 560.dp)) {
-            Column {
-                OptionTitleWindow(menu.title, m)
+        val noRipple = remember { MutableInteractionSource() }
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier.fillMaxSize()
+                .background(MENU_SCRIM)
+                .clickable(interactionSource = noRipple, indication = null, onClick = onDismiss)
+                .padding(16.dp),
+        ) {
+            Column(
+                Modifier.width(IntrinsicSize.Max).clickable(interactionSource = noRipple, indication = null, onClick = {}),
+            ) {
+                OptionTitleWindow(menu.title, m, Modifier.fillMaxWidth())
                 Spacer(Modifier.height(m.u * 4))
                 OptionListWindow(m, Modifier.fillMaxWidth()) {
-                    Row {
+                    Row(Modifier.height(IntrinsicSize.Min)) {
                         menu.items.chunked(rows).forEachIndexed { c, column ->
-                            Column(Modifier.weight(1f)) {
+                            Column(Modifier.width(IntrinsicSize.Max)) {
                                 column.forEachIndexed { r, item ->
                                     val i = c * rows + r
                                     OptionLine(
                                         item.label, null, selected = i == menu.cursor, m,
+                                        height = rowHeight,
+                                        labelWeight = 1f,
                                         divider = r < column.lastIndex,
+                                        labelIcon = item.icon?.let { icon ->
+                                            {
+                                                Icon(
+                                                    icon, null, Modifier.fillMaxSize(),
+                                                    tint = if (item.danger) OptionColors.value else OptionColors.label,
+                                                )
+                                            }
+                                        },
                                     ) {
                                         onDismiss()
                                         item.onClick()
@@ -627,6 +666,9 @@ fun LauncherMenuOverlay(menu: LauncherMenu, m: GbaTextMetrics, onDismiss: () -> 
         }
     }
 }
+
+/** The menu's scrim: the list dimmed, still readable (the OPTION overlays' near-black hid the whole screen). */
+private val MENU_SCRIM = Color(0x73000000)
 
 /** One button of the legend: the face button's letter and what it does here. */
 class LegendEntry(val button: String, val label: String, val onClick: () -> Unit)

@@ -101,6 +101,8 @@ fun CompanionScreen(
     initialCardBack: Boolean = false,
     /** SETTINGS opens on this sub-page ("CHEATS") - for screenshot tests, which can't tap. */
     initialSettingsPage: String? = null,
+    /** SETTINGS' row to open on (its English label): the cursor on it, scrolled to - SWAP SCREENS after a swap. */
+    initialSettingsRow: String? = null,
     /** The device's BACK, fed by the game's activity (see [CompanionBack]). */
     back: CompanionBack? = null,
     /** Plays the game's click, for every companion button (see [LocalClickSound]). */
@@ -135,7 +137,7 @@ fun CompanionScreen(
     // Where BACK from a tab opened from SETTINGS (or the GUIDE notice's GO BACK) returns.
     var backTab by remember { mutableStateOf("PARTY") }
     // SETTINGS' page / row / scroll, kept while other tabs are open.
-    val settingsUi = remember { SettingsUiState(initialSettingsPage) }
+    val settingsUi = remember { SettingsUiState(initialSettingsPage, initialSettingsRow) }
     // A tapped achievement popup: the achievement to open ACHIEVEMENTS on, and the tab BACK returns to.
     var achievementFocus by remember { mutableStateOf<AchievementFocus?>(null) }
     var popupReturn by remember { mutableStateOf<String?>(null) }

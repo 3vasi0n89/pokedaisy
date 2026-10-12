@@ -45,6 +45,10 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -99,6 +103,7 @@ import com.pokedaisy.app.companion.hasGrid
 import com.pokedaisy.app.companion.next
 import com.pokedaisy.app.companion.FfMusicMode
 import com.pokedaisy.app.companion.ui.OptionTextField
+import com.pokedaisy.app.companion.ui.PixelIcons
 import com.pokedaisy.app.companion.ui.OptionTitleWindow
 import com.pokedaisy.app.companion.ui.drawLayeredBox
 import com.pokedaisy.app.companion.ui.inPx
@@ -138,6 +143,36 @@ class SettingsActivity : ComponentActivity() {
     private var aspectPicker by mutableStateOf(false)
     /** HOME's scroll, kept while a sub-page is open so BACK returns to the same rows. */
     private val homeScroll = androidx.compose.foundation.ScrollState(0)
+    /** HOME has put the focus on its first setting (once: coming back from a sub-page keeps where it was). */
+    private var homeFocused = false
+    /** HOME's first setting, and whether anything on HOME has the focus: a D-pad press with nothing focused goes there
+     * (opened by touch, the screen is in touch mode and focus can't be asked for until a key leaves it). */
+    private var homeFirstRow: androidx.compose.ui.focus.FocusRequester? = null
+    private var homeHasFocus = false
+
+    /** The pop-ups open over Settings (pick-lists, confirms): B / BACK closes the newest, the focus goes back to its row. */
+    private val overlays = com.pokedaisy.app.companion.ui.OverlayStack()
+    /** B / BACK closed a pop-up: its key up is the pop-up's too (or Android's BACK would follow and leave Settings). */
+    private var backTaken = false
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if ((event.keyCode == KeyEvent.KEYCODE_BUTTON_B || event.keyCode == KeyEvent.KEYCODE_BACK) && capturing == null && capturingCtrl == null) {
+            if (event.action == KeyEvent.ACTION_DOWN) {
+                if (event.repeatCount == 0) backTaken = overlays.dismissTop()
+                if (backTaken) return true
+            } else if (event.action == KeyEvent.ACTION_UP && backTaken) {
+                backTaken = false
+                return true
+            }
+        }
+        val dpad = event.keyCode == KeyEvent.KEYCODE_DPAD_UP || event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN ||
+            event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
+        if (dpad && event.action == KeyEvent.ACTION_DOWN && screen == Screen.HOME && !homeHasFocus && !overlays.isOpen && capturing == null && capturingCtrl == null) {
+            val first = homeFirstRow
+            if (first != null && runCatching { first.requestFocus() }.isSuccess) return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
     /** This screen's width / height - the top screen's, for the ASPECT preview. */
     private var screenAspect by mutableFloatStateOf(16f / 9f)
 
@@ -184,7 +219,11 @@ class SettingsActivity : ComponentActivity() {
             helpOnly = true
             screen = Screen.HELP
         }
-        setContent { QolTheme { Root() } }
+        setContent {
+            QolTheme {
+                androidx.compose.runtime.CompositionLocalProvider(com.pokedaisy.app.companion.ui.LocalOverlayStack provides overlays) { Root() }
+            }
+        }
     }
 
     override fun onResume() {
@@ -481,6 +520,7 @@ class SettingsActivity : ComponentActivity() {
      * flip on tap, multi-choice rows open a pick-one list, the rest open
      * their own page. */
     @Composable
+    @OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class) // Key.ButtonB / the keyboard controller, on older Compose
     private fun HomeScreen(m: GbaTextMetrics) {
         @Suppress("UNUSED_EXPRESSION") revision
         val rateLabels = RATES.map(::rateLabel)
@@ -623,10 +663,38 @@ class SettingsActivity : ComponentActivity() {
         )
         // Search: every row whose name, value or keywords (SETTING_KEYWORDS: "rebind", "keybinds"...) match.
         val shown = filterRows(rows, searchQuery)
-        Column(Modifier.fillMaxSize()) {
+        // D-pad focus starts on the first setting (it used to land on the search box first), once per visit to Settings;
+        // B / BACK in the search box comes back there too.
+        val firstRow = remember { androidx.compose.ui.focus.FocusRequester() }
+        androidx.compose.runtime.DisposableEffect(firstRow) {
+            homeFirstRow = firstRow
+            onDispose { if (homeFirstRow === firstRow) homeFirstRow = null; homeHasFocus = false }
+        }
+        // Once the window has the focus (asked before, it went nowhere). A new window starts in touch mode, where
+        // nothing takes the focus and the first D-pad press only leaves touch mode: switch to keys first.
+        val windowFocused = androidx.compose.ui.platform.LocalWindowInfo.current.isWindowFocused
+        val inputMode = androidx.compose.ui.platform.LocalInputModeManager.current
+        LaunchedEffect(windowFocused) {
+            if (homeFocused || !windowFocused) return@LaunchedEffect
+            androidx.compose.runtime.withFrameNanos { }
+            inputMode.requestInputMode(androidx.compose.ui.input.InputMode.Keyboard)
+            if (runCatching { firstRow.requestFocus() }.isSuccess) homeFocused = true
+        }
+        val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+        Column(Modifier.fillMaxSize().onFocusChanged { homeHasFocus = it.hasFocus }) {
             OptionTextField(
-                searchQuery, { searchQuery = it }, m, Modifier.fillMaxWidth(),
+                searchQuery, { searchQuery = it }, m,
+                Modifier.fillMaxWidth().onPreviewKeyEvent { e ->
+                    val back = e.key == androidx.compose.ui.input.key.Key.Back || e.key == androidx.compose.ui.input.key.Key.ButtonB
+                    if (!back) return@onPreviewKeyEvent false
+                    if (e.type == androidx.compose.ui.input.key.KeyEventType.KeyDown) {
+                        keyboard?.hide()
+                        runCatching { firstRow.requestFocus() }
+                    }
+                    true
+                },
                 placeholder = tr("SEARCH SETTINGS (e.g. KEY BINDINGS)"),
+                leadingIcon = PixelIcons.search,
             )
             Spacer(Modifier.height(m.u * 4))
             OptionListWindow(m, Modifier.fillMaxWidth().weight(1f)) {
@@ -636,9 +704,9 @@ class SettingsActivity : ComponentActivity() {
                         modifier = Modifier.padding(horizontal = m.u * 8, vertical = m.u * 4),
                     )
                 } else if (searchQuery.isBlank()) {
-                    GroupedRows(rows, m, cursor = -1, onClick = { rows[it].onClick() }, scroll = homeScroll)
+                    GroupedRows(rows, m, cursor = -1, onClick = { rows[it].onClick() }, scroll = homeScroll, firstRowFocus = firstRow)
                 } else {
-                    GroupedRows(shown, m, cursor = -1, onClick = { shown[it].onClick() })
+                    GroupedRows(shown, m, cursor = -1, onClick = { shown[it].onClick() }, firstRowFocus = firstRow)
                 }
             }
             Spacer(Modifier.height(m.u * 4))

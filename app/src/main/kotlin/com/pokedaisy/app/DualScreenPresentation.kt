@@ -119,6 +119,8 @@ class DualScreenPresentation(
             clickSound: () -> Unit,
             achievements: com.pokedaisy.app.companion.CompanionAchievements?,
             initialTab: String = "PARTY",
+            /** SETTINGS' row to open on ([CompanionScreen]'s initialSettingsRow). */
+            initialSettingsRow: String? = null,
             statusBar: (@androidx.compose.runtime.Composable () -> Unit)? = null,
             itemUse: com.pokedaisy.app.companion.ItemUse? = null,
             fly: com.pokedaisy.app.companion.FlyAction? = null,
@@ -129,7 +131,7 @@ class DualScreenPresentation(
             setContent {
                 val snap by store.snapshot.collectAsState()
                 CompanionScreen(
-                    snap, slots, settings, battleInput, initialTab = initialTab,
+                    snap, slots, settings, battleInput, initialTab = initialTab, initialSettingsRow = initialSettingsRow,
                     back = back, clickSound = clickSound, achievements = achievements, statusBar = statusBar,
                     itemUse = itemUse, fly = fly, askForSupport = askForSupport, gamePick = gamePick,
                     shareBestEffort = shareBestEffort,

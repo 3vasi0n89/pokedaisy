@@ -65,6 +65,11 @@ import com.pokedaisy.app.companion.data.GameKind
 import com.pokedaisy.app.companion.data.activeGame
 import com.pokedaisy.app.companion.ui.theme.QolColors
 import com.pokedaisy.app.companion.ui.theme.gbaFocusRing
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.foundation.focusGroup
 import com.pokedaisy.app.companion.ui.theme.pixelFontFamily
 import com.pokedaisy.app.companion.ui.theme.rememberGameBackground
 import kotlin.math.max
@@ -323,14 +328,19 @@ fun OptionLine(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    // A pop-up this row opens gives the focus back to it ([OverlayStack]); in a pop-up, the current choice starts focused.
+    val stack = LocalOverlayStack.current
+    val self = remember { FocusRequester() }
+    if (enabled) LocalOverlayStart.current?.register(self, current = selected)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
+            .focusRequester(self)
             .fillMaxWidth()
             .height(height)
             .background(if (selected || focused) OptionColors.rowSelected else Color.Transparent)
             .then(if (divider) Modifier.drawBehind { drawRowDivider(OptionColors.divider, m.u.toPx(), 4 * m.u.toPx()) } else Modifier)
-            .then(if (enabled) Modifier.soundClickable(interactionSource = interaction, indication = null, onClick = onClick) else Modifier)
+            .then(if (enabled) Modifier.soundClickable(interactionSource = interaction, indication = null, onClick = { stack?.lastClicked = self; onClick() }) else Modifier)
             .padding(horizontal = m.u * 8),
     ) {
         Column(Modifier.weight(labelWeight)) {
@@ -435,6 +445,9 @@ fun OptionButton(
     val u = m.u
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    val stack = LocalOverlayStack.current
+    val self = remember { FocusRequester() }
+    if (enabled) LocalOverlayStart.current?.register(self, current = false)
     val fg = when {
         !enabled -> OptionColors.muted
         labelColors != null -> labelColors.first
@@ -451,6 +464,7 @@ fun OptionButton(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
         modifier = modifier
+            .focusRequester(self)
             // The button's own corner: its box below is drawn at a 3u radius.
             .gbaFocusRing(focused, PixelRoundedShape(u * 3))
             .heightIn(min = m.rowHeight)
@@ -461,7 +475,7 @@ fun OptionButton(
                     radius = 3 * u.toPx(),
                 )
             }
-            .soundClickable(enabled = enabled, interactionSource = interaction, indication = null, onClick = onClick)
+            .soundClickable(enabled = enabled, interactionSource = interaction, indication = null, onClick = { stack?.lastClicked = self; onClick() })
             .padding(horizontal = u * 8, vertical = u * 4),
     ) {
         if (icon != null) {
@@ -488,20 +502,87 @@ fun BackdropText(text: String, m: GbaTextMetrics, modifier: Modifier = Modifier)
  * Screen-2 Presentation.
  */
 @Composable
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class, androidx.compose.foundation.ExperimentalFoundationApi::class) // exit / focusGroup, on older Compose
 fun OptionOverlay(onDismiss: () -> Unit, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     CompanionBackHandler(onBack = onDismiss)
     val noRipple = remember { MutableInteractionSource() }
+    // With an [OverlayStack] (a top-screen activity's D-pad): the focus moves in, stays in, and goes back to what
+    // opened it when this closes; B / BACK closes the newest.
+    val stack = LocalOverlayStack.current
+    // Where the focus starts: the current choice if there is one, else the first control (they register as they compose).
+    val start = remember { OverlayStart() }
+    if (stack != null) {
+        val dismiss by androidx.compose.runtime.rememberUpdatedState(onDismiss)
+        val e = remember { OverlayStack.Entry({ dismiss() }, stack.lastClicked) }
+        androidx.compose.runtime.DisposableEffect(e) {
+            stack.entries += e
+            onDispose {
+                stack.entries -= e
+                e.returnTo?.let { runCatching { it.requestFocus() } }
+            }
+        }
+        androidx.compose.runtime.LaunchedEffect(e) {
+            androidx.compose.runtime.withFrameNanos { }
+            (start.preferred ?: start.first)?.let { runCatching { it.requestFocus() } }
+        }
+    }
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xE6000000))
+            // The scrim and the window's tap-swallower aren't stops for the D-pad.
+            .focusProperties { canFocus = false }
             .soundClickable(interactionSource = noRipple, indication = null, onClick = onDismiss)
             .padding(16.dp),
     ) {
-        Box(modifier.clickable(interactionSource = noRipple, indication = null, onClick = {})) { content() }
+        Box(
+            modifier
+                .focusProperties { exit = { FocusRequester.Cancel } }
+                .focusGroup()
+                .focusProperties { canFocus = false }
+                .clickable(interactionSource = noRipple, indication = null, onClick = {}),
+        ) {
+            androidx.compose.runtime.CompositionLocalProvider(LocalOverlayStart provides start.takeIf { stack != null }) { content() }
+        }
     }
 }
+
+/** A pop-up's first control and its current choice, as they compose: where its focus starts. */
+class OverlayStart {
+    internal var first: FocusRequester? = null
+    internal var preferred: FocusRequester? = null
+
+    internal fun register(requester: FocusRequester, current: Boolean) {
+        if (first == null) first = requester
+        if (current && preferred == null) preferred = requester
+    }
+}
+
+internal val LocalOverlayStart = androidx.compose.runtime.staticCompositionLocalOf<OverlayStart?> { null }
+
+/**
+ * The pop-ups ([OptionOverlay]) open over one top-screen activity, newest last, for its D-pad: B / BACK closes the newest
+ * ([dismissTop], from the activity's key handling) and the focus goes back to the row / button that opened it - the last
+ * [OptionLine] / [OptionButton] pressed when it opened. Provided as [LocalOverlayStack]; the companion has CompanionBack.
+ */
+class OverlayStack {
+    internal class Entry(val dismiss: () -> Unit, val returnTo: FocusRequester?)
+    internal val entries = mutableListOf<Entry>()
+    internal var lastClicked: FocusRequester? = null
+
+    /** Whether any pop-up is open. */
+    val isOpen: Boolean get() = entries.isNotEmpty()
+
+    /** Closes the newest pop-up; false = none open. */
+    fun dismissTop(): Boolean {
+        val e = entries.lastOrNull() ?: return false
+        e.dismiss()
+        return true
+    }
+}
+
+val LocalOverlayStack = androidx.compose.runtime.staticCompositionLocalOf<OverlayStack?> { null }
 
 /**
  * A pick-one list over the screen: tapping a setting's row opens this instead
@@ -673,9 +754,13 @@ fun OptionTextField(
     minLines: Int = 1,
     code: Boolean = false,
     number: Boolean = false,
+    /** A [PixelIcons] bitmap before the text, in the placeholder's grey (a search box's magnifier). */
+    leadingIcon: List<String>? = null,
 ) {
     val u = m.u
     var shown by remember { androidx.compose.runtime.mutableStateOf(false) }
+    // D-pad focus (the library's and Settings' search box) shows like every other control's: the focus ring.
+    var focused by remember { androidx.compose.runtime.mutableStateOf(false) }
     val hidden = password && !shown
     BasicTextField(
         value = value,
@@ -693,10 +778,16 @@ fun OptionTextField(
         cursorBrush = SolidColor(OptionColors.value),
         modifier = modifier
             .fillMaxWidth()
+            .onFocusChanged { focused = it.isFocused }
+            .gbaFocusRing(focused, PixelRoundedShape(u * 2))
             .drawBehind { drawLayeredBox(OptionColors.titleLayers.inPx(u.toPx()), OptionColors.titleFill, radius = 2 * u.toPx()) }
             .padding(horizontal = u * 6, vertical = u * 5),
         decorationBox = { inner ->
             Row(verticalAlignment = Alignment.CenterVertically) {
+                leadingIcon?.let {
+                    PixelIcon(it, OptionColors.muted, Modifier.size(m.lineHeight))
+                    Spacer(Modifier.width(u * 4))
+                }
                 Box(Modifier.weight(1f)) {
                     if (value.isEmpty() && placeholder != null) GbaText(placeholder, OptionColors.muted, OptionColors.mutedShadow, m)
                     inner()

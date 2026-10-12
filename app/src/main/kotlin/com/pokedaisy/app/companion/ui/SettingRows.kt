@@ -8,8 +8,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.focus.focusRequester
 import com.pokedaisy.app.companion.i18n.tr
 
 /**
@@ -129,8 +142,14 @@ fun GroupedRows(
     scroll: ScrollState = rememberScrollState(),
     /** The label column's share of a row (with its subtitle); TWEAKS' ON / OFF need little room. */
     labelWeight: Float = 0.58f,
+    /** A row scrolled into view once, then [onRevealed] (SWAP SCREENS, after the swap rebuilt the page); -1 = none. */
+    reveal: Int = -1,
+    onRevealed: () -> Unit = {},
+    /** Given to the first row (not a group title): where D-pad focus starts. */
+    firstRowFocus: androidx.compose.ui.focus.FocusRequester? = null,
     footer: @Composable () -> Unit = {},
 ) {
+    val firstRow = rows.indexOfFirst { !it.header }
     Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
         rows.forEachIndexed { i, row ->
             if (row.header) {
@@ -154,6 +173,8 @@ fun GroupedRows(
             } else {
                 OptionLine(
                     row.label, row.value, selected = i == cursor, m,
+                    modifier = (if (i == reveal) Modifier.revealOnce(onRevealed) else Modifier)
+                        .then(if (i == firstRow && firstRowFocus != null) Modifier.focusRequester(firstRowFocus) else Modifier),
                     height = if (row.subtitle != null) m.rowHeight * 1.2f + m.lineHeight else m.rowHeight * 1.2f,
                     divider = rows.getOrNull(i + 1)?.header == false, labelBadge = row.labelBadge, labelIcon = row.labelIcon,
                     valueBadge = row.badge, enabled = row.enabled, subtitle = row.subtitle, labelWeight = labelWeight,
@@ -162,4 +183,19 @@ fun GroupedRows(
         }
         footer()
     }
+}
+
+/** Scrolls this row into view, a row's height of its neighbours with it, once it's laid out; then [done]. */
+@OptIn(ExperimentalFoundationApi::class)
+private fun Modifier.revealOnce(done: () -> Unit): Modifier = composed {
+    val requester = remember { BringIntoViewRequester() }
+    var size by remember { mutableStateOf(IntSize.Zero) }
+    LaunchedEffect(size) {
+        // A freshly composed page has no layout yet: bringIntoView then had nothing to scroll to.
+        if (size == IntSize.Zero) return@LaunchedEffect
+        val h = size.height.toFloat()
+        requester.bringIntoView(Rect(0f, -h, size.width.toFloat(), 2 * h))
+        done()
+    }
+    onSizeChanged { size = it }.bringIntoViewRequester(requester)
 }

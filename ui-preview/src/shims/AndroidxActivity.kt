@@ -12,6 +12,7 @@ open class ComponentActivity : Context() {
     val packageManager = android.content.pm.PackageManager()
     open fun onCreate(savedInstanceState: android.os.Bundle?) {}
     open fun onResume() {}
+    open fun onPause() {}
     open fun onStart() {}
     open fun onStop() {}
     open fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean = false

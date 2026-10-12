@@ -73,7 +73,7 @@ A game that appeared in the last 24 hours wears a green `NEW` tag. Games that we
 
 ## The game menu
 
-Long-press a game, in the list or the grid, to open its menu. In list view, the three dots at the end of a row open it too.
+Long-press a game, in the list, the grid or `RECENTLY PLAYED`, to open its menu. In list view, the three dots at the end of a row open it too.
 
 ![A game's menu open over the library: UNFAVORITE, INFO, RENAME, REPLACE COVER, SET COVER, LOAD SAVE, RESTORE BACKUP, SAVE FOLDER, CHEATS, HIDE and DELETE](shots/library-menu.png "A game's menu")
 
@@ -124,10 +124,10 @@ To use your own image instead, tap `SET COVER` in the menu and pick a picture fr
 
 On a device with two screens, the library is made for buttons. It's the same library: `RECENTLY PLAYED` at the top, then all your games as a list or a grid (the view button in the header switches), each row with where its file is.
 
-The D-pad moves a cursor through it: up and down a row, left and right along `RECENTLY PLAYED` or a row of the grid. L and R jump a page. A small legend in the corner reminds you of the rest:
+The D-pad moves a cursor through it: up and down a row, left and right along `RECENTLY PLAYED` or a row of the grid. Up from the top of the list reaches the header's buttons (sort, view, import and the rest); A presses one, down or B goes back. L and R jump a page. A small legend in the corner reminds you of the rest:
 
 - **A** opens the game.
-- **B** opens the game's menu (the same entries as a long press).
+- **B** opens the game's menu (the same entries as a long press). Whatever an entry opens, like `INFO`, B takes you back to the menu.
 - **Y** opens Settings.
 
 Prefer the library without the cursor and legend? Turn off `DUAL-SCREEN LAUNCHER` in Settings, in the `LIBRARY` group.
