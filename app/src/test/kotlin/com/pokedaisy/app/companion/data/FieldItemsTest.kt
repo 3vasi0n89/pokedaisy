@@ -475,7 +475,7 @@ class FieldItemsTest {
      * user's "Pokemon Multi Language" folder; skipped without it. */
     @Test
     fun `each ported table matches its ROM`() {
-        val dir = File(System.getProperty("multiRomDir") ?: (System.getProperty("user.home") + "/Downloads/Pokemon Multi Language"))
+        val dir = File(System.getProperty("multiRomDir") ?: (System.getProperty("user.home") + "/Downloads/Game ROMs & Emulation/Pokemon Multi Language"))
         assumeTrue(dir.isDirectory)
         // By header only (~50 ROMs of up to 16 MB): each one read whole when its table comes up.
         val roms = dir.walk().filter { it.isFile && it.extension == "gba" && listOf("Pirate", "Debug", "Pokemon Box").none { x -> x in it.name } }

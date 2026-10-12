@@ -256,7 +256,7 @@ object ScreenScraperClient {
             val real = refusalCode(code, body)
             val said = serverLine(body)
             // The answer's text only (never the request URL, which carries the passwords).
-            Log.w(TAG, "refused: HTTP $code (read as $real): $said")
+            warn("refused: HTTP $code (read as $real): $said")
             throw ApiException(real, errorText(real, body), said)
         }
         // Its JSON sometimes has a trailing comma before a closing brace (Skyscraper patches the same).
@@ -264,10 +264,15 @@ object ScreenScraperClient {
         val header = json.optJSONObject("header")
         if (header != null && header.optString("success", "true") != "true") {
             val error = header.optString("error")
-            Log.w(TAG, "refused in JSON: $error")
+            warn("refused in JSON: $error")
             throw ApiException(refusalCode(500, error), error.ifBlank { "ScreenScraper error" }, error)
         }
         return json
+    }
+
+    /** Log.w, off the JVM tests' path: there it's layoutlib's android.util.Log, whose native half isn't loaded. */
+    private fun warn(message: String) {
+        runCatching { Log.w(TAG, message) }
     }
 
     private val TRAILING_COMMA = Regex("""([\]}]),(\s*[}\]])""")

@@ -20,7 +20,7 @@ class RomItemTextTest {
         val rom: String, val kind: GameKind, val cfg: NativeConfig?, val expect: Map<Int, String>,
     )
 
-    private val multiLanguage = System.getProperty("user.home") + "/Downloads/Pokemon Multi Language/"
+    private val multiLanguage = System.getProperty("user.home") + "/Downloads/Game ROMs & Emulation/Pokemon Multi Language/"
 
     private val cases = listOf(
         // FireRed's TMs point at their moves' descriptions (TM01 = FOCUS PUNCH's).

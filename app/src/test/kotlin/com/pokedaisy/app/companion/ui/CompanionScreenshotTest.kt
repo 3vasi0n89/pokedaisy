@@ -636,9 +636,9 @@ open class CompanionScreenshotTest {
 
     // Unbound: each gym leader's four difficulty teams, and the ROM-read WHERE IS.
     @Test fun unboundGuideNextBoss() =
-        retailGuide("unbound", NATIVE_UNBOUND_WITH_DEX, "Pokemon - Unbound (v2.1.1.1).gba", "NEXT BOSS", kind = GameKind.UNBOUND)
+        retailGuide("unbound", NATIVE_UNBOUND_WITH_DEX, "Pokémon Unbound (v2.1.1.1).gba", "NEXT BOSS", kind = GameKind.UNBOUND)
     @Test fun unboundGuideWhereIs() =
-        retailGuide("unbound", NATIVE_UNBOUND_WITH_DEX, "Pokemon - Unbound (v2.1.1.1).gba", "WHERE IS", "WHERE IS/KEY ITEMS/Go-Goggles/null" to 2, GameKind.UNBOUND)
+        retailGuide("unbound", NATIVE_UNBOUND_WITH_DEX, "Pokémon Unbound (v2.1.1.1).gba", "WHERE IS", "WHERE IS/KEY ITEMS/Go-Goggles/null" to 2, GameKind.UNBOUND)
 
     // Radical Red: gyms 1-7 and the ROM-read WHERE IS (its HMs).
     @Test fun radicalRedGuideNextBoss() =
@@ -736,7 +736,7 @@ open class CompanionScreenshotTest {
     }
 
     private fun unboundDex(): SnapshotView? {
-        val rom = RomFileReader.load(RETAIL_ROM_DIR + "Pokemon - Unbound (v2.1.1.1).gba")
+        val rom = RomFileReader.load(RETAIL_ROM_DIR + "Pokémon Unbound (v2.1.1.1).gba")
             ?: return null
         activeGame = GameKind.UNBOUND
         PokedexSource.reader = rom
