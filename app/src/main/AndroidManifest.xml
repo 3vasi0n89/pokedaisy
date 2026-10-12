@@ -108,6 +108,12 @@
             android:exported="false"
             android:theme="@style/Theme.PokeDaisy" />
 
+        <!-- PC BOXES: a game's save read and edited from the library, with the game closed. -->
+        <activity
+            android:name=".SaveEditorActivity"
+            android:exported="false"
+            android:theme="@style/Theme.PokeDaisy" />
+
         <!-- No screenOrientation: PokeDaisyActivity locks landscape itself with a second
              screen and follows the device's rotation without one (a phone upright puts the
              companion under the game, PortraitPanel). configChanges keeps the game running

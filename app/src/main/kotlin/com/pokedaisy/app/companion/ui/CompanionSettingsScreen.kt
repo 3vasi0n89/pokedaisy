@@ -35,12 +35,13 @@ import com.pokedaisy.app.Hotkeys
 import com.pokedaisy.app.companion.COMPANION_TABS
 import com.pokedaisy.app.companion.CompanionSettings
 import com.pokedaisy.app.companion.FfMode
+import com.pokedaisy.app.companion.GameAspect
 import com.pokedaisy.app.companion.hasGrid
 import com.pokedaisy.app.companion.next
 import com.pokedaisy.app.companion.FfMusicMode
 import com.pokedaisy.app.companion.MAX_BAR_TABS
 
-private val FF_RATES = floatArrayOf(0f, 2f, 3f, 4f, 5f, 6f, 8f, 10f)
+private val FF_RATES = floatArrayOf(0f, 1.5f, 2f, 3f, 4f, 5f, 6f, 8f, 10f)
 private val TOUCH_NAMES = listOf(tk("AUTO"), tk("ALWAYS"), tk("NEVER"))
 
 /** SETTINGS > STATUS BAR's choices: off, over the game, over the companion's tabs. */
@@ -64,7 +65,7 @@ private val PICKABLE_KEYS = listOf(
     "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
 )
 
-internal enum class Page(val title: String) { HOME(tk("SETTINGS")), TABS(tk("TAB BAR")), BUTTONS(tk("GAME BUTTONS")), HOTKEYS(tk("HOTKEYS")), SHADERS(tk("SHADERS")), CHEATS(tk("CHEATS")), TWEAKS(tk("TWEAKS")) }
+internal enum class Page(val title: String) { HOME(tk("SETTINGS")), TABS(tk("TAB BAR")), BUTTONS(tk("GAME BUTTONS")), HOTKEYS(tk("HOTKEYS")), SHADERS(tk("SHADERS")), CHEATS(tk("CHEATS")), TWEAKS(tk("TWEAKS")), HELP(tk("HELP")) }
 
 /**
  * The bottom-screen SETTINGS tab, laid out like FireRed's OPTION screen over
@@ -132,7 +133,7 @@ fun CompanionSettingsScreen(
             if (!(statusBarShown && page == Page.HOME)) {
                 // A sub-page's arrow (and BACK, through it) returns to the options.
                 val titleM = rememberGbaTextMetrics()
-                OptionTitleWindow(page.title, titleM, trailing = trailing, onBack = if (page != Page.HOME) ({ page = Page.HOME }) else null) {
+                OptionTitleWindow(page.title, titleM, trailing = trailing, onBack = if (page != Page.HOME) ({ if (page != Page.HELP || !ui.docs.back()) page = Page.HOME }) else null) {
                     if (!statusBarShown) {
                         Spacer(Modifier.width(titleM.u * 8))
                         BatteryIndicator(titleM)
@@ -200,9 +201,15 @@ fun CompanionSettingsScreen(
                             tick++
                         }
                     } + SettingRow(tk("CANCEL"), null) { page = Page.HOME }
+                    Page.HELP -> emptyList()
                 }
             }
-            OptionListWindow(m, Modifier.fillMaxWidth().weight(1f)) {
+            // HELP: the manual, read from the docs API (no search box: the bottom screen can't host a keyboard).
+            if (page == Page.HELP) {
+                val context = androidx.compose.ui.platform.LocalContext.current
+                val source = remember { DocsSources.of(context) }
+                DocsReader(ui.docs, m, source, Modifier.fillMaxWidth().weight(1f), searchable = false)
+            } else OptionListWindow(m, Modifier.fillMaxWidth().weight(1f)) {
                 // Rows share out the window's height (big touch targets) down
                 // to a floor, past which the list scrolls instead.
                 // SHADERS too: OptionRows shares the window out, so its 4 rows came out taller than SETTINGS'.
@@ -310,6 +317,8 @@ class SettingsUiState(initialPage: String? = null) {
     // HOME starts with a group title, so its first row is index 1.
     internal var homeCursor by mutableStateOf(1)
     internal val homeScroll = androidx.compose.foundation.ScrollState(0)
+    /** HELP's page and place in the manual. */
+    internal val docs = DocsUiState()
 }
 
 /** How many chips the player's pick puts in this game's tab bar. */
@@ -321,6 +330,10 @@ private fun setTabs(s: CompanionSettings, tabs: List<String>, changed: (List<Str
     s.setCompanionTabs(ordered)
     changed(ordered)
 }
+
+/** WIDE on a game it doesn't know yet (it shows as ORIGINAL there). */
+private fun wideBadge(s: CompanionSettings, aspect: GameAspect): String? =
+    if (aspect == GameAspect.WIDE && !s.wideSupported) tk("NOT YET") else null
 
 /** A pick-one list for a multi-choice setting; [options] are display labels. */
 private class Selector(
@@ -348,6 +361,12 @@ private fun homeRows(
         SettingRow("FF", onOff(s.ffToggled)) { s.setFfToggled(!s.ffToggled); changed() },
         SettingRow(tk("FF SPEED"), rateLabel(s.ffMaxSpeed)) {
             select(Selector(tk("FF SPEED"), rateLabels, rateLabel(s.ffMaxSpeed)) { s.setFfMaxSpeed(FF_RATES[rateLabels.indexOf(it)]) })
+        },
+        // The game's own pace, kept per game: slow-motion that stays (0.5x, 0.25x) up to 4x. FF, when on, wins.
+        SettingRow(tk("GAME SPEED"), speedLabel(s.gameSpeed)) {
+            val speeds = s.gameSpeeds
+            val labels = speeds.map(::speedLabel)
+            select(Selector(tk("GAME SPEED"), labels, speedLabel(s.gameSpeed)) { l -> s.setGameSpeed(speeds[labels.indexOf(l)]) })
         },
         // SMART: menus (party, bag, ... in battle too) and the region map at 1x; NORMAL: fast everywhere.
         SettingRow(tk("FF MODE"), s.ffMode.label) {
@@ -384,12 +403,16 @@ private fun homeRows(
         SettingRow(tk("TAB BAR"), tr("{0} TABS", barTabs)) { navigate(Page.TABS) },
         // Move effectiveness and the foe's weak-to/resists during battle.
         SettingRow(tk("BATTLE HINTS"), onOff(s.showHints)) { s.setShowHints(!s.showHints); changed() },
+        // The battle controls' action menu shows the moves: one tap picks FIGHT and the move.
+        SettingRow(tk("ONE-TAP MOVES"), onOff(s.oneTapMoves)) { s.setOneTapMoves(!s.oneTapMoves); changed() },
         // A STATS page in battle INFO with the foe's IVs / EVs / nature.
         SettingRow(tk("FOE IVS"), onOff(s.showFoeIvs)) { s.setShowFoeIvs(!s.showFoeIvs); changed() },
         // The game's menu click on every companion button.
         SettingRow(tk("CLICK SOUND"), onOff(s.clickSound)) { s.setClickSound(!s.clickSound); changed() },
         // Small on / off preferences: the icons' bounce, the map cursor's blink, tab slides, the battle jump.
         SettingRow(tk("TWEAKS"), null) { navigate(Page.TWEAKS) },
+        // The manual: every tab and setting explained (served by the website, kept for offline reading).
+        SettingRow(tk("HELP"), null, subtitle = "The manual: how every screen and setting works") { navigate(Page.HELP) },
         groupTitle(tk("SCREEN")),
         // Game, location, money, clock and battery: OFF, over the game, or over these tabs.
         SettingRow(tk("STATUS BAR"), statusBarLabel(s.statusBar, s.statusBarOnCompanion)) {
@@ -399,8 +422,20 @@ private fun homeRows(
                 s.setStatusBar(i > 0)
             })
         },
-        // The game at the GBA's 3:2, or stretched to fill the top screen; flips in place.
-        SettingRow(tk("ASPECT"), aspectLabel(s.stretchGame)) { s.setStretchGame(!s.stretchGame); changed() },
+        // The game at the GBA's 3:2, stretched to fill the top screen, or WIDE (the overworld drawn past
+        // its edges); WIDE is tagged NOT YET on a game it doesn't know (which shows it as ORIGINAL).
+        SettingRow(tk("ASPECT"), aspectLabel(s.gameAspect), wideBadge(s, s.gameAspect)) {
+            val aspects = GameAspect.entries
+            select(
+                Selector(
+                    tk("ASPECT"), aspects.map { it.label }, s.gameAspect.label,
+                    badge = { l -> wideBadge(s, aspects.first { it.label == l }) },
+                ) { l -> s.setGameAspect(aspects.first { it.label == l }) },
+            )
+        },
+        // EXPAND only: whether a conversation, sign, menu or picture over the field pulls the zoom in (battles always do).
+        SettingRow(tk("AUTO ZOOM IN"), onOff(s.expandZoomOnText), subtitle = "1x on dialogue, signs, menus") { s.setExpandZoomOnText(!s.expandZoomOnText); changed() }
+            .takeIf { s.gameAspect == GameAspect.WIDE },
         // FILTER (LCD / LCD PAPER / SCANLINES / CRT) and GBA COLORS, on their own page.
         SettingRow(tk("SHADERS"), s.screenFilter.label) { navigate(Page.SHADERS) },
         // A frame around the game: NONE, the built-in ones, the player's imports (added on the top screen). Live.
@@ -487,7 +522,10 @@ private fun shaderRows(s: CompanionSettings, changed: () -> Unit): List<SettingR
 
 private fun alphaBadge(mode: FfMusicMode) = if (mode.alpha) tk("ALPHA") else null
 
-private fun rateLabel(v: Float) = if (v <= 0f) tk("INFINITE") else "${v.toInt()}×"
+private fun rateLabel(v: Float) = if (v <= 0f) tk("INFINITE") else speedLabel(v)
+
+/** 2×, 1.5×, 0.25× (Pixel Operator has no ½ / ¼). */
+internal fun speedLabel(v: Float) = (if (v % 1f == 0f) "${v.toInt()}" else "$v") + "×"
 
 private fun keyLabel(name: String) = name.replace("BUTTON_", "").replace('_', ' ')
 

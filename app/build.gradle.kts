@@ -33,6 +33,23 @@ fun signingSecret(name: String): String? =
         p.inputStream.bufferedReader().readText().trim().takeIf { p.waitFor() == 0 && it.isNotEmpty() }
     }.getOrNull()
 
+// ScreenScraper's developer credentials (ScreenScraperClient: every API call carries the app's own
+// as well as the player's account). Never in this public repo: from the untracked local.properties
+// (screenscraper.devId / screenscraper.devPassword) or the environment (SCREENSCRAPER_DEV_ID /
+// SCREENSCRAPER_DEV_PASSWORD - the release workflow's secrets). Without them a build still sends the
+// player's account alone, and the sign-in says what the server answered.
+val localProps = rootProject.file("local.properties").takeIf { it.isFile }?.let { f ->
+    Properties().apply { f.inputStream().use(::load) }
+}
+fun screenScraperSecret(prop: String, env: String): String =
+    (localProps?.getProperty(prop) ?: System.getenv(env)).orEmpty()
+        .replace("\\", "\\\\").replace("\"", "\\\"")
+
+// Features merged but off until asked for (FeatureFlags.kt): `-Ppokedaisy.<name>=true` on the command line, or the same
+// key in local.properties. A marker file on the device turns them on for an APK already installed.
+fun featureFlag(name: String): Boolean =
+    (findProperty("pokedaisy.$name") ?: localProps?.getProperty("pokedaisy.$name"))?.toString()?.trim()?.toBoolean() == true
+
 android {
     namespace = "com.pokedaisy.app"
     compileSdk = 34
@@ -44,10 +61,17 @@ android {
         targetSdk = 34
         // Bump both for every GitHub release: the updater compares versionName
         // against the release tag (v<versionName>), Android needs versionCode to grow.
-        versionCode = 9
-        versionName = "1.1.4"
+        versionCode = 10
+        versionName = "1.2.0"
         // Whether this build can send crash reports at all (CrashReports.available).
         buildConfigField("boolean", "CRASHLYTICS", crashlytics.toString())
+        buildConfigField("String", "SCREENSCRAPER_DEV_ID", "\"${screenScraperSecret("screenscraper.devId", "SCREENSCRAPER_DEV_ID")}\"")
+        buildConfigField("String", "SCREENSCRAPER_DEV_PASSWORD", "\"${screenScraperSecret("screenscraper.devPassword", "SCREENSCRAPER_DEV_PASSWORD")}\"")
+        // PC BOXES (the save editor): off unless the build or the device asks (FeatureFlags.saveEditor).
+        buildConfigField("boolean", "FEATURE_SAVE_EDITOR", featureFlag("saveEditor").toString())
+        // ScreenScraper (game media, its setup step and the update's popup): off until the app has its developer login
+        // (FeatureFlags.screenScraper).
+        buildConfigField("boolean", "FEATURE_SCREENSCRAPER", featureFlag("screenScraper").toString())
 
         ndk {
             // Thor is arm64; add armeabi-v7a later only if a target device needs it.
@@ -138,6 +162,7 @@ val licensesAsset by tasks.registering {
         "LCD and Scanlines shaders - MIT" to "third_party/licenses/mGBA-shaders-MIT.txt",
         "xBR, xBRZ and ScaleFX shaders (libretro glsl-shaders) - MIT, xBRZ also GNU GPL 3.0" to "third_party/licenses/libretro-shaders.txt",
         "PixelMplus - M+ FONT LICENSE" to "app/src/main/assets/fonts/LICENSE-PixelMplus.txt",
+        "Atkinson Hyperlegible - SIL Open Font License 1.1" to "app/src/main/assets/fonts/LICENSE-AtkinsonHyperlegible.txt",
         "PokeAPI data - BSD 3-Clause" to "third_party/licenses/PokeAPI-BSD-3-Clause.txt",
         "AndroidX, Jetpack Compose, Kotlin, Apache Commons Compress / IO / Codec / Lang, Firebase Crashlytics - Apache License 2.0" to "third_party/licenses/Apache-2.0.txt",
         "Apache Commons - NOTICE" to "third_party/licenses/Apache-Commons-NOTICE.txt",
@@ -197,4 +222,6 @@ dependencies {
     // Decode-logic regression tests (app/src/test) - see scripts/capture_fixture.sh
     // for how the fixtures they read (app/src/test/resources/fixtures/) get made.
     testImplementation("junit:junit:4.13.2")
+    // The real org.json (android.jar's is a stub in unit tests): ScreenScraperTest and DocsSearchTest parse JSON.
+    testImplementation("org.json:json:20240303")
 }

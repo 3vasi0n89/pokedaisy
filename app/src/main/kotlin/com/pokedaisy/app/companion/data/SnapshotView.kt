@@ -41,6 +41,8 @@ data class MonView(
     val abilityName: String? = null,
     /** Battlers: the held item's name ("" = none); null = unknown. */
     val heldItem: String? = null,
+    /** Party mons (native reads): the held item's id, for the party menu's marker; 0 = none or unknown. */
+    val heldItemId: Int = 0,
     /** Battlers: Attack, Defense, Speed, Sp. Atk, Sp. Def as the battle has them; null = unknown. */
     val battleStats: List<Int>? = null,
     /** Battlers: the stages on [battleStats], then accuracy, evasion (-6..+6); null = unknown. */
@@ -289,6 +291,7 @@ fun buildSnapshotView(t: Telemetry): SnapshotView {
             exp = if (isEgg) null else expProgress(m.species, m.level, m.exp),
             personality = m.personality,
             stats = if (isEgg) null else m.stats,
+            heldItemId = m.heldItem,
             weaknesses = matchups.weaknesses,
             resistances = matchups.resistances,
             immunities = matchups.immunities,

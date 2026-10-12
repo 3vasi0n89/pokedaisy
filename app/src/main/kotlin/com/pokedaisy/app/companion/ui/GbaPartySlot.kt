@@ -97,6 +97,7 @@ fun GbaPartySlot(
             }
             px.ball(assets, selected)
             sheetImg?.let { px.monIcon(it, mon, selected, phase) }
+            px.heldItem(assets, mon, selected, phase)
             return@Canvas
         }
         val fainted = mon.hp == 0
@@ -133,9 +134,10 @@ fun GbaPartySlot(
             px.image(assets.statusIcons, statusIdx * 32, 0, px.left(st.statusX), px.y(st.statusY), 32, 8)
         }
 
-        // Poke Ball (open while selected), then the icon above it.
+        // Poke Ball (open while selected), then the icon above it, then the held-item marker over the icon.
         px.ball(assets, selected)
         sheetImg?.let { px.monIcon(it, mon, selected, phase) }
+        px.heldItem(assets, mon, selected, phase)
     }
 }
 
@@ -195,8 +197,8 @@ private class Px(
     /** A text origin: moved by the stretch rows above where its ink starts. */
     fun textY(v: Int) = y(v + L.TEXT_TOP) - L.TEXT_TOP
 
-    /** The party icon, animated like the game (see PartySlotLayout.ICON_*). */
-    fun monIcon(icon: ImageBitmap, mon: MonView, selected: Boolean, phase: Int) {
+    /** The icon's offset from [PartySlotStyle.iconX] / iconY: resting, or its bounce while selected. */
+    private fun iconOffset(mon: MonView, selected: Boolean, phase: Int): Pair<Int, Int> {
         val ticks = iconFrameTicks(st, mon)
         val dx = if (selected) 0 else st.iconRestDx
         val dy = when {
@@ -205,6 +207,23 @@ private class Px(
             phase == 1 -> L.ICON_BOUNCE_UP
             else -> L.ICON_BOUNCE_DOWN
         }
+        return dx to dy
+    }
+
+    /** The party menu's held-item marker (CreatePartyMonHeldItemSprite): at the icon's top-left + (16, 22) - sprite
+     * coords (20, 50) beside the icon's (16, 40), 8x8 sprites centred - moving with the icon (SpriteCB_HeldItem),
+     * Mail's frame for Mail. */
+    fun heldItem(assets: PartySlotAssets, mon: MonView, selected: Boolean, phase: Int) {
+        val icons = assets.heldIcons ?: return
+        if (mon.heldItemId == 0) return
+        val (dx, dy) = iconOffset(mon, selected, phase)
+        val mail = mon.heldItemId in com.pokedaisy.app.companion.data.MAIL_ITEMS
+        image(icons, 0, if (mail) 8 else 0, st.iconX + dx + 16, st.iconY + dy + 22 + stretchTop, 8, 8)
+    }
+
+    /** The party icon, animated like the game (see PartySlotLayout.ICON_*). */
+    fun monIcon(icon: ImageBitmap, mon: MonView, selected: Boolean, phase: Int) {
+        val (dx, dy) = iconOffset(mon, selected, phase)
         val frameH = icon.width // square frames stacked vertically
         val srcY = if (icon.height >= frameH * 2) phase * frameH else 0
         // Moves down with the name (top stretch); the ball stays pinned to
@@ -383,6 +402,8 @@ class PartySlotAssets(
     val slotEmpty: ImageBitmap?,
     val pokeball: ImageBitmap?,
     val statusIcons: ImageBitmap,
+    /** The held-item marker (RomArt.HOLD_ICONS); null until a ROM has supplied it. */
+    val heldIcons: ImageBitmap?,
     private val fontMask: Bitmap,
 ) {
     private val tinted = HashMap<Pair<Long, Long>, ImageBitmap>()
@@ -498,6 +519,7 @@ internal fun rememberPartySlotAssets(st: PartySlotStyle): PartySlotAssets? {
                 slotEmpty = if (st.hasEmptySlot) frame("slot_empty.png") else null,
                 pokeball = st.pokeballAsset?.let { load(it).asImageBitmap() },
                 statusIcons = load(st.statusAsset).asImageBitmap(),
+                heldIcons = GameArt.get(context, com.pokedaisy.app.companion.data.RomArt.HOLD_ICONS)?.asImageBitmap(),
                 fontMask = load(st.fontAsset),
             )
         }.getOrNull()?.also {

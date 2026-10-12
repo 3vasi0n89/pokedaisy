@@ -1,5 +1,6 @@
 package com.pokedaisy.app.companion.ui
 
+import com.pokedaisy.app.companion.i18n.tk
 import com.pokedaisy.app.companion.i18n.tr
 import android.graphics.Bitmap
 import androidx.compose.animation.core.animateFloat
@@ -26,6 +27,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,7 +75,14 @@ import kotlin.math.floor
  * (Kanto / the Sevii Islands); ME (or tapping the head) goes back to the player.
  */
 @Composable
-fun MapScreen(snapshot: SnapshotView, modifier: Modifier = Modifier) {
+fun MapScreen(
+    snapshot: SnapshotView,
+    modifier: Modifier = Modifier,
+    /** FLY (Fly.kt); null = no button. */
+    fly: com.pokedaisy.app.companion.FlyAction? = null,
+    /** FLY's destinations open first - for screenshot tests, which can't tap. */
+    initialFly: com.pokedaisy.app.companion.data.FlyTargets? = null,
+) {
     val gen = rememberArtGeneration()
     // RomRegionMap lands a hack's own map in the background and announces it as new art.
     val model = remember(snapshot.game, gen) { activeRegionMap() }
@@ -82,6 +91,25 @@ fun MapScreen(snapshot: SnapshotView, modifier: Modifier = Modifier) {
         var selection by remember(model) { mutableStateOf<MapSelection?>(null) }
         var shownOverride by remember(model) { mutableStateOf<Int?>(null) }
         var placesOpen by remember { mutableStateOf(false) }
+        // FLY: its destinations once asked for, or what kept it from starting.
+        var flyTargets by remember { mutableStateOf(initialFly) }
+        var flyNote by remember { mutableStateOf<String?>(null) }
+        // The button shows where the ROM has FLY and someone in the party knows it.
+        val canFly = fly?.canFly() == true && snapshot.party.any { !it.isEgg && it.moves.any { mv -> mv.id == FLY_MOVE } }
+        val openFly: (() -> Unit)? = fly?.takeIf { canFly }?.let { f ->
+            {
+                f.targets { t ->
+                    if (t.result == com.pokedaisy.app.companion.data.FlyResult.OK) flyTargets = t else flyNote = flyMessage(t.result)
+                }
+            }
+        }
+        // Back to the player when they land somewhere else after FLY, or cross to another of the map's regions (the
+        // Sevii ferry): a tile picked or a region flipped to before would keep the map away from where they are now.
+        var flewFrom by remember { mutableStateOf<Int?>(null) }
+        LaunchedEffect(playerRegion) { selection = null; shownOverride = null }
+        LaunchedEffect(snapshot.regionMapSectionId) {
+            if (flewFrom != null && snapshot.regionMapSectionId != flewFrom) { selection = null; shownOverride = null; flewFrom = null }
+        }
         val shown = selection?.region ?: shownOverride ?: playerRegion ?: 0
         val bitmap = regionMapBitmap(model?.images?.getOrNull(shown))
         // No early return out of Box's inline content: it corrupts the slot table (seen on Lazarus).
@@ -127,10 +155,27 @@ fun MapScreen(snapshot: SnapshotView, modifier: Modifier = Modifier) {
                         regionLabel = if (model.images.size > 1) regionName(model.images, (shown + 1) % model.images.size) else null,
                         awayFromPlayer = selection != null || (playerRegion != null && shown != playerRegion),
                         onPlaces = { placesOpen = true },
+                        onFly = openFly,
                         onRegion = { selection = null; shownOverride = (shown + 1) % model.images.size },
                         onMe = { selection = null; shownOverride = null },
                     )
                 }
+            }
+            flyTargets?.let { t ->
+                FlyList(
+                    model, t, flyer = snapshot.party.getOrNull(t.flyerSlot)?.name,
+                    onPick = { mapsec ->
+                        fly?.fly(mapsec, t) { result ->
+                            flyTargets = null
+                            if (result == com.pokedaisy.app.companion.data.FlyResult.OK) flewFrom = snapshot.regionMapSectionId
+                            if (result != com.pokedaisy.app.companion.data.FlyResult.OK) flyNote = flyMessage(result)
+                        }
+                    },
+                    onDismiss = { flyTargets = null },
+                )
+            }
+            flyNote?.let { note ->
+                OptionConfirm(tk("FLY"), note, tk("OK"), rememberGbaTextMetrics(), onConfirm = { flyNote = null }, onDismiss = { flyNote = null }, cancelLabel = null)
             }
             if (placesOpen) {
                 PlacesList(
@@ -367,6 +412,8 @@ private fun BoxScope.MapButtons(
     onPlaces: () -> Unit,
     onRegion: () -> Unit,
     onMe: () -> Unit,
+    /** FLY's button; null = none. */
+    onFly: (() -> Unit)? = null,
 ) {
     val m = rememberGbaTextMetrics(1f)
     val bottom = style == MapLabelStyle.EMERALD
@@ -378,11 +425,23 @@ private fun BoxScope.MapButtons(
             .align(if (bottom) Alignment.BottomStart else Alignment.TopEnd)
             .padding(m.u * 8),
     ) {
+        // FLY next to PLACES on the side away from the label: under it up top, over it at the bottom - in the
+        // party menu's field-move blue.
+        // At the companion's full text size (the others are the denser 1x): the button that does something in the game.
+        val big = rememberGbaTextMetrics()
+        val flyButton = @Composable {
+            if (onFly != null) OptionButton(
+                tr("FLY"), big, onClick = onFly, modifier = Modifier.widthIn(min = big.u * 56),
+                labelColors = OptionColors.fieldMove to OptionColors.fieldMoveShadow, frameLayers = OptionColors.fieldMoveLayers,
+            )
+        }
         if (awayFromPlayer && bottom) OptionButton(tr("ME"), m, onClick = onMe, emphasis = true)
+        if (bottom) flyButton()
         Row(horizontalArrangement = Arrangement.spacedBy(m.u * 4)) {
             if (regionLabel != null) OptionButton(regionLabel, m, onClick = onRegion)
             OptionButton(tr("PLACES"), m, onClick = onPlaces)
         }
+        if (!bottom) flyButton()
         if (awayFromPlayer && !bottom) OptionButton(tr("ME"), m, onClick = onMe, emphasis = true)
     }
 }
@@ -423,6 +482,47 @@ private fun PlacesList(model: RegionMapModel, onPick: (Int) -> Unit, onMe: () ->
             }
         }
     }
+}
+
+/** MOVE_FLY: the same id in every game the companion flies in. */
+private const val FLY_MOVE = 19
+
+/**
+ * FLY's destinations: the towns the game's Fly map would take - visited ones, in the map's own order - each a row
+ * that flies there; [flyer] (the Pokémon that knows Fly) carries the player, under the title.
+ */
+@Composable
+private fun FlyList(model: RegionMapModel?, targets: com.pokedaisy.app.companion.data.FlyTargets, flyer: String?, onPick: (Int) -> Unit, onDismiss: () -> Unit) {
+    val m = rememberGbaTextMetrics()
+    OptionOverlay(onDismiss, Modifier.widthIn(max = 560.dp).fillMaxHeight()) {
+        Column {
+            OptionTitleWindow(tr("FLY"), m, onBack = onDismiss, trailing = flyer)
+            Spacer(Modifier.height(m.u * 4))
+            OptionListWindow(m, Modifier.fillMaxWidth().weight(1f)) {
+                if (targets.destinations.isEmpty()) {
+                    GbaText(tr("No town to fly to yet."), OptionColors.label, OptionColors.labelShadow, m, modifier = Modifier.padding(m.u * 8))
+                } else LazyColumn(Modifier.fillMaxSize()) {
+                    items(targets.destinations, key = { it }) { mapsec ->
+                        val s = model?.sections?.get(mapsec)
+                        OptionLine(
+                            gameCase(s?.name ?: "#$mapsec"), s?.takeIf { it.region > 0 && model != null }?.let { regionName(model!!.images, it.region) },
+                            selected = false, m, labelWeight = 0.62f, divider = true,
+                        ) { onPick(mapsec) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Why FLY didn't start, in the companion's words. */
+private fun flyMessage(r: com.pokedaisy.app.companion.data.FlyResult): String = when (r) {
+    com.pokedaisy.app.companion.data.FlyResult.NOT_NOW -> tr("Not now: close the game's menus and battles first.")
+    com.pokedaisy.app.companion.data.FlyResult.IN_BATTLE -> tr("You can't do that during a battle.")
+    com.pokedaisy.app.companion.data.FlyResult.NO_BADGE -> tr("FLY needs a new BADGE first.")
+    com.pokedaisy.app.companion.data.FlyResult.CANT_FLY_HERE -> tr("You can't FLY from here.")
+    com.pokedaisy.app.companion.data.FlyResult.NO_FLYER -> tr("Nobody in the party knows FLY.")
+    else -> tr("It can't be used here.")
 }
 
 /** [RegionMapModel.places]' group titles (English ids, also list keys) in the app's language. */

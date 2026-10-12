@@ -12,6 +12,9 @@ open class ComponentActivity : Context() {
     val packageManager = android.content.pm.PackageManager()
     open fun onCreate(savedInstanceState: android.os.Bundle?) {}
     open fun onResume() {}
+    open fun onStart() {}
+    open fun onStop() {}
+    open fun dispatchKeyEvent(event: android.view.KeyEvent): Boolean = false
     open fun onKeyDown(keyCode: Int, event: android.view.KeyEvent): Boolean = false
     open fun onKeyUp(keyCode: Int, event: android.view.KeyEvent): Boolean = false
     open fun dispatchGenericMotionEvent(event: android.view.MotionEvent): Boolean = false

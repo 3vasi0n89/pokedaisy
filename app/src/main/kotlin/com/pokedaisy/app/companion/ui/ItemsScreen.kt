@@ -5,11 +5,13 @@ import androidx.compose.ui.graphics.lerp
 import com.pokedaisy.app.companion.ui.theme.nightSurface
 import com.pokedaisy.app.companion.ui.theme.nightShadow
 import com.pokedaisy.app.companion.ui.theme.nightInk
+import com.pokedaisy.app.companion.FavoriteItems
 import com.pokedaisy.app.companion.i18n.tk
 import com.pokedaisy.app.companion.i18n.tr
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -24,6 +26,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -56,10 +59,16 @@ import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.inset
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.pokedaisy.app.companion.data.GameKind
+import com.pokedaisy.app.companion.data.ItemUseOutcome
+import com.pokedaisy.app.companion.data.ItemUseResult
 import com.pokedaisy.app.companion.data.ItemView
+import com.pokedaisy.app.companion.data.MonView
+import com.pokedaisy.app.companion.data.itemName
 import com.pokedaisy.app.companion.data.POCKET_BERRIES
 import com.pokedaisy.app.companion.data.POCKET_ITEMS
 import com.pokedaisy.app.companion.data.POCKET_KEY_ITEMS
@@ -75,7 +84,10 @@ import com.pokedaisy.app.companion.data.pocketLabel
 import com.pokedaisy.app.companion.data.pocketOrder
 import com.pokedaisy.app.companion.ui.theme.pixelFontFamily
 
-/** DEFAULT keeps the bag's own slot order, as the game lists it. [label] is English, translated where drawn. */
+/**
+ * DEFAULT keeps the bag's own slot order, as the game lists it, with the player's
+ * starred items ([FavoriteItems]) first. [label] is English, translated where drawn.
+ */
 private enum class ItemSort(val label: String) { DEFAULT(tk("Default")), NAME(tk("Name")), TYPE(tk("Type")), COUNT(tk("Count")) }
 
 /**
@@ -93,11 +105,18 @@ private fun gameItemNames(game: GameKind): Map<Int, String>? = when (game) {
 }
 
 /** Games whose bag prints pocket titles in caps; their item tables already are. */
+/** [id]'s name as this game's bag writes it (its own casing and spelling: "EXP. SHARE"). */
+internal fun bagItemName(id: Int): String = gameItemNames(activeGame)?.get(id) ?: itemName(id)
+
 private fun capsBagLabels(game: GameKind): Boolean =
     gameItemNames(game) != null || game == GameKind.HEART_AND_SOUL || game == GameKind.ORANGE_ISLANDS
 
+/** The FAVORITES tab's id among the pocket tabs (pocket ids are 0 and up): the starred items. */
+private const val FAVORITES_TAB = -1
+
 private fun capsPocketLabel(pocket: Int?): String = when (pocket) {
     null -> tr("ALL")
+    FAVORITES_TAB -> tr("FAVORITES")
     POCKET_ITEMS -> tr("ITEMS")
     POCKET_POKE_BALLS -> tr("POKé BALLS")
     POCKET_TM_HM -> tr("TMs & HMs")
@@ -109,6 +128,7 @@ private fun capsPocketLabel(pocket: Int?): String = when (pocket) {
 /** [pocketLabel] (Title Case, for the other games' bags) in the app's language. */
 private fun titlePocketLabel(pocket: Int?): String = when (pocket) {
     null -> tr("All")
+    FAVORITES_TAB -> tr("Favorites")
     POCKET_ITEMS -> tr("Items")
     POCKET_POKE_BALLS -> tr("Poke Balls")
     POCKET_TM_HM -> tr("TMs & HMs")
@@ -499,14 +519,20 @@ fun ItemsScreen(
     items: List<ItemView>,
     modifier: Modifier = Modifier,
     itemUse: com.pokedaisy.app.companion.ItemUse? = null,
+    /** A USE / GIVE result popped up first - for screenshot tests. */
+    initialNotice: ItemNotice? = null,
     /** The item whose description is open first - for screenshot tests, which can't tap. */
     initialItemId: Int? = null,
     /** More under an open item's description, in the bar's text colours (a TM's party row). */
     itemExtra: (@Composable (item: ItemView, text: Color, shadow: Color) -> Unit)? = null,
     /** TM / HM items' moves, shown after their names ("TM06 TOXIC") as the games' TM cases do. */
     tmMoves: Map<Int, String> = emptyMap(),
+    /** The party, for USE on a Pokémon and GIVE (the PARTY tab's slots, [ItemPartyPicker]). */
+    party: List<MonView> = emptyList(),
+    /** Opens [initialItemId]'s party pick first - false USE, true GIVE - for screenshot tests, which can't tap. */
+    initialPick: Boolean? = null,
 ) {
-    var selectedCategory by remember { mutableStateOf<Int?>(null) } // null = All
+    var selectedCategory by remember { mutableStateOf<Int?>(null) } // null = All, FAVORITES_TAB = the starred items
     var sort by remember { mutableStateOf(ItemSort.DEFAULT) }
     var selectedItem by remember { mutableStateOf(items.firstOrNull { it.itemId == initialItemId }) }
     var selectedKey by remember { mutableStateOf(selectedItem?.let { "${it.itemId}#0" }) }
@@ -518,20 +544,55 @@ fun ItemsScreen(
     }
     val m = rememberGbaTextMetrics()
     val u = m.u
+    // What the last USE / GIVE did, for the row it was done from (its key): shown in the description bar
+    // while that row is open.
+    var messageFor by remember { mutableStateOf<Pair<String?, String>?>(null) }
+    val message = messageFor?.takeIf { it.first == selectedKey }?.second
+    fun say(text: String) { messageFor = selectedKey to text }
+    // A USE / GIVE that went through also pops up over the bag for a moment, with the item: the description bar
+    // alone was easy to miss (and an item used to the last leaves the bag, taking its bar with it).
+    var notice by remember { mutableStateOf<ItemNotice?>(initialNotice) }
+    fun report(o: ItemUseOutcome, itemId: Int, text: String) {
+        say(text)
+        if (o.result == ItemUseResult.USED || o.result == ItemUseResult.GIVEN) notice = ItemNotice(itemId, text)
+    }
+    // The party pick a USE (medicine) or GIVE opened, over the bag.
+    var pick by remember { mutableStateOf<ItemPick?>(null) }
+    fun startPick(item: ItemView, give: Boolean) {
+        val use = itemUse ?: return
+        use.targets(item.itemId, give) { t ->
+            if (t.result == ItemUseResult.USED) pick = ItemPick(item, give, t.targets)
+            else say(itemUseMessage(ItemUseOutcome(t.result)))
+        }
+    }
+    // In the first composition, before anything reads the pick: a screenshot draws one frame.
+    remember { if (initialPick != null) selectedItem?.let { startPick(it, initialPick) }; true }
 
     // Only categories the bag actually has something in - an empty pocket
     // (e.g. no Key Items exported by a pre-v4 ROM) shouldn't show as a dead
     // tab with nothing behind it.
     val categoriesPresent = pocketOrder.filter { p -> items.any { it.pocket == p } }
-    // A bag of one pocket (Gen 1's single list) needs no tab besides ALL.
-    val tabs = listOf<Int?>(null) + categoriesPresent.takeIf { it.size > 1 }.orEmpty()
+    val favorites = FavoriteItems.ids
+    // FAVORITES under ALL, only while the bag holds a starred item.
+    val hasFavorites = items.any { it.itemId in favorites }
+    // Unstarring the last one closes the tab: back to ALL.
+    LaunchedEffect(hasFavorites) { if (!hasFavorites && selectedCategory == FAVORITES_TAB) selectedCategory = null }
+    val category = selectedCategory.takeUnless { it == FAVORITES_TAB && !hasFavorites }
+    // A bag of one pocket (Gen 1's single list) needs no tab besides ALL (and FAVORITES).
+    val tabs = listOf<Int?>(null) + listOfNotNull(FAVORITES_TAB.takeIf { hasFavorites }) +
+        categoriesPresent.takeIf { it.size > 1 }.orEmpty()
     val capsLabels = capsBagLabels(activeGame)
     val tabLabels = tabs.map { if (capsLabels) capsPocketLabel(it) else titlePocketLabel(it) }
     val sortLabel = { s: ItemSort -> tr(s.label).let { if (capsLabels) it.uppercase() else it } }
 
-    val filtered = if (selectedCategory == null) shown else shown.filter { it.pocket == selectedCategory }
+    val filtered = when (category) {
+        null -> shown
+        FAVORITES_TAB -> shown.filter { it.itemId in favorites }
+        else -> shown.filter { it.pocket == selectedCategory }
+    }
     val sorted: List<ItemView> = when (sort) {
-        ItemSort.DEFAULT -> filtered
+        // A stable sort: starred items keep the bag's order among themselves, as do the rest.
+        ItemSort.DEFAULT -> filtered.sortedBy { it.itemId !in favorites }
         ItemSort.NAME -> filtered.sortedBy { it.name }
         ItemSort.COUNT -> filtered.sortedWith(compareByDescending<ItemView> { it.quantity }.thenBy { it.name })
         ItemSort.TYPE -> filtered.sortedWith(
@@ -573,7 +634,8 @@ fun ItemsScreen(
     // The description box overlays the bottom of the whole tab; the window
     // shrinks by its (measured) height so no row hides behind it.
     var descHeight by remember { mutableStateOf(0.dp) }
-    LaunchedEffect(selectedItem) {
+    // A star moves the open item to the top (or back down): follow it there too.
+    LaunchedEffect(selectedItem, favorites) {
         val index = keys.indexOf(selectedKey)
         if (index < 0) return@LaunchedEffect
         // Two frames: the box measures itself, then the window shrinks to fit.
@@ -587,6 +649,29 @@ fun ItemsScreen(
     }
     // A new order starts from the top of the list.
     LaunchedEffect(sort) { listState.scrollToItem(0) }
+
+    pick?.let { p ->
+        ItemPartyPicker(
+            p, party, m, modifier,
+            itemName = caps?.get(p.item.itemId) ?: p.item.name,
+            picksMove = !p.give && itemUse?.picksMove(p.item.itemId) == true,
+            onCancel = { pick = null },
+            onPick = { target, move ->
+                val use = itemUse
+                val name = party.getOrNull(target.slot)?.name.orEmpty()
+                val done = { o: ItemUseOutcome ->
+                    pick = null
+                    report(o, p.item.itemId, itemUseMessage(o, mon = name, item = bagItemName(p.item.itemId), held = target.heldItem))
+                }
+                when {
+                    use == null -> pick = null
+                    p.give -> use.give(p.item.itemId, target, done)
+                    else -> use.useOn(p.item.itemId, target, move, done)
+                }
+            },
+        )
+        return
+    }
 
     Box(modifier = modifier) {
         // List window, starting where the folder tabs end.
@@ -604,14 +689,17 @@ fun ItemsScreen(
                         pal.text, pal.textShadow, m,
                         modifier = Modifier.padding(start = u * 8, top = u * 2),
                     )
-                } else {
+                } else Column(Modifier.fillMaxSize()) {
                     LazyColumn(
                         state = listState,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxWidth().weight(1f),
                     ) {
                         itemsIndexed(sorted, key = { i, _ -> keys[i] }) { i, item ->
                             val key = keys[i]
-                            ItemRow(item, pal, m, selected = selectedItem != null && key == selectedKey) {
+                            ItemRow(
+                                item, pal, m, selected = selectedItem != null && key == selectedKey, favorite = item.itemId in favorites,
+                                marked = itemUse?.marked(item.itemId) == true,
+                            ) {
                                 if (selectedItem != null && key == selectedKey) {
                                     selectedItem = null
                                 } else {
@@ -621,6 +709,8 @@ fun ItemsScreen(
                             }
                         }
                     }
+                    // What the Poké Ball beside a count means, whenever the list has one.
+                    if (itemUse != null && sorted.any { itemUse.marked(it.itemId) }) MarkLegend(pal)
                 }
             }
 
@@ -642,7 +732,7 @@ fun ItemsScreen(
                     tabs.forEachIndexed { i, pocket ->
                         FolderTab(
                             tabLabels[i], pal, m,
-                            selected = selectedCategory == pocket,
+                            selected = category == pocket,
                             first = i == 0,
                             tabWidth = tabWidth, panelFrame = panelFrame,
                         ) {
@@ -660,12 +750,23 @@ fun ItemsScreen(
 
         // Full width of the tab, over the bottom of the folder tabs / sort
         // button when it has to be.
+        ItemNoticeHost(notice, m, Modifier.align(Alignment.TopCenter).padding(top = u * 6, start = u * 8, end = u * 8)) { notice = null }
         selectedItem?.let { item ->
             CompanionBackHandler { selectedItem = null }
             ItemDescriptionBar(
                 item, pal, m,
                 onDismiss = { selectedItem = null },
-                itemUse = itemUse,
+                favorite = item.itemId in favorites,
+                onFavorite = { FavoriteItems.toggle(item.itemId) },
+                message = message,
+                // An item used or given away to the last leaves the bag: nothing left to tap.
+                onUse = itemUse?.takeIf { it.canUse(item.itemId) && items.any { i -> i.itemId == item.itemId } }?.let { use ->
+                    {
+                        if (use.picksMon(item.itemId)) startPick(item, give = false)
+                        else use.use(item.itemId) { report(it, item.itemId, itemUseMessage(it)) }
+                    }
+                },
+                onGive = itemUse?.takeIf { it.canGive(item.itemId) && items.any { i -> i.itemId == item.itemId } }?.let { { startPick(item, give = true) } },
                 extra = itemExtra,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -800,7 +901,12 @@ private const val SORT_ICON_U = 10
 
 /** Cursor slot + name + "× qty" on the window's dashed row line, like the vanilla bag list. */
 @Composable
-private fun ItemRow(item: ItemView, pal: BagPalette, m: GbaTextMetrics, selected: Boolean, onClick: () -> Unit) {
+private fun ItemRow(
+    item: ItemView, pal: BagPalette, m: GbaTextMetrics, selected: Boolean, favorite: Boolean,
+    /** The companion can USE / GIVE it here: the Poké Ball mark, in the list's own text colours. */
+    marked: Boolean = false,
+    onClick: () -> Unit,
+) {
     val u = m.u
     val noRipple = remember { MutableInteractionSource() }
     Row(
@@ -827,7 +933,29 @@ private fun ItemRow(item: ItemView, pal: BagPalette, m: GbaTextMetrics, selected
             item.name, pal.text, pal.textShadow, m,
             modifier = Modifier.weight(1f),
         )
+        // Both before "× qty": the mark, then the gold star (the player's own, nearest the count as before).
+        val cell = with(LocalDensity.current) { m.fontPixel.toDp() }
+        if (marked) {
+            ShadowedPixelIcon(PixelIcons.itemAction, pal.text, pal.textShadow, m, cell = cell, modifier = Modifier.padding(end = u * 4))
+        }
+        if (favorite) {
+            ShadowedPixelIcon(PixelIcons.star, OptionColors.favorite, pal.textShadow, m, cell = cell, modifier = Modifier.padding(end = u * 4))
+        }
         GbaText("× ${item.quantity}", pal.text, pal.textShadow, m, modifier = Modifier.padding(end = u * 4))
+    }
+}
+
+/** The row mark's key, under the list: the Poké Ball, then what it means, smaller, in the list's own colours. */
+@Composable
+private fun MarkLegend(pal: BagPalette) {
+    val small = rememberGbaTextMetrics(0.8f)
+    val cell = with(LocalDensity.current) { small.fontPixel.toDp() }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(start = small.u * 8, top = small.u * 3, bottom = small.u),
+    ) {
+        ShadowedPixelIcon(PixelIcons.itemAction, pal.text, pal.textShadow, small, cell = cell)
+        GbaText(tr("USE or GIVE it from here"), pal.text, pal.textShadow, small, modifier = Modifier.padding(start = small.u * 4))
     }
 }
 
@@ -857,13 +985,18 @@ private fun BagCursor(pal: BagPalette, m: GbaTextMetrics) {
 @Composable
 private fun ItemDescriptionBar(
     item: ItemView, pal: BagPalette, m: GbaTextMetrics, onDismiss: () -> Unit, modifier: Modifier = Modifier,
-    itemUse: com.pokedaisy.app.companion.ItemUse? = null,
+    /** The item is starred; [onFavorite] stars / unstars it (the star button, beside USE). */
+    favorite: Boolean = false,
+    onFavorite: (() -> Unit)? = null,
+    /** What the last USE / GIVE did, in place of the description. */
+    message: String? = null,
+    /** USE / GIVE buttons; null = none for this item here. */
+    onUse: (() -> Unit)? = null,
+    onGive: (() -> Unit)? = null,
     extra: (@Composable (item: ItemView, text: Color, shadow: Color) -> Unit)? = null,
 ) {
     val u = m.u
     val noRipple = remember { MutableInteractionSource() }
-    // What the last USE did, shown in place of the description until another item is picked.
-    var used by remember(item.itemId) { mutableStateOf<String?>(null) }
     Column(
         modifier
             .fillMaxWidth()
@@ -873,7 +1006,8 @@ private fun ItemDescriptionBar(
             .soundClickable(interactionSource = noRipple, indication = null, onClick = onDismiss)
             .padding(start = u * 7, end = u * 7, top = u * 7, bottom = u * 7),
     ) {
-    Row(verticalAlignment = Alignment.Top) {
+    // The row is as tall as its tallest part, so the right column can put the star at the top and USE / GIVE at the bottom.
+    Row(verticalAlignment = Alignment.Top, modifier = Modifier.height(IntrinsicSize.Min)) {
         // No icon box where the game has no item icons (Gen 1): the text takes the room.
         val hasIcon = item.iconAsset != null
         if (hasIcon) Box(
@@ -892,28 +1026,89 @@ private fun ItemDescriptionBar(
             ItemIcon(item.iconAsset, size = u * 24)
         }
         GbaText(
-            used ?: item.description.ifEmpty { item.name },
+            message ?: item.description.ifEmpty { item.name },
             pal.descText, pal.descTextShadow, m,
             maxLines = Int.MAX_VALUE,
             modifier = Modifier.padding(start = if (hasIcon) u * 8 else 0.dp).weight(1f),
         )
-        if (itemUse != null && itemUse.canUse(item.itemId)) {
-            OptionButton(
-                "USE", m,
-                onClick = { itemUse.use(item.itemId) { used = itemUseMessage(it) } },
-                modifier = Modifier.padding(start = u * 6),
-            )
+        if (onFavorite != null || onUse != null || onGive != null) {
+            // The star in the card's top-right corner, USE / GIVE in its bottom-right one.
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(u * 4),
+                modifier = Modifier.fillMaxHeight().padding(start = u * 6),
+            ) {
+                if (onFavorite != null) {
+                    // Gold while starred, the button's grey while not.
+                    val label = tr(if (favorite) "UNFAVORITE" else "FAVORITE")
+                    OptionButton(
+                        null, m,
+                        onClick = onFavorite,
+                        pixelIcon = PixelIcons.star,
+                        pixelIconColor = if (favorite) OptionColors.favorite else OptionColors.muted,
+                        modifier = Modifier.semantics { contentDescription = label },
+                    )
+                }
+                if (onUse != null || onGive != null) {
+                    Spacer(Modifier.weight(1f))
+                    Row(horizontalArrangement = Arrangement.spacedBy(u * 6)) {
+                        if (onUse != null) OptionButton("USE", m, onClick = onUse)
+                        if (onGive != null) OptionButton("GIVE", m, onClick = onGive)
+                    }
+                }
+            }
         }
     }
     extra?.invoke(item, pal.descText, pal.descTextShadow)
     }
 }
 
-/** What a USE did, in the companion's words. */
-private fun itemUseMessage(o: com.pokedaisy.app.companion.data.ItemUseOutcome): String = when (o.result) {
-    com.pokedaisy.app.companion.data.ItemUseResult.USED -> tr("Used! It lasts {0} steps.", o.steps)
-    com.pokedaisy.app.companion.data.ItemUseResult.STILL_ACTIVE -> tr("The last one is still working.")
-    com.pokedaisy.app.companion.data.ItemUseResult.NOT_NOW -> tr("Not now: close the game's menus and battles first.")
-    com.pokedaisy.app.companion.data.ItemUseResult.NONE_LEFT -> tr("None left in the bag.")
-    com.pokedaisy.app.companion.data.ItemUseResult.FAILED -> tr("It can't be used here.")
+/** What a USE / GIVE did, in the companion's words: [mon] the Pokémon it went to, [item] the item, [held]
+ * what the Pokémon held before. */
+private fun itemUseMessage(o: ItemUseOutcome, mon: String = "", item: String = "", held: Int = 0): String = when (o.result) {
+    ItemUseResult.USED -> if (o.steps > 0) tr("Used! It lasts {0} steps.", o.steps) else tr("Used on {0}.", mon)
+    ItemUseResult.STILL_ACTIVE -> tr("The last one is still working.")
+    ItemUseResult.NOT_NOW -> tr("Not now: close the game's menus and battles first.")
+    ItemUseResult.IN_BATTLE -> tr("You can't do that during a battle.")
+    ItemUseResult.NONE_LEFT -> tr("None left in the bag.")
+    ItemUseResult.FAILED -> tr("It can't be used here.")
+    ItemUseResult.NO_EFFECT -> tr("It won't have any effect.")
+    ItemUseResult.GIVEN -> if (o.swapped == 0) tr("{0} is holding {1} now.", mon, item)
+        else tr("{0} is holding {1} now. {2} went back to the bag.", mon, item, bagItemName(o.swapped))
+    ItemUseResult.BAG_FULL -> tr("The bag is full: {0} can't go back in it.", bagItemName(held))
+    ItemUseResult.PARTY_CHANGED -> tr("The party has changed. Try again.")
+    ItemUseResult.TAKEN -> tr("Received {0} from {1}.", bagItemName(o.swapped), mon)
+}
+
+/** What a USE / GIVE did, popped up over the bag ([ItemNoticeWindow]). */
+data class ItemNotice(val itemId: Int, val text: String)
+
+private const val ITEM_NOTICE_MILLIS = 2600L
+
+/** [notice] (if any) in an [ItemNoticeWindow], gone after a moment or on a tap ([onGone]); a newer one starts its own time. */
+@Composable
+internal fun ItemNoticeHost(notice: ItemNotice?, m: GbaTextMetrics, modifier: Modifier, onGone: () -> Unit) {
+    val n = notice ?: return
+    LaunchedEffect(n) { kotlinx.coroutines.delay(ITEM_NOTICE_MILLIS); onGone() }
+    ItemNoticeWindow(n, m, modifier, onGone)
+}
+
+/** A title window with a green tick, the item and what happened to it; a tap closes it. */
+@Composable
+private fun ItemNoticeWindow(n: ItemNotice, m: GbaTextMetrics, modifier: Modifier, onDismiss: () -> Unit) {
+    val u = m.u
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(u * 6),
+        modifier = modifier
+            .widthIn(max = 560.dp)
+            .drawBehind { drawLayeredBox(OptionColors.titleLayers.inPx(u.toPx()), OptionColors.titleFill, radius = 3 * u.toPx()) }
+            .soundClickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)
+            .padding(horizontal = u * 10, vertical = u * 6),
+    ) {
+        val cell = with(LocalDensity.current) { m.fontPixel.toDp() }
+        ShadowedPixelIcon(PixelIcons.check, OptionColors.success, OptionColors.titleShadow, m, cell = cell)
+        ItemIcon(com.pokedaisy.app.companion.data.spriteAsset("items", n.itemId), size = m.lineHeight)
+        GbaText(n.text, OptionColors.titleText, OptionColors.titleShadow, m, maxLines = 3)
+    }
 }

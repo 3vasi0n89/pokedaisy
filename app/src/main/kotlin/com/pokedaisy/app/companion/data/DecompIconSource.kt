@@ -51,9 +51,6 @@ object DecompIconSource {
     @Volatile
     var reader: MemoryReader = InProcessReader
 
-    private const val MON_TILE_BYTES = 1024
-    private const val PAL_BYTES = 32
-    private const val MON_PAL_ENTRY_BYTES = 8
 
     private val monCache = ConcurrentHashMap<Int, Bitmap>()
     private val itemCache = ConcurrentHashMap<Int, Bitmap>()
@@ -99,26 +96,7 @@ object DecompIconSource {
         return out
     }
 
-    private fun fetchMon(species: Int): Bitmap? {
-        val t = tables
-        val tilesPtr = Gfx.u32(rd(t.monIconTable + species.toLong() * t.monIconStride, 4), 0)
-        if (!Gfx.inRom(tilesPtr)) {
-            android.util.Log.w("pokedaisy", "DecompIcon mon $species: tilesPtr %08x not in ROM".format(tilesPtr)); return null
-        }
-        val palIdx = rd(t.monIconPaletteIndices + species.toLong() * t.monPalIdxStride, 1)[0].toInt() and t.monPalIdxMask
-        val palDataPtr = if (t.monIconPalettes != 0L) {
-            Gfx.u32(rd(t.monIconPalettes + species.toLong() * t.monIconStride, 4), 0)
-        } else {
-            Gfx.u32(rd(t.monIconPaletteTable + palIdx.toLong() * MON_PAL_ENTRY_BYTES, MON_PAL_ENTRY_BYTES), 0)
-        }
-        if (!Gfx.inRom(palDataPtr)) {
-            android.util.Log.w("pokedaisy", "DecompIcon mon $species: palPtr %08x not in ROM (idx=$palIdx)".format(palDataPtr)); return null
-        }
-        val tiles = rd(tilesPtr, MON_TILE_BYTES)
-        val pal = rd(palDataPtr, PAL_BYTES)
-        // 32x64 = 4x8 tiles; UI crops to the first 32x32 frame.
-        return Gfx.decode4bpp(tiles, 0, pal, 0, 4, 8)
-    }
+    private fun fetchMon(species: Int): Bitmap? = decodeMonIcon(tables, species, ::rd)
 
     private fun fetchItem(itemId: Int): Bitmap? {
         val t = tables
@@ -139,3 +117,31 @@ object DecompIconSource {
         return Gfx.decode4bpp(tiles, 0, pal, 0, 3, 3)
     }
 }
+
+/**
+ * Species [species]' party icon (32x64, both frames) from [t]'s tables, read through [rd] - the running core
+ * ([DecompIconSource]) or a ROM file (`RomMonIcons`, the save editor's). Null if a pointer leaves the ROM.
+ */
+internal fun decodeMonIcon(t: IconTables, species: Int, rd: (Long, Int) -> ByteArray): Bitmap? {
+    val tilesPtr = Gfx.u32(rd(t.monIconTable + species.toLong() * t.monIconStride, 4), 0)
+    if (!Gfx.inRom(tilesPtr)) {
+        android.util.Log.w("pokedaisy", "DecompIcon mon $species: tilesPtr %08x not in ROM".format(tilesPtr)); return null
+    }
+    val palIdx = rd(t.monIconPaletteIndices + species.toLong() * t.monPalIdxStride, 1)[0].toInt() and t.monPalIdxMask
+    val palDataPtr = if (t.monIconPalettes != 0L) {
+        Gfx.u32(rd(t.monIconPalettes + species.toLong() * t.monIconStride, 4), 0)
+    } else {
+        Gfx.u32(rd(t.monIconPaletteTable + palIdx.toLong() * MON_PAL_ENTRY_BYTES, MON_PAL_ENTRY_BYTES), 0)
+    }
+    if (!Gfx.inRom(palDataPtr)) {
+        android.util.Log.w("pokedaisy", "DecompIcon mon $species: palPtr %08x not in ROM (idx=$palIdx)".format(palDataPtr)); return null
+    }
+    val tiles = rd(tilesPtr, MON_TILE_BYTES)
+    val pal = rd(palDataPtr, PAL_BYTES)
+    // 32x64 = 4x8 tiles; UI crops to the first 32x32 frame.
+    return Gfx.decode4bpp(tiles, 0, pal, 0, 4, 8)
+}
+
+private const val MON_TILE_BYTES = 1024
+private const val PAL_BYTES = 32
+private const val MON_PAL_ENTRY_BYTES = 8

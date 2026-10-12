@@ -42,7 +42,7 @@ fun filterRows(rows: List<SettingRow>, query: String): List<SettingRow> {
         val text = fold(
             listOfNotNull(
                 row.label, tr(row.label), row.value, row.value?.let { tr(it) }, row.subtitle, row.subtitle?.let { tr(it) },
-                row.keywords, SETTING_KEYWORDS[row.label],
+                row.keywords, SETTING_KEYWORDS[row.label] ?: FLAGGED_SETTING_KEYWORDS[row.label],
             ).joinToString(" "),
         )
         if (words.all { it in text }) {
@@ -54,12 +54,23 @@ fun filterRows(rows: List<SettingRow>, query: String): List<SettingRow> {
 }
 
 /**
+ * Search words for rows behind a feature flag (FeatureFlags), kept out of [SETTING_KEYWORDS] so the manual's check
+ * (website/test/docs.test.js) doesn't ask for them while players can't see the row. Move a row's line there when its
+ * flag goes and document it.
+ */
+val FLAGGED_SETTING_KEYWORDS: Map<String, String> = mapOf(
+    "ScreenScraper" to "scraper scraping media artwork art box art boxart covers screenshots logos wheel fanart videos synopsis",
+)
+
+/**
  * Search words per row, by its English label (both screens' rows share them): what other emulators
  * and players call the same thing, and what's on the row's sub-page. English only - the label
  * itself is matched in the language on screen too.
  */
 val SETTING_KEYWORDS: Map<String, String> = mapOf(
+    "HELP" to "manual docs documentation guide how to faq instructions",
     "FF" to "fast forward turbo speed up",
+    "DUAL-SCREEN LAUNCHER" to "frontend launcher two screens dual screen media game list swap",
     "FF SPEED" to "fast forward speed rate cap multiplier turbo",
     "FF MODE" to "smart fast forward menus battles normal",
     "FF MUSIC" to "fast forward audio sound music steady sped up mute",
@@ -68,7 +79,8 @@ val SETTING_KEYWORDS: Map<String, String> = mapOf(
     "GAME BUTTONS" to "key bindings keybinds keybinding controls remap remapping rebind mapping input controller gamepad buttons turbo",
     "HOTKEYS" to "shortcuts combos save state load state slot rewind fast forward key bindings",
     "STATUS BAR" to "clock time battery money location top bar",
-    "ASPECT" to "stretch ratio fullscreen full screen size scale 3:2",
+    "ASPECT" to "stretch ratio fullscreen full screen size scale 3:2 wide widescreen 16:9 expand zoom",
+    "AUTO ZOOM IN" to "expand wide zoom close-up closeup dialogue conversation sign menu text box pull in automatic",
     "SHADERS" to "filter lcd crt scanlines grid gba colors color correction effects screen look smoothing xbr xbrz scalefx upscale hd edges",
     "SMOOTHING" to "xbr xbrz scalefx upscale upscaler hd edges smooth anti alias filter",
     "OVERLAY" to "overlay overlays border borders bezel bezels frame skin retroarch background wallpaper decoration",

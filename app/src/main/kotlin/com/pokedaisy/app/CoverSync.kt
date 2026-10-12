@@ -31,9 +31,10 @@ import com.pokedaisy.app.companion.ui.inPx
 import java.io.File
 
 /**
- * One pass of [CoverArtSync.fetchOne] over the whole library, with progress
- * Compose can watch - Settings > Cover Art's SAVE / REPLACE ALL and first-time
- * setup's cover step. Runs off the UI thread (hashing + network I/O).
+ * One pass of [CoverArtSync.fetchOne] over the whole library (ScreenScraper's media, then
+ * covers), with progress Compose can watch - Settings > Cover Art's SAVE / REPLACE ALL,
+ * Settings > ScreenScraper, first-time setup's steps and the update's ScreenScraper popup.
+ * Runs off the UI thread (hashing + network I/O).
  */
 class CoverSync {
     var running by mutableStateOf(false)
@@ -46,31 +47,44 @@ class CoverSync {
         private set
     /** Newest first: each ROM's label and outcome. */
     val log = mutableStateListOf<Pair<String, CoverArtSync.Status>>()
+    /** Why ScreenScraper stopped partway (wrong password, the day's quota...); null = it didn't. */
+    var screenScraperError by mutableStateOf<String?>(null)
+        private set
 
     /** [replace]: re-fetch every ROM's cover, manual ones included; one with no
      * SteamGridDB match (or a failed download) keeps what it has. */
-    fun start(activity: ComponentActivity, prefs: Prefs, replace: Boolean) {
+    fun start(activity: ComponentActivity, prefs: Prefs, replace: Boolean, onFinished: () -> Unit = {}) {
         if (running) return
         log.clear()
         index = 0
         total = 0
         this.replace = replace
+        screenScraperError = null
         running = true
         Thread({
             val coversDir = File(activity.getExternalFilesDir(null) ?: activity.filesDir, "covers").apply { mkdirs() }
             val roms = RomFolder.libraryRoms(activity, prefs)
+            val ss = CoverArtSync.ScreenScraperPass.of(prefs)
             roms.forEachIndexed { i, rom ->
                 val label = GameTitles.label(activity, prefs, rom)
-                val status = CoverArtSync.fetchOne(rom, File(coversDir, "${rom.name}.png"), prefs, replace)
+                val status = CoverArtSync.fetchOne(
+                    rom, File(coversDir, "${rom.name}.png"), prefs, replace, ss = ss,
+                    mediaRoot = GameMedia.root(activity), label = label,
+                )
+                val stopped = ss.stopped?.message
                 // A replaced manual cover is an auto one now (RESET COVER no longer applies).
                 if (status == CoverArtSync.Status.REPLACED) prefs.setRomCoverManual(rom, false)
                 activity.runOnUiThread {
                     index = i + 1
                     total = roms.size
+                    screenScraperError = stopped
                     log.add(0, label to status)
                 }
             }
-            activity.runOnUiThread { running = false }
+            activity.runOnUiThread {
+                running = false
+                onFinished()
+            }
         }, "pokedaisy-cover-sync").apply { isDaemon = true; start() }
     }
 }
@@ -103,6 +117,10 @@ fun CoverSyncStatus(sync: CoverSync, m: GbaTextMetrics) {
     )
     Spacer(Modifier.height(m.u * 3))
     SyncProgressBar(fraction = if (sync.total > 0) sync.index.toFloat() / sync.total else 0f, m = m)
+    sync.screenScraperError?.let {
+        Spacer(Modifier.height(m.u * 3))
+        GbaText(tr("ScreenScraper stopped: {0}", it).uppercase(), OptionColors.value, OptionColors.valueShadow, m, maxLines = 2)
+    }
 }
 
 /** A white framed bar filled in the value red, like the game's HP / EXP bars. */

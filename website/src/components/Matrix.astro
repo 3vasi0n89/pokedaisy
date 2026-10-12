@@ -4,13 +4,13 @@
 import Pixel from './Pixel.astro';
 import data from '../data/compat.json';
 
-const ICONS: Record<string, string> = { Party: 'orb', Bag: 'bag', Battle: 'battle', Map: 'map', 'Pokédex': 'dex', Guide: 'guide' };
-const LABELS: Record<string, string> = { Party: 'PARTY', Bag: 'BAG', Battle: 'BATTLE', Map: 'MAP', 'Pokédex': 'DEX', Guide: 'GUIDE' };
+const ICONS: Record<string, string> = { Party: 'orb', Bag: 'bag', Battle: 'battle', Map: 'map', Dex: 'dex', Guide: 'guide' };
+const LABELS: Record<string, string> = { Party: 'PARTY', Bag: 'BAG', Battle: 'BATTLE', Map: 'MAP', Dex: 'DEX', Guide: 'GUIDE' };
 const RETAIL = ['FireRed', 'LeafGreen', 'Emerald', 'Ruby', 'Sapphire'];
 const kind = (game: string) =>
-  /\(GB\)/.test(game) ? 'gb' : RETAIL.some((r) => game === `Pokémon ${r}`) ? 'retail' : 'hack';
-// Game Boy first (Pokémon Yellow), then README's order.
-const rows = data.matrix.rows.map((r) => ({ ...r, kind: kind(r.game), name: r.game.replace(/^Pokémon /, '').replace(' (GB)', '') }))
+  /\(GB\)/.test(game) ? 'gb' : RETAIL.includes(game) ? 'retail' : 'hack';
+// Game Boy first (Yellow), then README's order.
+const rows = data.matrix.rows.map((r) => ({ ...r, kind: kind(r.game), name: r.game.replace(' (GB)', '') }))
   .sort((a, b) => Number(b.kind === 'gb') - Number(a.kind === 'gb'));
 const counts = { all: rows.length, retail: 0, hack: 0, gb: 0 } as Record<string, number>;
 rows.forEach((r) => counts[r.kind]++);

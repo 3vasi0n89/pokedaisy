@@ -294,6 +294,9 @@ GAMES = {
         ("FR_STATUS_GFX", "gStatusGfx_Icons", True),
         ("FR_STATUS_PAL", "gStatusPal_Icons", True),
         ("FR_FONT_SMALL", "sFontSmallLatinGlyphs", False),
+        # The held-item marker by a party slot's icon: an item, then Mail (8x8 each), and its palette (the same in Emerald).
+        ("FR_HOLD_GFX", "sHeldItemGfx", False),
+        ("FR_HOLD_PAL", "sHeldItemPalette", False),
         ("FR_REGION_GFX", "sRegionMap_Gfx", True),
         ("FR_REGION_PAL", "sRegionMap_Pal", False),
         ("FR_KANTO_MAP", "sKanto_Tilemap", True),

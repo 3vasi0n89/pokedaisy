@@ -67,8 +67,21 @@ class EmulatorEngine(
     /** REWIND (Settings): states kept for the rewind hotkey, 0 = off. Picked up on the emu thread. */
     @Volatile var rewindEntries = 0
 
+    /** WIDE's native tables for this game ([WideScreen.gameFor]), or [WideScreen.OFF]; applied between frames. */
+    @Volatile var wideGame = WideScreen.OFF
+
+    /** ZOOM and the look-around over WIDE: asked for the window to draw before each frame ([EmulatorView.camera]). */
+    @Volatile var wideCamera: WideCamera? = null
+
+    /** Called (emu thread) once WIDE has switched itself off for this game: a fault while drawing, caught
+     * ([MgbaCore.pkWideFault]), or the camera failing - the game goes on with its plain frame. */
+    var onWideOff: ((String) -> Unit)? = null
+
     /** What fast-forward sounds like (Settings: STEADY / SPED-UP / OFF). */
     @Volatile var ffMusicMode = FfMusicMode.STEADY
+
+    /** The game's own audio is paused this frame (FF with a STEADY clip or none yet, slow-mo, rewind, a held frame). */
+    @Volatile var gameAudioPaused = false
     /** SMART: 1x while a menu screen or the region map is up ([FfMenuWatch], [RegionMapWatch]) - not a shop's ([ShopWatch]). */
     @Volatile var ffMode = FfMode.SMART
 
@@ -128,7 +141,7 @@ class EmulatorEngine(
     /** Bottom-screen touch battle control (see PLAN.md Phase 5):
      * drives the real battle menu via synthetic button presses through the
      * same touch-overlay bitmask the on-screen D-pad uses. */
-    private val battleInput = BattleInputController(input)
+    private val battleInput = BattleInputController(input, writer = { a, b -> MgbaCore.pkWriteBytes(a, b) })
 
     /** True while a queued battle-menu button sequence hasn't fully drained —
      * the touch battle UI should disable further taps while this is true. */
@@ -152,6 +165,11 @@ class EmulatorEngine(
     var battleSwitchAddrs: BattleInputController.SwitchAddrs?
         get() = battleInput.switchAddrs
         set(v) { battleInput.switchAddrs = v }
+
+    /** Where the battle menus keep their cursors (picks go straight there); null = the blind walk. */
+    var battleCursorAddrs: BattleInputController.CursorAddrs?
+        get() = battleInput.cursorAddrs
+        set(v) { battleInput.cursorAddrs = v }
 
     /** Switch to the party mon with this personality. Call from the UI thread. */
     fun battleSwitchTo(personality: Long) = battleInput.switchTo(personality)
@@ -207,6 +225,13 @@ class EmulatorEngine(
     var onFastForwardToggledChanged: ((Boolean) -> Unit)? = null
 
     /** The rewind hotkey held: the game runs backwards (muted) through what REWIND kept. */
+    /** Frames left of SOFT RESET's A + B + SELECT + START. */
+    @Volatile private var softResetFrames = 0
+
+    /** SOFT RESET: the games' own reset combo, held for a few frames (Gen 3 and Gen 1 check it every frame and go back to
+     * the title screen without saving, wherever they allow it). */
+    fun softReset() { softResetFrames = SOFT_RESET_FRAMES }
+
     fun setRewindHeld(on: Boolean) {
         rewindHeld = on
     }
@@ -217,8 +242,9 @@ class EmulatorEngine(
         announceSpeed()
     }
 
+    /** SPEED CYCLE: 1x, 1.5x ... 4x and round; from a slow step (GAME SPEED's 0.5x / 0.25x), back to 1x. */
     fun cycleSpeed() {
-        speedIdx = (speedIdx + 1) % SPEED_STEPS.size
+        speedIdx = if (speedIdx >= CYCLE_STEPS) 0 else (speedIdx + 1) % CYCLE_STEPS
         announceSpeed()
     }
 
@@ -227,6 +253,19 @@ class EmulatorEngine(
 
     /** Restore a persisted speed index without flashing the HUD. */
     fun restoreSpeedIndex(i: Int) { speedIdx = i.coerceIn(0, SPEED_STEPS.size - 1) }
+
+    /** The game speeds the companion's GAME SPEED offers ([speedIndex] picks one), slowest first. */
+    val gameSpeeds: List<Float> get() = SPEED_STEPS.sorted()
+
+    /** The speed step running now (1x unless SPEED CYCLE / GAME SPEED picked another). */
+    val gameSpeed: Float get() = SPEED_STEPS[speedIdx]
+
+    /** GAME SPEED: run at [speed] (one of [gameSpeeds]) until another is picked; the HUD says so. */
+    fun setGameSpeed(speed: Float) {
+        val i = SPEED_STEPS.indexOfFirst { it == speed }.takeIf { it >= 0 } ?: return
+        speedIdx = i
+        announceSpeed()
+    }
 
     /** Emu thread: the game's region map / a menu screen is up ([RegionMapWatch], [FfMenuWatch]). */
     private var mapOpen = false
@@ -243,6 +282,9 @@ class EmulatorEngine(
     private fun effectiveSpeed(): Float {
         // Rewinding steps back at the display's pace (2 game frames a frame), whatever FF says.
         if (rewindHeld && rewindEntries > 0) return 1f
+        // An automated switch drives the game's party menu behind the held frame: nothing to watch
+        // there, so it runs flat out (muted) and the battle comes back in a fraction of a second.
+        if (battleInput.holdFrame) return Float.POSITIVE_INFINITY
         val s = requestedSpeed()
         // SMART: menus and the region map's cursor can't be steered sped up -
         // 1x while one is up, and FF (still on) picks up again when it closes.
@@ -310,19 +352,21 @@ class EmulatorEngine(
         cheatsDirty = true
     }
 
-    private class ItemUseRequest(
-        val fns: com.pokedaisy.app.companion.data.FieldItemFns, val itemId: Int, val inBattle: Boolean,
-        val done: (com.pokedaisy.app.companion.data.ItemUseOutcome) -> Unit,
-    )
-    @Volatile private var pendingItemUse: ItemUseRequest? = null
+    /** A bag item's work on the game (FieldItems.kt), run on the next frame boundary: [run] gets the game's
+     * functions and whether it's busy (a battle, a menu screen, the region map). */
+    private class FieldItemJob(val inBattle: Boolean, var delayFrames: Int, val run: (com.pokedaisy.app.companion.data.GameCalls, Boolean) -> Unit)
+    private val fieldItemJobs = java.util.concurrent.ConcurrentLinkedQueue<FieldItemJob>()
 
-    /** Uses [itemId] the way the game does, on the next frame boundary ([com.pokedaisy.app.companion.data.useFieldItem]);
-     * [done] gets what happened, on the emu thread. */
-    fun requestItemUse(
-        fns: com.pokedaisy.app.companion.data.FieldItemFns, itemId: Int, inBattle: Boolean,
-        done: (com.pokedaisy.app.companion.data.ItemUseOutcome) -> Unit,
-    ) {
-        pendingItemUse = ItemUseRequest(fns, itemId, inBattle, done)
+    /** Runs [run] on the emu thread between frames with the game's functions ([com.pokedaisy.app.companion.data.GameCalls])
+     * and whether the game is busy - USE / GIVE on the ITEMS tab. Every request runs, in order. */
+    fun requestFieldItemJob(inBattle: Boolean, delayFrames: Int = 0, run: (com.pokedaisy.app.companion.data.GameCalls, Boolean) -> Unit) {
+        fieldItemJobs.add(FieldItemJob(inBattle, delayFrames, run))
+    }
+
+    private val gameCalls = object : com.pokedaisy.app.companion.data.GameCalls {
+        override fun call(fn: Long, a0: Int, a1: Int, a2: Int, a3: Int) = MgbaCore.pkCall(fn, a0, a1, a2, a3)
+        override fun read(addr: Long, len: Int) = InProcessReader.readCoreMemory(addr, len)
+        override fun write(addr: Long, bytes: ByteArray) = MgbaCore.pkWriteBytes(addr, bytes)
     }
 
     fun requestSaveState(slot: Int) { pendingSave = slot.coerceIn(SaveStates.SLOT_MIN, SaveStates.SLOT_MAX) }
@@ -362,6 +406,9 @@ class EmulatorEngine(
     /** The audio device ran dry this many times since the game started (each one a crackle). */
     @Volatile var audioUnderruns = 0
         private set
+
+    /** The GL thread's late draws so far (EmulatorView.lateFrames), for the fps log line; null = unknown. */
+    @Volatile var lateFramesSource: (() -> Long)? = null
 
     /** Vsync pacing's refreshes per game frame (0 = timer pacing), and refreshes since the last frame. */
     @Volatile private var pacedPerFrame = 0
@@ -454,6 +501,9 @@ class EmulatorEngine(
         var next = System.nanoTime()
         var fpsFrames = 0
         var fpsSince = System.nanoTime()
+        var fpsWork = 0L
+        var fpsMaxWork = 0L
+        var fpsLate = -1L
         var prevSpeed = 1f
         var paused = false
         var lastSample = 0L
@@ -479,8 +529,16 @@ class EmulatorEngine(
         var framesWritten = 0L
         var underruns = track?.underrunCount ?: 0
         var vsyncMode = false
+        // Fast-forward at a whole number of game frames per refresh (2x / 3x / 4x on 60 Hz): the group of frames
+        // for this refresh, run back to back on its tick, the last one drawn. Timer-paced frames with EXPAND's
+        // window drawn every 12 ms gave the 60 Hz screen steps of 3, 3, 5 game frames: a judder RetroArch hasn't.
+        var ffPerTick = 0
+        var ffGroup = 0
         val silence = ShortArray(bufferFrames * 2)
         var rewindApplied = -1   // pkInit dropped any buffer: set it again for this core
+        var wideApplied = WideScreen.OFF   // pkInit starts with WIDE off
+        var wideFaultReported = false
+        var lastWideDraw = 0L
         var frame = 0L
         try {
             while (running) {
@@ -491,10 +549,38 @@ class EmulatorEngine(
                     MgbaCore.pkSetRewind(rewindWanted)
                     rewindApplied = rewindWanted
                 }
+                val wideWanted = wideGame
+                if (wideWanted != wideApplied) {
+                    MgbaCore.pkWideConfigure(wideWanted)
+                    wideApplied = wideWanted
+                    wideCamera?.reset()
+                }
+                val camera = wideCamera
+                if (wideApplied != WideScreen.OFF && camera != null) {
+                    // Never worth the game: a camera that throws leaves the plain frame on screen for this run.
+                    try {
+                        // Fast-forward runs several frames per screen refresh: only one of them is ever seen, so only
+                        // that one has its window drawn (the rest just keep the RAM after them) - it was most of the CPU.
+                        val now = System.nanoTime()
+                        val draw = effectiveSpeed() <= 1f || (if (ffPerTick > 0) ffGroup <= 1 else now - lastWideDraw >= WIDE_DRAW_NANOS)
+                        if (draw) lastWideDraw = now
+                        MgbaCore.pkWideSetDraw(draw)
+                        camera.walking = input.mask and DIRECTIONS != 0
+                        val win = camera.frame(MgbaCore.pkWideScene())
+                        if (win != null) MgbaCore.pkWideSetView(win.x, win.y, win.w, win.h)
+                        else MgbaCore.pkWideSetView(0, 0, 0, 0)
+                    } catch (t: Throwable) {
+                        Log.e("pokedaisy", "WIDE camera failed; zoom off for this run", t)
+                        wideCamera = null
+                        MgbaCore.pkWideSetView(-WideCamera.MARGIN_FALLBACK, 0, WideCamera.PK_W + 2 * WideCamera.MARGIN_FALLBACK, WideCamera.PK_H)
+                        runCatching { onWideOff?.invoke("camera") }
+                    }
+                }
                 val rewinding = rewindHeld && rewindWanted > 0
                 MgbaCore.pkSetRewinding(rewinding)
                 // TURBO A / B: pressed 2 frames, released 2, in game frames - so FF mashes faster too.
-                MgbaCore.pkSetKeys(input.mask or (if ((frame++ / 2) % 2 == 0L) input.turboMask else 0))
+                val reset = if (softResetFrames > 0) { softResetFrames--; SOFT_RESET_KEYS } else 0
+                MgbaCore.pkSetKeys(input.mask or reset or (if ((frame++ / 2) % 2 == 0L) input.turboMask else 0))
                 MgbaCore.pkRunFrame()
                 onFrame?.invoke()
                 framesRun++
@@ -509,13 +595,23 @@ class EmulatorEngine(
                 }
 
                 servicePending()
+                if (wideApplied != WideScreen.OFF && !wideFaultReported && MgbaCore.pkWideFault() != 0) {
+                    wideFaultReported = true
+                    Log.e("pokedaisy", "WIDE switched itself off: signal ${MgbaCore.pkWideFault()} while drawing")
+                    runCatching { onWideOff?.invoke("fault") }
+                }
 
                 val nowMs = System.currentTimeMillis()
-                if (nowMs - lastSample >= 1000L) {
+                // The companion's full sample: once a second, four times in a battle (HP and PP follow the
+                // game within ~1/4 s; a battle state change gets one at once anyway, see onBattleInputSample).
+                val sampleEvery = if (battleInput.gameState != com.pokedaisy.app.companion.data.BATTLE_INPUT_NONE) 250L else 1000L
+                if (nowMs - lastSample >= sampleEvery) {
                     lastSample = nowMs
                     runCatching { onSample?.invoke() }
                 }
-                if (nowMs - lastBattleInputSample >= 66L) {
+                // Every frame while a switch runs flat out behind the held frame: at that speed a
+                // 66 ms gap is dozens of game frames, and the turbo would run on into the battle.
+                if (battleInput.holdFrame || nowMs - lastBattleInputSample >= 66L) {
                     lastBattleInputSample = nowMs
                     runCatching { onBattleInputSample?.invoke() }
                 }
@@ -563,10 +659,20 @@ class EmulatorEngine(
                 // only as SPED-UP (which STEADY falls back to only for a song or ROM it can't
                 // render). Slow-mo stays muted.
                 val spedUp = speed > 1f && clip == null && mode != FfMusicMode.OFF && !awaitingClip
-                val wantPaused = rewinding || !((speed == 1f && clip == null) || spedUp)
+                val wantPaused = rewinding || battleInput.holdFrame || !((speed == 1f && clip == null) || spedUp)
                 // Refreshes per frame when the display paces 1x; 0 = the timer and blocking audio.
                 val perFrame = if (speed == 1f && track != null && bufferFrames > 0) vsyncsPerFrame() else 0
                 pacedPerFrame = perFrame
+                val ffPer = if (speed > 1f && speed.isFinite()) vsyncsPerFrame().let { k ->
+                    val n = speed * k
+                    val r = n.roundToInt()
+                    if (k > 0 && r >= 1 && kotlin.math.abs(n - r) < 0.01f) r else 0
+                } else 0
+                if (ffPer != ffPerTick) {
+                    ffPerTick = ffPer
+                    ffGroup = 1   // this frame ends a group: drawn, then the next refresh's tick
+                    if (ffPer > 0) vsyncTicks.drainPermits()
+                }
                 if ((perFrame > 0) != vsyncMode) {
                     vsyncMode = perFrame > 0
                     if (vsyncMode) {
@@ -577,6 +683,7 @@ class EmulatorEngine(
                         MgbaCore.pkSetAudioRate(sampleRate.toDouble())
                     }
                 }
+                gameAudioPaused = wantPaused
                 if (wantPaused != paused) {
                     paused = wantPaused
                     if (paused) runCatching { track?.pause(); track?.flush() }
@@ -586,6 +693,8 @@ class EmulatorEngine(
                 }
 
                 val n = MgbaCore.pkReadAudio(scratch)
+                // In FF, the game's sounds for the companion's automated battle presses stay silent but the last.
+                if (n > 0 && speed > 1f && battleInput.muteGame) java.util.Arrays.fill(scratch, 0, n, 0.toShort())
                 if (n > 0 && !paused && track != null) {
                     if (vsyncMode) {
                         // The play head wraps as an unsigned int; the difference doesn't care.
@@ -634,10 +743,20 @@ class EmulatorEngine(
                 if (work > maxWork.get()) maxWork.set(work)
                 currentSpeed = speed
                 if (fpsFrames and 31 == 0) track?.let { t -> runCatching { audioUnderruns = t.underrunCount } }
+                fpsWork += work
+                if (work > fpsMaxWork) fpsMaxWork = work
                 if (++fpsFrames >= 120) {
                     val now = System.nanoTime()
                     val fps = fpsFrames * 1e9 / (now - fpsSince)
-                    Log.i("pokedaisy", "fps=%.1f (%s)".format(fps, speedTag(speed)))
+                    // Pacing, for a logcat read: the screen's refresh and refreshes per frame (0 = the timer), the GL
+                    // thread's late draws since the last line, the frames' work (avg / worst ms) and audio underruns.
+                    val late = lateFramesSource?.invoke() ?: -1L
+                    Log.i("pokedaisy", "fps=%.1f (%s) refresh=%.2fHz paced=%d ffPerTick=%d late=%d work=%.1f/%.1fms underruns=%d".format(
+                        fps, speedTag(speed), refreshHz, pacedPerFrame, ffPerTick, if (late < 0 || fpsLate < 0) -1 else late - fpsLate,
+                        fpsWork / fpsFrames / 1e6, fpsMaxWork / 1e6, audioUnderruns))
+                    fpsLate = late
+                    fpsWork = 0L
+                    fpsMaxWork = 0L
                     if (speed.isInfinite()) measuredSpeed = (fps / 60.0).toFloat().coerceAtLeast(1f)
                     fpsFrames = 0
                     fpsSince = now
@@ -648,6 +767,19 @@ class EmulatorEngine(
                     // went away) the wait times out and the timer takes over from the next frame.
                     val wait = (vsyncPeriodNanos * perFrame * 3).toLong()
                     runCatching { vsyncTicks.tryAcquire(perFrame, wait, java.util.concurrent.TimeUnit.NANOSECONDS) }
+                    next = System.nanoTime()
+                    prevSpeed = speed
+                    continue
+                }
+
+                if (ffPerTick > 0) {
+                    // Fast-forward on the refresh: the group's frames run as soon as the tick comes, then the
+                    // next tick (or the timer takes over if the refreshes stop).
+                    if (--ffGroup <= 0) {
+                        val wait = (vsyncPeriodNanos * 3).toLong()
+                        runCatching { vsyncTicks.tryAcquire(1, wait, java.util.concurrent.TimeUnit.NANOSECONDS) }
+                        ffGroup = ffPerTick
+                    }
                     next = System.nanoTime()
                     prevSpeed = speed
                     continue
@@ -682,6 +814,9 @@ class EmulatorEngine(
             pendingSuspend = null
             runCatching { track?.stop() }
             runCatching { track?.release() }
+            // The STEADY clip is only told when it changes, and the next loop starts with none: silence it here, or a
+            // RESTART GAME (or another ROM) kept the old song playing over the new one.
+            runCatching { onFfMusicChanged?.invoke(null) }
             runCatching { RetroAchievements.onCoreStopping() }
             // The GL thread lets go of the frame buffer before pkDeinit frees it.
             runCatching { onCoreStopping?.invoke() }.onFailure { Log.e("pokedaisy", "core stopping hook failed", it) }
@@ -703,21 +838,17 @@ class EmulatorEngine(
 
     private fun servicePending() {
         if (cheatsDirty) applyCheats()
-        pendingItemUse?.let { r ->
-            pendingItemUse = null
-            // Not with a menu screen or the region map up either: the game itself only uses items from its bag.
-            val out = runCatching {
-                com.pokedaisy.app.companion.data.useFieldItem(
-                    r.fns, r.itemId, busy = !gba || r.inBattle || menuOpen || mapOpen,
-                    call = { fn, a0, a1 -> MgbaCore.pkCall(fn, a0, a1) },
-                    readRom = { addr, len -> InProcessReader.readCoreMemory(addr, len) },
-                )
-            }.getOrElse {
-                Log.e("pokedaisy", "item use failed", it)
-                com.pokedaisy.app.companion.data.ItemUseOutcome(com.pokedaisy.app.companion.data.ItemUseResult.FAILED)
+        // The jobs queued by now (one a job queues runs on a later frame); a delayed one waits its frames.
+        repeat(fieldItemJobs.size) {
+            val job = fieldItemJobs.poll() ?: return@repeat
+            if (job.delayFrames > 0) {
+                job.delayFrames--
+                fieldItemJobs.add(job)
+                return@repeat
             }
-            Log.i("pokedaisy", "item use ${r.itemId}: $out")
-            r.done(out)
+            // Not with a menu screen or the region map up either: the game itself only uses items from its bag.
+            runCatching { job.run(gameCalls, !gba || job.inBattle || menuOpen || mapOpen) }
+                .onFailure { Log.e("pokedaisy", "field item job failed", it) }
         }
         pendingSuspend?.let { target ->
             pendingSuspend = null
@@ -856,11 +987,21 @@ class EmulatorEngine(
     }
 
     private companion object {
+        private const val SOFT_RESET_FRAMES = 10
+        private const val SOFT_RESET_KEYS = MgbaCore.Key.A or MgbaCore.Key.B or MgbaCore.Key.SELECT or MgbaCore.Key.START
+
         /** The GBA's (and Game Boy's) frame rate: 16777216 Hz / 280896 cycles per frame. */
         const val GBA_FPS = 16777216.0 / 280896.0
         /** Dynamic rate control's most the audio is stretched or squeezed (RetroArch's default). */
         const val DRC_MAX = 0.005
-        /** SPEED_CYCLE steps. Index 0 (1×) is the normal, audio-on state. */
-        val SPEED_STEPS = floatArrayOf(1f, 1.5f, 2f, 3f, 4f)
+        /** Speed steps, by the index saved per ROM. Index 0 (1×) is the normal, audio-on state; SPEED CYCLE
+         * goes through the first [CYCLE_STEPS], GAME SPEED adds the slow ones (muted, like SLOWMO HOLD) -
+         * appended, so the indexes saved before keep their meaning. */
+        val SPEED_STEPS = floatArrayOf(1f, 1.5f, 2f, 3f, 4f, 0.5f, 0.25f)
+        const val CYCLE_STEPS = 5
+        /** At fast-forward, a WIDE window is drawn at most this often (~80 a second: every refresh of a 60 Hz screen). */
+        const val WIDE_DRAW_NANOS = 12_000_000L
+        /** The D-pad's bits: one held = the player walking (the look-around glides back). */
+        const val DIRECTIONS = MgbaCore.Key.UP or MgbaCore.Key.DOWN or MgbaCore.Key.LEFT or MgbaCore.Key.RIGHT
     }
 }

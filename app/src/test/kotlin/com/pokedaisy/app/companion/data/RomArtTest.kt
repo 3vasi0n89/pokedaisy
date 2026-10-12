@@ -182,6 +182,7 @@ class RomArtTest {
             "partybg/firered.png" to "e9fcbfdc",
             "partyem/pokeball.png" to "53f5f1ea", // the same ball
             "partyfr/font_small.png" to "74bc5054",
+            "partyfr/hold_icons.png" to "3921cfb7",
             "partyfr/pokeball.png" to "53f5f1ea",
             "partyfr/slot_fainted.png" to "988df89d",
             "partyfr/slot_nohp_normal.png" to "0402fa82",
@@ -208,6 +209,7 @@ class RomArtTest {
             "partyem/slot_selected.png" to "06077c6c",
             "partyem/slot_selected_fainted.png" to "b0393f12",
             "partyem/status_icons.png" to "5c0fddd3",
+            "partyfr/hold_icons.png" to "3921cfb7", // the same marker
             "partyfr/pokeball.png" to "53f5f1ea", // the same ball
             "regionmap/hoenn.png" to "27d88e99",
             "regionmap/player_brendan.png" to "ffb2b151",

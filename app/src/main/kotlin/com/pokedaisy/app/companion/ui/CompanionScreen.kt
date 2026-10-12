@@ -113,6 +113,8 @@ fun CompanionScreen(
     statusBar: (@Composable () -> Unit)? = null,
     /** USE on the ITEMS tab (a Repel on the field); null = no such button. */
     itemUse: com.pokedaisy.app.companion.ItemUse? = null,
+    /** FLY on the MAP tab (Fly.kt); null = no button. */
+    fly: com.pokedaisy.app.companion.FlyAction? = null,
     /** NOT SUPPORTED's ASK FOR SUPPORT (a GitHub issue with the ROM's name and SHA-1); null hides it. */
     askForSupport: (() -> Unit)? = null,
     /** WHICH GAME IS THIS? ([com.pokedaisy.app.companion.data.BestEffort]): the player's answers; null = no picker. */
@@ -139,8 +141,10 @@ fun CompanionScreen(
     var popupReturn by remember { mutableStateOf<String?>(null) }
     // WHICH GAME IS THIS? over the tabs (WRONG GAME?, PICK AGAIN, SETTINGS > GAME, PICK A GAME).
     var pickerOpen by remember { mutableStateOf(false) }
+    val gameSilent = remember(battleInput) { { battleInput?.gameSilent == true } }
     CompositionLocalProvider(
-        LocalCompanionBack provides back, LocalClickSound provides clickSound, LocalGameFont provides gameFont,
+        LocalCompanionBack provides back, LocalClickSound provides clickSound, LocalGameSilent provides gameSilent,
+        LocalGameFont provides gameFont,
         LocalGameTextScale provides if (gameFont != null) gameTextScale(snapshot.game) else 1f,
         LocalGameFontWidth provides if (gameFont != null) gameFontWidth(snapshot.game) else 1f,
     ) { QolTheme { key(snapshot.game) {
@@ -427,6 +431,7 @@ fun CompanionScreen(
                                 onIndexChange = { detailIndex = it },
                                 onBack = { detailIndex = null },
                                 learn = learnContext,
+                                itemUse = itemUse,
                             )
                         } else if (tab == "DEX" && dex != null) {
                             if (paneKey == "DEX/DETAIL") PokedexEntryScreen(dex, dexUi, lastDexEntry.value, guide = snapshot.guideTables)
@@ -442,7 +447,7 @@ fun CompanionScreen(
                             // The game's own card fills the tab, over the backdrop.
                             TrainerCardScreen(card, cardArt, Modifier.fillMaxSize(), initialBack = initialCardBack)
                         } else if (tab == "MAP") {
-                            MapScreen(snapshot, modifier = Modifier.fillMaxSize())
+                            MapScreen(snapshot, modifier = Modifier.fillMaxSize(), fly = fly)
                         } else if (tab == "PARTY") {
                             // Party slots are the game's own boxes (or FireRed-like
                             // ones) over the party-menu backdrop - no extra window
@@ -476,7 +481,7 @@ fun CompanionScreen(
                                 tmTables?.let { com.pokedaisy.app.companion.data.MoveLearning.tmMoveNames(it) }
                             }).orEmpty()
                             ItemsScreen(
-                                snapshot.items, modifier = Modifier.fillMaxSize(), itemUse = itemUse, tmMoves = tmMoves,
+                                snapshot.items, modifier = Modifier.fillMaxSize(), itemUse = itemUse, tmMoves = tmMoves, party = snapshot.party,
                                 itemExtra = learnContext?.let { ctx -> { item, text, shadow -> TmLearnersRow(ctx, snapshot.party, item, text, shadow, rememberGbaTextMetrics()) } },
                             )
                         } else if (tab == "BATTLE") {
@@ -508,6 +513,7 @@ fun CompanionScreen(
                                         battleInputState = snapshot.battleInputState,
                                         modifier = Modifier.fillMaxSize(),
                                         showHints = showHints,
+                                        oneTapMoves = settings?.oneTapMoves ?: false,
                                         onShowInfo = { battleShowControls = false },
                                         onShowSuggestions = { showSuggestions = true },
                                         foeParty = snapshot.enemyParty,
@@ -567,6 +573,14 @@ fun CompanionScreen(
                     achievementFocus = AchievementFocus(p.achievementId, unlocked = p.kind != AchievementPopup.Kind.PROGRESS)
                 },
             )
+
+            // EXPAND's one-time offer, in a game it knows (the Library's "NOT NOW" doesn't stop this one, once).
+            if (settings?.expandOffer == true) {
+                ExpandIntro(
+                    rememberGbaTextMetrics(), rememberGbaTextMetrics(textScale = 1f), inGame = true,
+                    onTurnOn = { settings.answerExpandOffer(true) }, onNotNow = { settings.answerExpandOffer(false) },
+                )
+            }
 
             // BEST EFFORT's notices (a match it made, a party that doubts it) and WHICH GAME IS THIS? over the tabs.
             if (gamePick != null) {

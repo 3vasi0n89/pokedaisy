@@ -120,7 +120,7 @@ import com.pokedaisy.app.companion.ui.drawPixelRoundRect
  */
 class SettingsActivity : ComponentActivity() {
 
-    private enum class Screen { HOME, HOTKEYS, CONTROLS, SHADERS, OVERLAYS, FOLDERS, COVER_ART, HIDDEN, ACHIEVEMENTS, CHEATS, CHEAT_ADD, LICENSES }
+    private enum class Screen { HOME, HOTKEYS, CONTROLS, SHADERS, OVERLAYS, FOLDERS, COVER_ART, SCREENSCRAPER, HIDDEN, ACHIEVEMENTS, CHEATS, CHEAT_ADD, LICENSES, HELP }
 
     private lateinit var prefs: Prefs
     private var screen by mutableStateOf(Screen.HOME)
@@ -152,6 +152,12 @@ class SettingsActivity : ComponentActivity() {
 
     private val updates by lazy { AppUpdateFlow(this) }
 
+    /** HELP: the manual (DocsScreen.kt), its place kept while Settings is open. */
+    private val docsUi = com.pokedaisy.app.companion.ui.DocsUiState()
+    private val docsSource by lazy { com.pokedaisy.app.companion.ui.DocsSources.of(this) }
+    /** Opened straight on HELP (the library's ? button): BACK from its contents leaves. */
+    private var helpOnly = false
+
     /** Opened from a game's library menu (CHEATS): BACK from its cheats leaves, not to the hub. */
     private var cheatsOnly = false
     /** HOME's search box; kept while a sub-page it led to is open. */
@@ -173,6 +179,10 @@ class SettingsActivity : ComponentActivity() {
         if (intent?.getStringExtra(EXTRA_SCREEN) == SCREEN_CONTROLS) {
             controlsOnly = true
             screen = Screen.CONTROLS
+        }
+        if (intent?.getStringExtra(EXTRA_SCREEN) == SCREEN_HELP) {
+            helpOnly = true
+            screen = Screen.HELP
         }
         setContent { QolTheme { Root() } }
     }
@@ -267,11 +277,13 @@ class SettingsActivity : ComponentActivity() {
                         Screen.OVERLAYS -> tk("OVERLAY")
                         Screen.FOLDERS -> tk("FOLDERS")
                         Screen.COVER_ART -> tk("COVER ART")
+                        Screen.SCREENSCRAPER -> "ScreenScraper"
                         Screen.HIDDEN -> tk("HIDDEN GAMES")
                         Screen.ACHIEVEMENTS -> "RetroAchievements"
                         Screen.CHEATS -> tk("CHEATS")
                         Screen.CHEAT_ADD -> tk("ADD CODE")
                         Screen.LICENSES -> tk("LICENSES")
+                        Screen.HELP -> tk("HELP")
                     },
                     m = m,
                     onBack = {
@@ -288,11 +300,13 @@ class SettingsActivity : ComponentActivity() {
                     Screen.OVERLAYS -> OverlaysScreen(m, small)
                     Screen.FOLDERS -> FoldersScreen(m, small)
                     Screen.COVER_ART -> CoverArtScreen(m, small)
+                    Screen.SCREENSCRAPER -> ScreenScraperScreen(m, small)
                     Screen.HIDDEN -> HiddenScreen(m, small)
                     Screen.ACHIEVEMENTS -> AchievementsScreen(m, small)
                     Screen.CHEATS -> CheatsScreen(m, small)
                     Screen.CHEAT_ADD -> CheatAddScreen(m, small)
                     Screen.LICENSES -> LicensesScreen(m, small)
+                    Screen.HELP -> com.pokedaisy.app.companion.ui.DocsReader(docsUi, m, docsSource, onOpenUrl = ::openUrl)
                 }
             }
 
@@ -312,8 +326,8 @@ class SettingsActivity : ComponentActivity() {
                     }
                 }
                 AspectPicker(
-                    prefs.stretchGame, gameScreenAspect(), prefs.statusBar && !prefs.statusBarOnCompanion, shot, m,
-                    onPick = { prefs.stretchGame = it; aspectPicker = false; revision++ },
+                    prefs.gameAspect, gameScreenAspect(), prefs.statusBar && !prefs.statusBarOnCompanion, shot, m,
+                    onPick = { prefs.gameAspect = it; aspectPicker = false; revision++ },
                     onDismiss = { aspectPicker = false },
                 )
             }
@@ -436,6 +450,8 @@ class SettingsActivity : ComponentActivity() {
     private fun goBack() {
         when {
             screen == Screen.CHEAT_ADD -> screen = Screen.CHEATS
+            screen == Screen.HELP && docsUi.back() -> {}
+            screen == Screen.HELP && helpOnly -> finish()
             screen == Screen.HOME || (screen == Screen.CHEATS && cheatsOnly) || (screen == Screen.CONTROLS && controlsOnly) -> finish()
             else -> { cheatRemoveMode = false; overlayRemoveMode = false; screen = Screen.HOME }
         }
@@ -513,8 +529,14 @@ class SettingsActivity : ComponentActivity() {
                     prefs.statusBar = i > 0
                 }
             },
-            // The game at 3:2 or stretched to fill the screen; picked by preview.
-            SettingRow(tk("ASPECT"), aspectLabel(prefs.stretchGame)) { aspectPicker = true },
+            // The game at 3:2, stretched to fill the screen, or WIDE (more of the map); picked by preview.
+            SettingRow(tk("ASPECT"), aspectLabel(prefs.gameAspect)) { aspectPicker = true },
+            // EXPAND only: whether a conversation, sign, menu or picture over the field pulls the zoom in (battles always do).
+            SettingRow(tk("AUTO ZOOM IN"), onOff(prefs.expandZoomOnText),
+                       subtitle = "1x on dialogue, signs, menus") {
+                prefs.expandZoomOnText = !prefs.expandZoomOnText
+                revision++
+            }.takeIf { prefs.gameAspect == com.pokedaisy.app.companion.GameAspect.WIDE },
             // FILTER (LCD / LCD PAPER / SCANLINES / CRT) and GBA COLORS, on their own page.
             SettingRow(tk("SHADERS"), prefs.screenFilter.label) { screen = Screen.SHADERS },
             // A frame around the game: the built-in ones and imported RetroArch overlays, on their own page.
@@ -556,7 +578,17 @@ class SettingsActivity : ComponentActivity() {
                 revision++
             },
             SettingRow(tk("FOLDERS"), null) { screen = Screen.FOLDERS },
+            // Every game's media (box art, screenshots, logos, videos, facts): first for covers, and the launcher's other screen.
+            SettingRow("ScreenScraper", prefs.screenScraperAccount?.user?.uppercase() ?: tk("OFF")) {
+                ssLogin.refresh(prefs) { r -> runOnUiThread { r() } }
+                screen = Screen.SCREENSCRAPER
+            }.takeIf { ScreenScraperClient.enabled },
             SettingRow(tk("COVER ART"), onOff(prefs.steamGridDbApiKey != null || prefs.raWebApiKey != null)) { screen = Screen.COVER_ART },
+            // Two screens: the game list on one, the game you're on (its media) on the other. X swaps them.
+            SettingRow(tk("DUAL-SCREEN LAUNCHER"), onOff(prefs.dualScreenLauncher)) {
+                prefs.dualScreenLauncher = !prefs.dualScreenLauncher
+                revision++
+            }.takeIf { hasSecondScreen },
             SettingRow(tk("HIDDEN GAMES"), RomFolder.hiddenRoms(this@SettingsActivity, prefs).size.takeIf { it > 0 }?.toString() ?: tk("NONE")) { screen = Screen.HIDDEN },
             // A game's GameShark / Action Replay / CodeBreaker codes, on their own page.
             SettingRow(tk("CHEATS"), onOff(prefs.cheatsEnabled)) { screen = Screen.CHEATS },
@@ -567,6 +599,8 @@ class SettingsActivity : ComponentActivity() {
                 labelIcon = { GoldTrophy() },
             ) { screen = Screen.ACHIEVEMENTS },
             groupTitle(tk("APP")),
+            // The manual (docs/manual, served by the website), readable offline once fetched.
+            SettingRow(tk("HELP"), null, subtitle = "The manual: how every screen and setting works") { screen = Screen.HELP },
             // AUTO: the ROM's language in game, the device's here. Applies at once, both screens.
             SettingRow("LANGUAGE", L10n.settingLabel(prefs.appLanguage)) {
                 val opts = L10n.options
@@ -1199,6 +1233,60 @@ class SettingsActivity : ComponentActivity() {
         }
     }
 
+    // ---- ScreenScraper ------------------------------------------------------------
+
+    /** Sign in / out of ScreenScraper, videos on / off, and a media pass over the library now. */
+    @Composable
+    private fun ScreenScraperScreen(m: GbaTextMetrics, small: GbaTextMetrics) {
+        @Suppress("UNUSED_EXPRESSION") revision
+        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+            Hint(
+                tr("ScreenScraper.fr has box art, screenshots, title screens, logos, videos and each game's story. With your free account, PokéDaisy fetches them once per game and keeps them on the device. Its box art comes first for library covers, and with two screens the launcher shows the game you're on, in full, on the other one."),
+                m, small,
+            )
+            OptionListWindow(m, Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(horizontal = m.u * 4)) {
+                    ScreenScraperAccountPanel(
+                        ssLogin, m, small,
+                        onSignIn = { ssLogin.signIn(prefs, { r -> runOnUiThread { r() } }) { revision++; startCoverSync(replace = false) } },
+                        onSignOut = { ssLogin.signOut(prefs); revision++ },
+                        onSignUp = { openUrl(ScreenScraperClient.SIGN_UP_PAGE) },
+                    )
+                }
+            }
+            Spacer(Modifier.height(m.u * 4))
+            OptionListWindow(m, Modifier.fillMaxWidth()) {
+                Column {
+                    // Videos are a few MB a game: the launcher plays them, nothing else needs them.
+                    OptionLine(tk("DOWNLOAD VIDEOS"), if (prefs.screenScraperVideos) tk("ON") else tk("OFF"), selected = false, m, divider = true) {
+                        prefs.screenScraperVideos = !prefs.screenScraperVideos
+                        revision++
+                    }
+                    Row(
+                        Modifier.fillMaxWidth().padding(m.u * 4),
+                        horizontalArrangement = Arrangement.spacedBy(m.u * 4),
+                    ) {
+                        OptionButton(
+                            if (coverSync.running) tk("FETCHING…") else tr("FETCH MEDIA NOW"), m, emphasis = true,
+                            enabled = !coverSync.running && ssLogin.signedInAs != null,
+                            onClick = { startCoverSync(replace = false) },
+                        )
+                        Spacer(Modifier.weight(1f))
+                        OptionButton(
+                            tk("REPLACE ALL"), m, enabled = !coverSync.running && ssLogin.signedInAs != null,
+                            onClick = { confirmReplaceAll = true },
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(m.u * 4))
+            CoverSyncPanel(coverSync, m, small)
+        }
+    }
+
+    /** Settings > ScreenScraper's sign-in (internal for ui-preview). */
+    internal val ssLogin by lazy { ScreenScraperLogin.of(prefs) }
+
     /** A key field's title with GET KEY beside it, opening the site's page for that key. */
     @Composable
     private fun KeyLabel(label: String, m: GbaTextMetrics, small: GbaTextMetrics, onGetKey: () -> Unit) {
@@ -1498,14 +1586,15 @@ class SettingsActivity : ComponentActivity() {
     }
 
     companion object {
-        val RATES = floatArrayOf(0f, 2f, 3f, 4f, 5f, 6f, 8f, 10f)
+        val RATES = floatArrayOf(0f, 1.5f, 2f, 3f, 4f, 5f, 6f, 8f, 10f)
         val TOUCH_NAMES = listOf(tk("AUTO"), tk("ALWAYS"), tk("NEVER"))
         const val REPO_URL = "https://github.com/lidor30/pokedaisy"
         /** A ROM path: open straight on that game's CHEATS (its library menu). */
         const val EXTRA_CHEATS_ROM = "cheats_rom"
-        /** Opens one page alone ([SCREEN_CONTROLS]: GAME BUTTONS, for setup); BACK finishes. */
+        /** Opens one page alone ([SCREEN_CONTROLS]: GAME BUTTONS, for setup; [SCREEN_HELP]: the manual); BACK finishes. */
         const val EXTRA_SCREEN = "screen"
         const val SCREEN_CONTROLS = "CONTROLS"
+        const val SCREEN_HELP = "HELP"
         /** Cheat files are text; anything bigger isn't one. */
         const val MAX_CHEAT_FILE = 1 shl 20
         /** One picked overlay file at most (read into memory; a pack of a few 4K borders is ~20 MB). */
@@ -1534,7 +1623,7 @@ class SettingsActivity : ComponentActivity() {
         }
         const val COFFEE_URL = "https://buymeacoffee.com/lidor30g"
 
-        fun rateLabel(v: Float) = if (v <= 0f) tk("INFINITE") else "${v.toInt()}×"
+        fun rateLabel(v: Float) = if (v <= 0f) tk("INFINITE") else if (v % 1f == 0f) "${v.toInt()}×" else "$v×"
 
         fun keyLabel(name: String) = name.replace("BUTTON_", "").replace('_', ' ')
 

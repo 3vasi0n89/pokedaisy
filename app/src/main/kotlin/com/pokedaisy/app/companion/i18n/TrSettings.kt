@@ -2,6 +2,18 @@ package com.pokedaisy.app.companion.i18n
 
 /** Both Settings screens: the top-screen SettingsActivity and the companion's SETTINGS tab. */
 internal val trSettings: Map<String, Tr> = mapOf(
+    // HELP: the manual (DocsScreen.kt)
+    "HELP" to Tr(ja = "ヘルプ", fr = "AIDE", de = "HILFE", it = "AIUTO", es = "AYUDA"),
+    "Help" to Tr(ja = "ヘルプ", fr = "Aide", de = "Hilfe", it = "Aiuto", es = "Ayuda"),
+    "The manual: how every screen and setting works" to Tr(ja = "せつめいしょ: がめんと せっていの つかいかた", fr = "Le manuel : comment marchent chaque écran et réglage", de = "Das Handbuch: wie jeder Bildschirm und jede Einstellung funktioniert", it = "Il manuale: come funzionano schermate e impostazioni", es = "El manual: cómo funciona cada pantalla y ajuste"),
+    "LOADING THE MANUAL…" to Tr(ja = "せつめいしょを よみこみちゅう…", fr = "CHARGEMENT DU MANUEL…", de = "HANDBUCH WIRD GELADEN…", it = "CARICAMENTO MANUALE…", es = "CARGANDO EL MANUAL…"),
+    "The manual comes from pokedaisy.web.app and is kept for reading offline. Connect to the internet once to get it." to Tr(ja = "せつめいしょは pokedaisy.web.app から とどき オフラインでも よめるように ほぞんされます。 いちど インターネットに つないでください。", fr = "Le manuel vient de pokedaisy.web.app et reste lisible hors ligne. Connectez-vous une fois à Internet pour l'obtenir.", de = "Das Handbuch kommt von pokedaisy.web.app und bleibt offline lesbar. Einmal mit dem Internet verbinden, um es zu laden.", it = "Il manuale arriva da pokedaisy.web.app e resta leggibile offline. Collegati a Internet una volta per scaricarlo.", es = "El manual viene de pokedaisy.web.app y se guarda para leerlo sin conexión. Conéctate a Internet una vez para descargarlo."),
+    "RETRY" to Tr(ja = "もういちど", fr = "RÉESSAYER", de = "ERNEUT", it = "RIPROVA", es = "REINTENTAR"),
+    "SEARCH THE MANUAL (e.g. FAST-FORWARD)" to Tr(ja = "せつめいしょを さがす (れい: はやおくり)", fr = "CHERCHER (ex. AVANCE RAPIDE)", de = "SUCHEN (z. B. VORSPULEN)", it = "CERCA (es. AVANTI VELOCE)", es = "BUSCAR (p. ej. AVANCE RÁPIDO)"),
+    "PREVIOUS" to Tr(ja = "まえへ", fr = "PRÉCÉDENT", de = "ZURÜCK", it = "PRECEDENTE", es = "ANTERIOR"),
+    "TIP" to Tr(ja = "ヒント", fr = "ASTUCE", de = "TIPP", it = "CONSIGLIO", es = "CONSEJO"),
+    "NOTE" to Tr(ja = "メモ", fr = "À NOTER", de = "HINWEIS", it = "NOTA", es = "NOTA"),
+    "HEADS UP" to Tr(ja = "ちゅうい", fr = "ATTENTION", de = "ACHTUNG", it = "ATTENZIONE", es = "ATENCIÓN"),
     // Page titles
     "Which game this ROM is read as" to Tr(ja = "この ROMを どの ゲームとして よむか", fr = "Le jeu sous lequel cette ROM est lue", de = "Als welches Spiel diese ROM gelesen wird", it = "Come quale gioco viene letta questa ROM", es = "Como qué juego se lee esta ROM"),
     "Key bindings: which button presses A, B, START..." to Tr(ja = "キーせってい: どのボタンが A B START…", fr = "Touches : quel bouton fait A, B, START...", de = "Tastenbelegung: welche Taste A, B, START drückt...", it = "Tasti: quale pulsante preme A, B, START...", es = "Teclas: qué botón pulsa A, B, START..."),
@@ -85,8 +97,12 @@ internal val trSettings: Map<String, Tr> = mapOf(
     "CRT" to Tr(ja = "ブラウンかん", fr = "CRT", de = "CRT", it = "CRT", es = "CRT"),
     "GBA COLORS" to Tr(ja = "GBAの いろ", fr = "COULEURS GBA", de = "GBA-FARBEN", it = "COLORI GBA", es = "COLORES GBA"),
     "ASPECT" to Tr(ja = "アスペクト", fr = "FORMAT", de = "FORMAT", it = "FORMATO", es = "FORMATO"),
+    "AUTO ZOOM IN" to Tr(ja = "オート ズームイン", fr = "ZOOM AUTO", de = "AUTO-ZOOM", it = "ZOOM AUTO", es = "ZOOM AUTO"),
+    "1x on dialogue, signs, menus" to Tr(ja = "かいわ・かんばん・メニューで 1x", fr = "1x : dialogues, panneaux, menus", de = "1x bei Dialog, Schild, Menü", it = "1x su dialoghi, cartelli, menu", es = "1x en diálogos, letreros, menús"),
     "STRETCH" to Tr(ja = "ひきのばし", fr = "ÉTIRÉ", de = "GESTRECKT", it = "ESTESO", es = "ESTIRADO"),
     "ORIGINAL" to Tr(ja = "オリジナル", fr = "ORIGINAL", de = "ORIGINAL", it = "ORIGINALE", es = "ORIGINAL"),
+    "EXPAND" to Tr(ja = "ひろげる", fr = "ÉTENDRE", de = "ERWEITERN", it = "ESPANDI", es = "AMPLIAR"),
+    "NOT YET" to Tr(ja = "まだ", fr = "PAS ENCORE", de = "NOCH NICHT", it = "NON ANCORA", es = "AÚN NO"),
     "THEME" to Tr(ja = "テーマ", fr = "THÈME", de = "THEMA", it = "TEMA", es = "TEMA"),
     // FPS / CPU's performance panel (PerformanceOverlay).
     "PERFORMANCE" to Tr(ja = "パフォーマンス", fr = "PERFORMANCES", de = "LEISTUNG", it = "PRESTAZIONI", es = "RENDIMIENTO"),
@@ -99,6 +115,8 @@ internal val trSettings: Map<String, Tr> = mapOf(
     "BATTERY" to Tr(ja = "バッテリー", fr = "BATTERIE", de = "AKKU", it = "BATTERIA", es = "BATERÍA"),
     "THERMAL" to Tr(ja = "おんど", fr = "CHALEUR", de = "WÄRME", it = "CALORE", es = "CALOR"),
     "MEMORY" to Tr(ja = "メモリー", fr = "MÉMOIRE", de = "SPEICHER", it = "MEMORIA", es = "MEMORIA"),
+    "SNAPSHOTS" to Tr(ja = "スナップショット", fr = "INSTANTANÉS", de = "SNAPSHOTS", it = "ISTANTANEE", es = "CAPTURAS"),
+    "BATTLE CHECKS" to Tr(ja = "バトル チェック", fr = "CONTRÔLES COMBAT", de = "KAMPF-CHECKS", it = "CONTROLLI LOTTA", es = "COMPROB. COMBATE"),
     "TIMER" to Tr(ja = "タイマー", fr = "MINUTERIE", de = "TIMER", it = "TIMER", es = "TEMPORIZADOR"),
     "WARM" to Tr(ja = "あたたかい", fr = "TIÈDE", de = "WARM", it = "TIEPIDO", es = "TIBIO"),
     "HOT" to Tr(ja = "あつい", fr = "CHAUD", de = "HEISS", it = "CALDO", es = "CALIENTE"),
@@ -110,6 +128,7 @@ internal val trSettings: Map<String, Tr> = mapOf(
     "CRASH REPORTS" to Tr(ja = "クラッシュ レポート", fr = "RAPPORTS DE PLANTAGE", de = "ABSTURZBERICHTE", it = "SEGNALAZIONI CRASH", es = "INFORMES DE FALLOS"),
     "RUN SETUP" to Tr(ja = "セットアップ", fr = "CONFIGURATION", de = "EINRICHTUNG", it = "CONFIGURAZIONE", es = "CONFIGURAR"),
     "BATTLE HINTS" to Tr(ja = "バトル ヒント", fr = "CONSEILS COMBAT", de = "KAMPFTIPPS", it = "CONSIGLI LOTTA", es = "PISTAS COMBATE"),
+    "ONE-TAP MOVES" to Tr(ja = "ワンタップ わざ", fr = "CAPACITÉS EN 1 TAP", de = "ATTACKEN MIT 1 TIPP", it = "MOSSE A 1 TOCCO", es = "MOVIMIENTOS DE 1 TOQUE"),
     "FOE IVS" to Tr(ja = "あいての こたいち", fr = "IV ENNEMIS", de = "GEGNER-DVS", it = "IV AVVERSARI", es = "IV RIVALES"),
     "CLICK SOUND" to Tr(ja = "クリックおん", fr = "SON DES CLICS", de = "KLICKTON", it = "SUONO CLIC", es = "SONIDO CLIC"),
     "{0} TABS" to Tr(ja = "タブ {0}こ", fr = "{0} ONGLETS", de = "{0} TABS", it = "{0} SCHEDE", es = "{0} PESTAÑAS"),
@@ -117,6 +136,7 @@ internal val trSettings: Map<String, Tr> = mapOf(
     // ASPECT picker
     "Fills the screen, drawn wider" to Tr(ja = "がめん いっぱい、 よこに のばして ひょうじ", fr = "Remplit l'écran, image élargie", de = "Füllt den Bildschirm, breiter gezeichnet", it = "Riempie lo schermo, più largo", es = "Llena la pantalla, más ancho"),
     "The GBA's 3:2, bars at the sides" to Tr(ja = "GBAの 3:2、 りょうがわに くろい おび", fr = "Le 3:2 de la GBA, bandes sur les côtés", de = "Das 3:2 des GBA, Balken an den Seiten", it = "Il 3:2 del GBA, bande ai lati", es = "El 3:2 de la GBA, franjas a los lados"),
+    "More of the map around the game (not every game yet)" to Tr(ja = "まわりの マップも みえる(まだ いちぶの ゲームのみ)", fr = "Plus de carte autour du jeu (pas encore tous les jeux)", de = "Mehr Karte rund ums Spiel (noch nicht alle Spiele)", it = "Più mappa intorno al gioco (non ancora tutti i giochi)", es = "Más mapa alrededor del juego (aún no todos los juegos)"),
 
     // Footer
     "POKéDAISY {0}  ·  by {1}" to Tr(ja = "POKéDAISY {0}  ·  さくしゃ {1}", fr = "POKéDAISY {0}  ·  par {1}", de = "POKéDAISY {0}  ·  von {1}", it = "POKéDAISY {0}  ·  di {1}", es = "POKéDAISY {0}  ·  por {1}"),
@@ -171,6 +191,8 @@ internal val trSettings: Map<String, Tr> = mapOf(
     "REWIND HOLD" to Tr(ja = "まきもどし ホールド", fr = "RETOUR MAINTENU", de = "ZURÜCK HALTEN", it = "RIAVVOLGI TIENI", es = "REBOBINAR MANTENER"),
     "REWIND" to Tr(ja = "まきもどし", fr = "RETOUR ARRIÈRE", de = "ZURÜCKSPULEN", it = "RIAVVOLGI", es = "REBOBINAR"),
     "SLOWMO HOLD" to Tr(ja = "スロー ホールド", fr = "RALENTI MAINTENU", de = "ZEITLUPE HALTEN", it = "RALLENTA TIENI", es = "LENTO MANTENER"),
+    "ZOOM" to Tr(ja = "ズーム", fr = "ZOOM", de = "ZOOM", it = "ZOOM", es = "ZOOM"),
+    "SOFT RESET" to Tr(ja = "ソフトリセット", fr = "RÉINIT. DOUCE", de = "SOFT-RESET", it = "RESET SOFT", es = "REINICIO SUAVE"),
     "EXIT GAME" to Tr(ja = "ゲーム しゅうりょう", fr = "QUITTER LE JEU", de = "SPIEL BEENDEN", it = "ESCI DAL GIOCO", es = "SALIR DEL JUEGO"),
 
     // Folders

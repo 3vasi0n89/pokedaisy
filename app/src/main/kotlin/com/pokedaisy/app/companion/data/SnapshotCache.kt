@@ -18,7 +18,7 @@ import java.io.File
 object SnapshotCache {
     private const val MAGIC = 0x50445343   // "PDSC"
     // 2: move ids (the move advice reads them).
-    private const val VERSION = 2
+    private const val VERSION = 3
     private const val MAX_BYTES = 256 * 1024
 
     fun fileFor(state: File) = File(state.path + ".companion")
@@ -151,6 +151,7 @@ object SnapshotCache {
         writeLong(m.personality)
         writeBoolean(m.stats != null)
         m.stats?.let { ints(it.ivs); ints(it.evs); writeInt(it.nature); ints(it.stats) }
+        writeInt(m.heldItemId)
     }
 
     private fun DataInputStream.mon(): MonView {
@@ -164,9 +165,10 @@ object SnapshotCache {
         val exp = if (readBoolean()) ExpProgress(readLong(), readLong(), readLong()) else null
         val personality = readLong()
         val stats = if (readBoolean()) MonStats(ints(), ints(), readInt(), ints()) else null
+        val held = readInt()
         return MonView(
             species, name, level, hp, maxHp, status, types, icon, gender, egg, moves,
-            weak, resist, immune, exp, personality, stats,
+            weak, resist, immune, exp, personality, stats, heldItemId = held,
         )
     }
 }

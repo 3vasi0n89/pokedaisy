@@ -45,6 +45,19 @@ class Bitmap(val width: Int, val height: Int, internal val px: IntArray = IntArr
 
 /** Non-null returns: Android's are platform types the app's code treats as non-null. */
 object BitmapFactory {
+    class Options {
+        var inJustDecodeBounds = false
+        var inSampleSize = 1
+        var outWidth = 0
+        var outHeight = 0
+    }
+    /** [o]'s bounds-only decode fills its size; the sample size is ignored (the preview keeps full size). */
+    fun decodeFile(p: String, o: Options): Bitmap? {
+        val b = decodeFile(p)
+        o.outWidth = b.width
+        o.outHeight = b.height
+        return if (o.inJustDecodeBounds) null else b
+    }
     fun decodeStream(s: InputStream?): Bitmap = ImageIO.read(s!!).let { img ->
         val b = Bitmap(img.width, img.height)
         img.getRGB(0, 0, img.width, img.height, b.px, 0, img.width)

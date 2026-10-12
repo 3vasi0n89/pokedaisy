@@ -24,6 +24,7 @@
 
 #include "pk_cheats.h"
 #include "pk_rewind.h"
+#include "pk_wide.h"
 
 #define LOG_TAG "pokedaisy/jni"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
@@ -71,6 +72,14 @@ static struct {
     int rewindEntries;
     int rewindTick;
     bool rewinding;
+    // WIDE (pk_wide.c): the window around the frame with the rebuilt scene, wideW x wideH (0 = not
+    // drawn: the screen shows `video`). The window comes from WideCamera (ZOOM, the look-around) per frame.
+    uint32_t* wide;
+    int wideW, wideH;
+    uint32_t wideCrc;                   // the game WIDE draws (its ROM's CRC32; 0 = off)
+    volatile int viewX, viewY, viewW, viewH;
+    volatile bool wideSkipNext;         // the next frame won't be shown: only note it (pk_wide_skip); false = draw
+    bool wideSkipped;                   // the last frame was only noted, not drawn: wide / wideW still hold the one before
 } g;
 
 #define PK_REWIND_INTERVAL 2
@@ -138,6 +147,11 @@ static void pkTeardown(void) {
     g.video = NULL;
     g.vw = g.vh = 0;
     g.audioAvail = 0;
+    pk_wide_configure(0);
+    g.wideCrc = 0;
+    g.wideW = 0;
+    free(g.wide);
+    g.wide = NULL;
     pthread_rwlock_unlock(&pk_coreLock);
 }
 
@@ -252,6 +266,9 @@ Java_com_pokedaisy_app_MgbaCore_pkInit(JNIEnv* env, jobject thiz,
     g.vh = h;
     g.saveVf = saveVf;
     g.audioAvail = 0;
+    if (pk_is_gba(core)) {
+        g.wide = calloc((size_t) PK_WIDE_MAX_VIEW_W * PK_WIDE_MAX_VIEW_H, sizeof(uint32_t));
+    }
     pthread_rwlock_unlock(&pk_coreLock);
 
     LOGI("core up: %ux%u, freq %d Hz, sample rate %d", w, h, core->frequency(core), PK_SAMPLE_RATE);
@@ -323,6 +340,100 @@ Java_com_pokedaisy_app_MgbaCore_pkRunFrame(JNIEnv* env, jobject thiz) {
     }
     g.core->runFrame(g.core);
     pkDrainAudio();
+    // WIDE: only with a game it knows and a window set. 32-bit colour, like the screen's upload.
+    struct PkWideView v = { g.viewX, g.viewY, g.viewW, g.viewH };
+    g.wideSkipped = false;
+    if (g.wide && g.wideCrc && v.w > 0 && v.h > 0 && v.w <= PK_WIDE_MAX_VIEW_W && v.h <= PK_WIDE_MAX_VIEW_H &&
+        sizeof(color_t) == 4 && g.vw == PK_WIDE_W && g.vh == PK_WIDE_H && g.wideSkipNext) {
+        pk_wide_skip(g.core, (const uint32_t*) g.video);
+        g.wideSkipped = true;
+    } else if (g.wide && g.wideCrc && v.w > 0 && v.h > 0 && v.w <= PK_WIDE_MAX_VIEW_W && v.h <= PK_WIDE_MAX_VIEW_H &&
+        sizeof(color_t) == 4 && g.vw == PK_WIDE_W && g.vh == PK_WIDE_H) {
+        pk_wide_view(g.core, (const uint32_t*) g.video, g.wide, v, NULL);
+        g.wideW = v.w;
+        g.wideH = v.h;
+        if (pk_wide_fault()) {
+            // It faulted drawing (and switched itself off): this game shows the plain frame from now on.
+            LOGI("WIDE switched off: signal %d while drawing", pk_wide_fault());
+            g.wideCrc = 0;
+            g.wideW = g.wideH = 0;
+        }
+    } else {
+        g.wideW = g.wideH = 0;
+    }
+}
+
+// WIDE: draw the game whose ROM has this CRC32 (pk_wide_games.h; 0 = off). Emu thread.
+JNIEXPORT void JNICALL
+Java_com_pokedaisy_app_MgbaCore_pkWideConfigure(JNIEnv* env, jobject thiz, jint crc) {
+    uint32_t want = pk_is_gba(g.core) ? (uint32_t) crc : 0;
+    if (want == g.wideCrc) return;
+    g.wideCrc = pk_wide_configure(want) ? want : 0;
+}
+
+// WIDE: whether it has tables for the ROM with this CRC32. Any thread, no core needed.
+JNIEXPORT jboolean JNICALL
+Java_com_pokedaisy_app_MgbaCore_pkWideKnows(JNIEnv* env, jobject thiz, jint crc) {
+    return pk_wide_knows((uint32_t) crc) ? JNI_TRUE : JNI_FALSE;
+}
+
+// WIDE: the window to draw from the next frame on, in the frame's pixels (its top-left (0, 0)); w 0 = none.
+JNIEXPORT void JNICALL
+Java_com_pokedaisy_app_MgbaCore_pkWideSetView(JNIEnv* env, jobject thiz, jint x, jint y, jint w, jint h) {
+    g.viewX = x;
+    g.viewY = y;
+    g.viewH = h < 0 ? 0 : h > PK_WIDE_MAX_VIEW_H ? PK_WIDE_MAX_VIEW_H : h;
+    g.viewW = w < 0 ? 0 : w > PK_WIDE_MAX_VIEW_W ? PK_WIDE_MAX_VIEW_W : w;
+}
+
+// The wide frame buffer (room for the largest window; the last frame is pkWideWidth() x pkWideHeight()).
+JNIEXPORT jobject JNICALL
+Java_com_pokedaisy_app_MgbaCore_pkWideBuffer(JNIEnv* env, jobject thiz) {
+    if (!g.wide) {
+        return NULL;
+    }
+    return (*env)->NewDirectByteBuffer(env, g.wide, (jlong) PK_WIDE_MAX_VIEW_W * PK_WIDE_MAX_VIEW_H * sizeof(uint32_t));
+}
+
+// The last frame's window size, or 0 when it wasn't drawn wide (the screen shows pkVideoBuffer). Emu thread.
+JNIEXPORT jint JNICALL
+Java_com_pokedaisy_app_MgbaCore_pkWideWidth(JNIEnv* env, jobject thiz) {
+    return g.wideW;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_pokedaisy_app_MgbaCore_pkWideHeight(JNIEnv* env, jobject thiz) {
+    return g.wideH;
+}
+
+// WIDE: draw the next frame's window (true), or only keep its RAM (false: the screen won't show it). Emu thread.
+JNIEXPORT void JNICALL
+Java_com_pokedaisy_app_MgbaCore_pkWideSetDraw(JNIEnv* env, jobject thiz, jboolean draw) {
+    g.wideSkipNext = !draw;
+}
+
+// WIDE: the last frame wasn't drawn (pkWideSetDraw(false)): nothing new to publish. Emu thread.
+JNIEXPORT jboolean JNICALL
+Java_com_pokedaisy_app_MgbaCore_pkWideSkipped(JNIEnv* env, jobject thiz) {
+    return g.wideSkipped ? JNI_TRUE : JNI_FALSE;
+}
+
+// WIDE: the signal that switched it off for this game (pk_wide_view's fault guard), or 0. Any thread.
+JNIEXPORT jint JNICALL
+Java_com_pokedaisy_app_MgbaCore_pkWideFault(JNIEnv* env, jobject thiz) {
+    return pk_wide_fault();
+}
+
+// ZOOM: whether the last frame wants the game close up (a battle, a menu, a text box). Emu thread.
+JNIEXPORT jboolean JNICALL
+Java_com_pokedaisy_app_MgbaCore_pkWideWantsClose(JNIEnv* env, jobject thiz) {
+    return g.wideW && !pk_wide_wants_close() ? JNI_FALSE : JNI_TRUE;
+}
+
+// ZOOM: what the last frame is (PK_WIDE_SCENE_*: the field, a text box, an overlay, a battle starting, off). Emu thread.
+JNIEXPORT jint JNICALL
+Java_com_pokedaisy_app_MgbaCore_pkWideScene(JNIEnv* env, jobject thiz) {
+    return g.wideW ? pk_wide_scene() : PK_WIDE_SCENE_OFF;
 }
 
 // REWIND: keep [entries] states (0 = off, the buffer freed). Emu thread, like pkRunFrame.
@@ -440,7 +551,7 @@ Java_com_pokedaisy_app_MgbaCore_pkRenderReadAudio(JNIEnv* env, jobject thiz, jsh
     return n;
 }
 
-// Calls Thumb function `fn` with r0 = `arg0`, r1 = `arg1` and returns once it has, leaving
+// Calls Thumb function `fn` with r0-r3 = `args` and returns once it has, leaving
 // the CPU exactly as it was (registers, pipeline, halt). A frame can end
 // anywhere - mid-way through the game's own code - and a bare PC hijack
 // clobbered its live registers (Unbound then reset its sound engine). So:
@@ -449,7 +560,7 @@ Java_com_pokedaisy_app_MgbaCore_pkRenderReadAudio(JNIEnv* env, jobject thiz, jsh
 // everything back. Tested headless with native-capture/mgba_dump's `call`.
 #define PK_CALL_SENTINEL 0x080000C0u
 static __thread uint32_t pk_call_r0; // what this thread's last pk_call returned in r0 (the render core calls on another thread)
-static int pk_call(struct mCore* core, uint32_t fn, uint32_t arg0, uint32_t arg1) {
+static int pk_call(struct mCore* core, uint32_t fn, const uint32_t args[4]) {
     if (!pk_is_gba(core)) {
         return 0;   // an ARM-only trick: the GB core's CPU is an SM83
     }
@@ -460,8 +571,9 @@ static int pk_call(struct mCore* core, uint32_t fn, uint32_t arg0, uint32_t arg1
     int halted = cpu->halted;
     cpu->halted = 0;
     cpu->cpsr.i = 1;
-    cpu->gprs[0] = (int32_t) arg0;
-    cpu->gprs[1] = (int32_t) arg1;
+    for (int i = 0; i < 4; i++) {
+        cpu->gprs[i] = (int32_t) args[i];
+    }
     cpu->gprs[ARM_LR] = (int32_t) (PK_CALL_SENTINEL | 1);
     cpu->gprs[ARM_PC] = (int32_t) (fn & ~1u);
     _ARMSetMode(cpu, MODE_THUMB);
@@ -484,13 +596,15 @@ static int pk_call(struct mCore* core, uint32_t fn, uint32_t arg0, uint32_t arg1
     return ok;
 }
 
-// Calls the game's own function `fn` (r0 = a0, r1 = a1) on the player's core, between
+// Calls the game's own function `fn` (r0-r3 = a0-a3) on the player's core, between
 // frames (the emu thread), and returns what it returned in r0 - or -1 if it never did.
 // FieldItems uses it to use an item from the companion the way the game does
-// (VarSet / RemoveBagItem) instead of steering the game's menus.
+// (VarSet / RemoveBagItem, ExecuteTableBasedItemEffect(mon, item, slot, move))
+// instead of steering the game's menus.
 JNIEXPORT jlong JNICALL
-Java_com_pokedaisy_app_MgbaCore_pkCall(JNIEnv* env, jobject thiz, jlong fn, jint a0, jint a1) {
-    if (!g.core || !pk_call(g.core, (uint32_t) fn, (uint32_t) a0, (uint32_t) a1)) {
+Java_com_pokedaisy_app_MgbaCore_pkCall(JNIEnv* env, jobject thiz, jlong fn, jint a0, jint a1, jint a2, jint a3) {
+    const uint32_t args[4] = {(uint32_t) a0, (uint32_t) a1, (uint32_t) a2, (uint32_t) a3};
+    if (!g.core || !pk_call(g.core, (uint32_t) fn, args)) {
         return -1;
     }
     return (jlong) pk_call_r0;
@@ -504,7 +618,8 @@ Java_com_pokedaisy_app_MgbaCore_pkRenderForceSong(JNIEnv* env, jobject thiz, jlo
     if (!rg.core || !rg.core->cpu) {
         return JNI_FALSE;
     }
-    return pk_call(rg.core, (uint32_t) addr, (uint32_t) songId, (uint32_t) alt) ? JNI_TRUE : JNI_FALSE;
+    const uint32_t args[4] = {(uint32_t) songId, (uint32_t) alt, 0, 0};
+    return pk_call(rg.core, (uint32_t) addr, args) ? JNI_TRUE : JNI_FALSE;
 }
 
 // Parks the render core's main loop on `spin` (a Thumb `b .`) so the booted
@@ -702,6 +817,7 @@ Java_com_pokedaisy_app_MgbaCore_pkLoadState(JNIEnv* env, jobject thiz, jstring j
     }
     bool ok = mCoreLoadStateNamed(g.core, vf, SAVESTATE_SAVEDATA | SAVESTATE_RTC);
     vf->close(vf);
+    pk_wide_reset();   // the RAM it kept from the last frame is another moment's
     return ok ? JNI_TRUE : JNI_FALSE;
 }
 
@@ -755,6 +871,28 @@ Java_com_pokedaisy_app_MgbaCore_pkReadBytes(JNIEnv* env, jobject thiz, jlong add
     }
     free(tmp);
     return out;
+}
+
+// Writes `bytes` to the player's core at GBA address `addr` - EWRAM / IWRAM only,
+// so nothing else (I/O, VRAM, ROM) can be poked through it. The emu thread, between
+// frames: FieldItems puts a SetMonData argument in scratch RAM with it.
+JNIEXPORT jboolean JNICALL
+Java_com_pokedaisy_app_MgbaCore_pkWriteBytes(JNIEnv* env, jobject thiz, jlong addr, jbyteArray bytes) {
+    jsize len = (*env)->GetArrayLength(env, bytes);
+    uint32_t a = (uint32_t) addr;
+    bool ram = (a >= 0x02000000u && a + (uint32_t) len <= 0x02040000u) || (a >= 0x03000000u && a + (uint32_t) len <= 0x03008000u);
+    if (len <= 0 || !ram || !g.core || !pk_is_gba(g.core)) {
+        return JNI_FALSE;
+    }
+    jbyte* b = (*env)->GetByteArrayElements(env, bytes, NULL);
+    if (!b) {
+        return JNI_FALSE;
+    }
+    for (jsize i = 0; i < len; i++) {
+        g.core->busWrite8(g.core, a + (uint32_t) i, (uint8_t) b[i]);
+    }
+    (*env)->ReleaseByteArrayElements(env, bytes, b, JNI_ABORT);
+    return JNI_TRUE;
 }
 
 // Same as pkReadBytes, from the FF-music render core (rg): FfMusicRenderer

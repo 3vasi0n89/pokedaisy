@@ -74,16 +74,24 @@ interface CoverSource {
     fun thumbBytes(url: String): ByteArray?
     /** The game's RetroAchievements box art, if there's a Web API key and RA has one. */
     fun raBoxArt(rom: File): Icon?
+    /** The game's ScreenScraper box art, if its media has been fetched ([GameMedia]) - the first tile. */
+    fun screenScraperBoxArt(rom: File): Icon? = null
 }
 
-class LibraryCoverSource(private val apiKey: String?, private val raKey: String?) : CoverSource {
+class LibraryCoverSource(private val apiKey: String?, private val raKey: String?, private val mediaRoot: File? = null) : CoverSource {
     override val steamGridDb get() = apiKey != null
     override fun gameFor(rom: File) = apiKey?.let { SteamGridDbGames.forRom(rom)?.let { GameHit(it.id, it.displayName) } }
     override fun search(term: String) = apiKey?.let { SteamGridDbClient.searchGames(it, term) }.orEmpty()
     override fun icons(gameId: Int) = apiKey?.let { SteamGridDbClient.listIcons(it, gameId) }.orEmpty()
-    override fun thumbBytes(url: String) = SteamGridDbClient.fetchBytes(url)
+    override fun thumbBytes(url: String) =
+        if (url.startsWith("/")) runCatching { File(url).readBytes() }.getOrNull() else SteamGridDbClient.fetchBytes(url)
     override fun raBoxArt(rom: File) = raKey?.let { CoverArtSync.raBoxArtUrl(rom, it) }?.let { raBoxArtIcon(it) }
+    override fun screenScraperBoxArt(rom: File) =
+        mediaRoot?.let { GameMedia.existing(it, rom, GameMedia.Kind.BOX) }?.let { screenScraperIcon(it) }
 }
+
+/** ScreenScraper's box art as a picker tile: a file already on the device (its path is the url). */
+fun screenScraperIcon(file: File) = Icon(id = -2, url = file.absolutePath, thumb = file.absolutePath, authorSteam64 = null, authorName = "ScreenScraper")
 
 /** RA box art as a picker tile, credited to RetroAchievements. */
 fun raBoxArtIcon(url: String) = Icon(id = -1, url = url, thumb = url, authorSteam64 = null, authorName = "RetroAchievements")
@@ -118,6 +126,7 @@ fun CoverPicker(
     var known by remember { mutableStateOf<GameHit?>(null) }
     var icons by remember { mutableStateOf<List<Icon>>(emptyList()) }
     var boxArt by remember { mutableStateOf<Icon?>(null) }
+    var ssArt by remember { mutableStateOf<Icon?>(null) }
     val steamGridDb = source?.steamGridDb == true
 
     fun run(block: suspend () -> Unit) {
@@ -131,7 +140,7 @@ fun CoverPicker(
     fun openGame(g: GameHit) = run {
         game = g
         icons = withContext(Dispatchers.IO) { source!!.icons(g.id) }
-        if (icons.isEmpty() && (g != known || boxArt == null)) message = tr("NO ICONS FOR THIS GAME YET")
+        if (icons.isEmpty() && (g != known || (boxArt == null && ssArt == null))) message = tr("NO ICONS FOR THIS GAME YET")
     }
     fun search() = run {
         game = null
@@ -142,19 +151,20 @@ fun CoverPicker(
 
     LaunchedEffect(source) {
         if (source == null) return@LaunchedEffect
+        ssArt = runCatching { withContext(Dispatchers.IO) { source.screenScraperBoxArt(rom) } }.getOrNull()
         boxArt = runCatching { withContext(Dispatchers.IO) { source.raBoxArt(rom) } }.getOrNull()
         known = runCatching { withContext(Dispatchers.IO) { source.gameFor(rom) } }.getOrNull()
         val k = known
         when {
             k != null -> openGame(k)
-            boxArt != null -> loading = false
+            boxArt != null || ssArt != null -> loading = false
             steamGridDb -> search()
             else -> { loading = false; message = tr("NO COVER FOR THIS GAME YET") }
         }
     }
 
-    // The RA box art is the ROM's own game: shown with that game's icons, or alone.
-    val shown = (if (boxArt != null && (game == null || game == known)) listOf(boxArt!!) else emptyList()) +
+    // ScreenScraper's and RA's box art are the ROM's own game (ScreenScraper's first): shown with that game's icons, or alone.
+    val shown = (if (game == null || game == known) listOfNotNull(ssArt, boxArt) else emptyList()) +
         (if (game != null) icons else emptyList())
 
     OptionOverlay(onDismiss, Modifier.widthIn(max = 1100.dp).fillMaxHeight(0.92f)) {

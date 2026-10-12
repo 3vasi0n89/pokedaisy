@@ -9,5 +9,6 @@ class PokeDaisyApp : Application() {
         val prefs = Prefs(this)
         prefs.appOpenCount = (prefs.appOpenCount + 1).coerceAtMost(1000)
         CrashReports.apply(prefs.crashReportsEnabled)
+        ScreenScraperClient.enabled = FeatureFlags.screenScraper(this)
     }
 }

@@ -6,10 +6,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.toAwtImage
 import androidx.compose.ui.test.SkikoComposeUiTest
+import com.pokedaisy.app.companion.data.save.BoxSlot
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.performClick
@@ -124,7 +126,14 @@ class FakeSlots : StateSlots {
     override fun requestUndoLoad() {}
 }
 
-class FakeSettings(showHintsInitially: Boolean = true, initialTabs: List<String>? = null) : CompanionSettings {
+class FakeSettings(showHintsInitially: Boolean = true, initialTabs: List<String>? = null, oneTap: Boolean = false, expandOffer: Boolean = false,
+                   expand: Boolean = false) : CompanionSettings {
+    private var oneTapOn = oneTap
+    override val oneTapMoves get() = oneTapOn
+    override fun setOneTapMoves(on: Boolean) { oneTapOn = on }
+    private val offer = androidx.compose.runtime.mutableStateOf(expandOffer)
+    override val expandOffer get() = offer.value
+    override fun answerExpandOffer(turnOn: Boolean) { offer.value = false }
     private var ffSpeed = 4f
     private var ff = false
     private var music = com.pokedaisy.app.companion.FfMusicMode.STEADY
@@ -162,9 +171,9 @@ class FakeSettings(showHintsInitially: Boolean = true, initialTabs: List<String>
     private var bar = false
     override val statusBar get() = bar
     override fun setStatusBar(on: Boolean) { bar = on }
-    private var stretch = false
-    override val stretchGame get() = stretch
-    override fun setStretchGame(on: Boolean) { stretch = on }
+    private var aspect = if (expand) com.pokedaisy.app.companion.GameAspect.WIDE else com.pokedaisy.app.companion.GameAspect.ORIGINAL
+    override val gameAspect get() = aspect
+    override fun setGameAspect(aspect: com.pokedaisy.app.companion.GameAspect) { this.aspect = aspect }
     private var colors = false
     override val gbaColors get() = colors
     override fun setGbaColors(on: Boolean) { colors = on }
@@ -207,8 +216,9 @@ class FakeSettings(showHintsInitially: Boolean = true, initialTabs: List<String>
     override fun acceptGuideNotice(game: String) {}
 }
 
-/** `-PmonIcons` icon sheets, relative to the app's assets dir (the render working dir); null when unset. */
-fun monIcon(species: Int): String? =
+/** `-PmonIcons` icon sheets, relative to the app's assets dir (the render working dir); null when unset.
+ * The docs render (DocsShots.kt) draws invented creatures instead. */
+fun monIcon(species: Int): String? = if (docsMode) creatureIcon(species) else
     System.getProperty("monIcons").orEmpty().takeIf { it.isNotBlank() }?.let { "$it/$species.png" }
 
 fun snapshot() = SnapshotView(
@@ -276,15 +286,53 @@ fun companion(
     hints: Boolean = true,
     battery: BatteryStatus = BatteryStatus(76, charging = false),
     cardBack: Boolean = false,
+    oneTap: Boolean = false,
+    expandOffer: Boolean = false,
+    /** The ITEMS tab's USE / GIVE ([PreviewItemUse]): its row marks and party picks. */
+    items: Boolean = false,
+    expand: Boolean = false,
     snap: () -> SnapshotView = ::snapshot,
 ): () -> (@Composable () -> Unit) = {
     DeviceBattery.status.value = battery
     val sv = snap()
     val back = com.pokedaisy.app.companion.ui.CompanionBack().also { previewBack = it }
     val content: @Composable () -> Unit = {
-        CompanionScreen(sv, FakeSlots(), FakeSettings(hints), FakeBattleInput(busy), initialTab = tab, initialMonIndex = mon, initialCardBack = cardBack, back = back)
+        CompanionScreen(
+            sv, FakeSlots(), FakeSettings(hints, oneTap = oneTap, expandOffer = expandOffer, expand = expand), FakeBattleInput(busy), initialTab = tab,
+            initialMonIndex = mon, initialCardBack = cardBack, back = back, itemUse = if (items) PreviewItemUse(sv.party) else null,
+        )
     }
     content
+}
+
+/**
+ * USE / GIVE as retail FireRed rev 1 answers them (FieldItems.kt), for every game's preview - so each
+ * BagPalette shows the row mark, though the app has it on FireRed rev 1 only so far. The lead holds
+ * nothing, the second a QUICK CLAW; a Potion helps whoever is below full HP.
+ */
+class PreviewItemUse(private val party: List<MonView>) : com.pokedaisy.app.companion.ItemUse {
+    private val support = com.pokedaisy.app.companion.data.FieldItemSupport(
+        com.pokedaisy.app.companion.data.FIELD_ITEMS_FIRERED_REV1, setOf(13, 4, 200, 182, 183),
+    )
+    override fun canUse(itemId: Int) = support.canUse(itemId)
+    override fun canGive(itemId: Int) = support.canGive(itemId)
+    override fun marked(itemId: Int) = support.marked(itemId)
+    override fun picksMon(itemId: Int) = support.picksMon(itemId)
+    override fun picksMove(itemId: Int) = support.picksMove(itemId)
+    override fun use(itemId: Int, done: (com.pokedaisy.app.companion.data.ItemUseOutcome) -> Unit) {}
+    override fun targets(itemId: Int, give: Boolean, done: (com.pokedaisy.app.companion.data.PartyTargets) -> Unit) {
+        done(com.pokedaisy.app.companion.data.PartyTargets(
+            com.pokedaisy.app.companion.data.ItemUseResult.USED,
+            party.mapIndexed { i, m ->
+                val verdict = when {
+                    m.isEgg -> com.pokedaisy.app.companion.data.SlotVerdict.EGG
+                    give || m.hp in 1 until m.maxHp -> com.pokedaisy.app.companion.data.SlotVerdict.OK
+                    else -> com.pokedaisy.app.companion.data.SlotVerdict.NO_EFFECT
+                }
+                com.pokedaisy.app.companion.data.PartyTarget(i, m.personality, if (i == 1) 183 else 0, verdict)
+            },
+        ))
+    }
 }
 
 class FakeBattleInput(override val busy: Boolean) : BattleInput {
@@ -481,7 +529,12 @@ class FakeCoverSource(private val known: Boolean, private val boxArt: Boolean = 
             if (i < 3) "Favourite" else "Someone$i",
         )
     }
-    override fun thumbBytes(url: String) = File(url).takeIf { it.isFile }?.readBytes()
+    override fun thumbBytes(url: String) = File(url).takeIf { it.isFile }?.let { f ->
+        // The docs' creature sheets have two frames: show the first, like a cover would.
+        if (!docsMode) f.readBytes() else ImageIO.read(f).let { img ->
+            java.io.ByteArrayOutputStream().also { ImageIO.write(img.getSubimage(0, 0, img.width, minOf(img.width, img.height)), "png", it) }.toByteArray()
+        }
+    }
 }
 
 /** [make] with a SteamGridDB key saved ([activity] clears it first - the prefs shim is shared by every shot). */
@@ -490,12 +543,12 @@ fun withApiKey(make: () -> androidx.activity.ComponentActivity): androidx.activi
     return make()
 }
 
-/** [make] with ASPECT = [stretch] and the STATUS BAR on, plus a savestate thumbnail for the
+/** [make] with ASPECT = [aspect] and the STATUS BAR on, plus a savestate thumbnail for the
  * ASPECT preview when a game frame is around: native-capture/menu-shots/thor/top.png (untracked -
  * the Thor's top screen, `adb exec-out screencap`, cropped to the game and scaled to 240x160). */
-fun withAspect(stretch: Boolean, make: () -> androidx.activity.ComponentActivity): androidx.activity.ComponentActivity {
+fun withAspect(aspect: com.pokedaisy.app.companion.GameAspect, make: () -> androidx.activity.ComponentActivity): androidx.activity.ComponentActivity {
     val ctx = android.content.Context()
-    Prefs(ctx).stretchGame = stretch
+    Prefs(ctx).gameAspect = aspect
     Prefs(ctx).statusBar = true
     val shot = File("../../../../native-capture/menu-shots/thor/top.png")
     if (shot.isFile) shot.copyTo(File(ctx.filesDir, "states/0badcafe/ss1.png").apply { parentFile.mkdirs() }, overwrite = true)
@@ -561,7 +614,31 @@ fun favoriteLibrary() {
         .map { File(roms, it).absolutePath }.toSet()
 }
 
-fun activity(make: () -> androidx.activity.ComponentActivity): () -> (@Composable () -> Unit) = {
+fun pcBoxes(icons: Boolean = false): () -> (@Composable () -> Unit) = {
+    val state = pcBoxesDemo()
+    val content: @Composable () -> Unit = {
+        com.pokedaisy.app.companion.ui.PcBoxesScreen(
+            state, "Pokémon FireRed", com.pokedaisy.app.companion.ui.rememberGbaTextMetrics(), onBack = {}, onSave = {},
+            icons = if (icons) demoIcons else null, onTrade = {},
+        )
+    }
+    content
+}
+
+fun trade(setup: com.pokedaisy.app.companion.ui.TradeState.() -> Unit = {}): () -> (@Composable () -> Unit) = {
+    val state = tradeDemo().apply(setup)
+    val content: @Composable () -> Unit = {
+        com.pokedaisy.app.companion.ui.TradeScreen(
+            state, com.pokedaisy.app.companion.ui.rememberGbaTextMetrics(), onBack = {}, onSave = {}, iconsA = demoIcons, iconsB = demoIcons,
+        )
+    }
+    content
+}
+
+/** The activity [activity] made last (a shot's action presses its keys). */
+var lastActivity: androidx.activity.ComponentActivity? = null
+
+fun activity(expandIntro: Boolean = false, start: Boolean = false, make: () -> androidx.activity.ComponentActivity): () -> (@Composable () -> Unit) = {
     val ctx = android.content.Context()
     val roms = File(ctx.filesDir, "roms").apply { mkdirs() }
     // Dump-style file names, as players have them; firered-qol stays unrecognised (a QoL build).
@@ -580,13 +657,24 @@ fun activity(make: () -> androidx.activity.ComponentActivity): () -> (@Composabl
     File(ctx.filesDir, "saves").mkdirs()
     File(ctx.filesDir, "saves/firered-qol.sav").writeText("x")
     val prefs = Prefs(ctx)
+    // ScreenScraper off, as players get it (FeatureFlags): its shots turn it on with withScreenScraper in their make().
+    com.pokedaisy.app.BuildConfig.FEATURE_SCREENSCRAPER = false
+    com.pokedaisy.app.ScreenScraperClient.enabled = false
+    // EXPAND's one-time introduction covers the Library: only its own shot shows it.
+    prefs.expandIntroSeen = !expandIntro
+    // The classic library, no ScreenScraper popup: the launcher / popup shots turn them on in their make().
+    prefs.dualScreenLauncher = false
+    prefs.launcherSwapped = false
+    prefs.screenScraperAsked = true
+    prefs.screenScraperUser = null; prefs.screenScraperPassword = null
+    File(ctx.filesDir, "media").deleteRecursively()
     prefs.steamGridDbApiKey = null
     prefs.libraryViewMode = 0
     prefs.romsFolder = null
     prefs.hiddenRoms = emptySet()
     prefs.hotkeysEnabled = true
     prefs.savesDirOverride = null
-    prefs.stretchGame = false
+    prefs.gameAspect = com.pokedaisy.app.companion.GameAspect.ORIGINAL
     prefs.statusBar = false
     // The default theme (PokéDaisy); a shot that wants another sets it in its make().
     prefs.appTheme = com.pokedaisy.app.companion.ui.theme.DAISY_THEME_ID
@@ -595,8 +683,118 @@ fun activity(make: () -> androidx.activity.ComponentActivity): () -> (@Composabl
     prefs.cheatsEnabled = false
     prefs.lastRomPath = File(roms, names[0]).absolutePath
     names.take(3).reversed().forEach { prefs.pushRecentRom(File(roms, it).absolutePath) }
-    make().onCreate(null)
+    make().also { a ->
+        lastActivity = a
+        a.onCreate(null)
+        if (start) a.onStart()
+    }
     androidx.activity.compose.Captured.content!!
+}
+
+/** ScreenScraper turned on (FeatureFlags.screenScraper), as a build with `-Ppokedaisy.screenScraper=true` would have it. */
+fun <T> withScreenScraper(make: () -> T): T {
+    com.pokedaisy.app.BuildConfig.FEATURE_SCREENSCRAPER = true
+    com.pokedaisy.app.ScreenScraperClient.enabled = true
+    return make()
+}
+
+/** The launcher (a second screen, Settings > DUAL-SCREEN LAUNCHER on): [swapped] = the list on the
+ * second screen; [media] = stand-in ScreenScraper media for two games; [signedIn] = an account. */
+fun launcher(swapped: Boolean = false, media: Boolean = true, signedIn: Boolean = true, second: Boolean = false): () -> (@Composable () -> Unit) {
+    val main = activity(start = true) {
+        val ctx = android.content.Context()
+        val prefs = Prefs(ctx)
+        prefs.dualScreenLauncher = true
+        prefs.launcherSwapped = swapped
+        if (signedIn) { prefs.screenScraperUser = "preview"; prefs.screenScraperPassword = "x" }
+        if (media) fakeMedia(ctx)
+        // Media or an account only mean something with ScreenScraper on; without either, the launcher players get now.
+        if (media || signedIn) withScreenScraper { LibraryActivity() }.apply { launcherVideo = null }
+        else LibraryActivity().apply { launcherVideo = null }
+    }
+    return if (!second) main else ({ main(); com.pokedaisy.app.CapturedSecond.content!! })
+}
+
+/**
+ * Stand-in ScreenScraper media for the preview library's first two games - drawn shapes and made-up
+ * facts, never a game's real art or text (the site / previews' rule).
+ */
+fun fakeMedia(ctx: android.content.Context) {
+    val root = File(ctx.filesDir, "media").apply { deleteRecursively(); mkdirs() }
+    // Real media from `gradle sscheck` (-PssMedia): each preview ROM gets its game's folder.
+    val real = System.getProperty("ssMedia").orEmpty().takeIf { it.isNotBlank() }?.let(::File)
+    if (real != null) {
+        mapOf(
+            "firered-qol.gba" to "Pokémon FireRed", "Pokemon - Unbound (v2.1.1.1).gba" to "Pokémon Unbound",
+            "Pokemon - Emerald Version (USA, Europe).gba" to "Pokémon Emerald", "1636 - Pokemon Radical Red.gba" to "Pokémon Radical Red",
+            "Pokemon - Gaia (v3.2).gba" to "Pokémon Gaia", "Pokemon Emerald Imperium (World) (v1.3.1).gba" to "Pokémon Emerald Imperium",
+        ).forEach { (rom, title) -> File(real, title).takeIf { it.isDirectory }?.copyRecursively(File(root, rom), overwrite = true) }
+        return
+    }
+    fun png(f: File, w: Int, h: Int, draw: (java.awt.Graphics2D) -> Unit) {
+        val img = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
+        val g = img.createGraphics()
+        draw(g)
+        g.dispose()
+        f.parentFile.mkdirs()
+        javax.imageio.ImageIO.write(img, "png", f)
+    }
+    listOf(
+        Triple("firered-qol.gba", java.awt.Color(0xD8, 0x50, 0x30), "Preview Quest Red"),
+        Triple("Pokemon - Unbound (v2.1.1.1).gba", java.awt.Color(0x60, 0x40, 0xB0), "Preview Quest Violet"),
+    ).forEach { (rom, tint, name) ->
+        val dir = File(root, rom)
+        png(File(dir, "box.img"), 480, 480) { g ->
+            g.paint = java.awt.GradientPaint(0f, 0f, tint, 480f, 480f, tint.darker().darker())
+            g.fillRect(0, 0, 480, 480)
+            g.color = java.awt.Color(255, 255, 255, 200)
+            g.fillOval(120, 140, 240, 240)
+            g.color = java.awt.Color.WHITE
+            g.font = java.awt.Font(java.awt.Font.SANS_SERIF, java.awt.Font.BOLD, 44)
+            g.drawString("BOX ART", 150, 90)
+        }
+        png(File(dir, "screenshot.img"), 240, 160) { g ->
+            g.color = java.awt.Color(0x58, 0xA8, 0x48); g.fillRect(0, 0, 240, 160)
+            g.color = java.awt.Color(0x38, 0x80, 0x30)
+            for (x in 0 until 240 step 16) for (y in 0 until 160 step 16) if ((x + y) / 16 % 3 == 0) g.fillRect(x, y, 16, 16)
+            g.color = java.awt.Color(0xF0, 0xE0, 0xA0); g.fillRect(96, 0, 48, 160)
+            g.color = tint; g.fillRect(112, 72, 16, 16)
+        }
+        png(File(dir, "fanart.img"), 1280, 720) { g ->
+            g.paint = java.awt.GradientPaint(0f, 0f, tint.brighter(), 1280f, 720f, java.awt.Color(0x20, 0x30, 0x60))
+            g.fillRect(0, 0, 1280, 720)
+            g.color = java.awt.Color(255, 255, 255, 60)
+            for (i in 0 until 9) g.fillOval(i * 150 - 40, 380 - (i % 3) * 120, 260, 260)
+        }
+        png(File(dir, "wheel.img"), 800, 200) { g ->
+            g.setRenderingHint(java.awt.RenderingHints.KEY_TEXT_ANTIALIASING, java.awt.RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
+            g.font = java.awt.Font(java.awt.Font.SANS_SERIF, java.awt.Font.BOLD, 96)
+            g.color = java.awt.Color(0x20, 0x20, 0x40); g.drawString("PREVIEW", 112, 148)
+            g.color = java.awt.Color(0xF8, 0xD0, 0x30); g.drawString("PREVIEW", 104, 140)
+        }
+        File(dir, "info.json").writeText(
+            org.json.JSONObject()
+                .put("id", "1").put("found", true).put("checkedAt", 1L)
+                .put("name", name)
+                .put("synopsis", "A made-up story for the preview: a young trainer sets out from a quiet town with one partner, crosses eight routes, meets a rival at every turn and finds out what the strange tower on the hill is hiding.")
+                .put("released", "2026-01-01")
+                .put("developer", "Preview Studio")
+                .put("publisher", "Sample Games")
+                .put("genre", "Role playing game / Adventure")
+                .put("players", "1-2")
+                .put("rating", "17")
+                .toString(),
+        )
+    }
+}
+
+/** Presses [code] (a KeyEvent.KEYCODE_*) on the activity the shot made. */
+fun SkikoComposeUiTest.pressKey(code: Int) {
+    runOnIdle {
+        lastActivity?.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, code))
+        lastActivity?.dispatchKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, code))
+    }
+    waitForIdle()
 }
 
 /** The window and any popups over it (a DropdownMenu is its own root), each
@@ -641,7 +839,8 @@ fun homeMapsec(game: GameKind) = when (game) {
 }
 
 fun main(args: Array<String>) {
-    romArt()
+    // The docs' shots (gradle docsShots) never show a game's art: no ROM art, only the invented map.
+    if (docsMode) installDocsArt() else romArt()
     // A FireRed-engine hack's own region map (Unbound, Odyssey, ...) from -Prom.
     System.getProperty("rom").orEmpty().takeIf { it.isNotBlank() }?.let { path ->
         val f = File(path)
@@ -667,8 +866,9 @@ fun main(args: Array<String>) {
     val bw = panelW ?: 1240
     val bd = if (panelW != null) com.pokedaisy.app.companion.ui.sidePanelDensity(bw, bh) else 2.625f
     val tw = 1920; val th = 1080; val td = 2.5f
-    val shots = listOf(
+    val all = listOf(
         Shot("$g-party", bw, bh, bd, companion("PARTY")),
+        Shot("$g-expand-offer", bw, bh, bd, companion("PARTY", expandOffer = true)),
         Shot("$g-party-detail", bw, bh, bd, companion("PARTY", mon = 0)),
         Shot("$g-party-detail-next", bw, bh, bd, companion("PARTY", mon = 0)) {
             onNodeWithContentDescription("Next Pokémon").performClick()
@@ -758,6 +958,8 @@ fun main(args: Array<String>) {
         Shot("$g-battle-trainer", bw, bh, bd, companion("PARTY") { trainerBattle(BATTLE_INPUT_ACTION_SELECT, six = true).withBench() }),
         Shot("$g-battle-trainer3", bw, bh, bd, companion("PARTY") { trainerBattle(BATTLE_INPUT_ACTION_SELECT).withBench() }),
         Shot("$g-battle-moves", bw, bh, bd, companion("PARTY") { battle(BATTLE_INPUT_MOVE_SELECT) }),
+        // SETTINGS > ONE-TAP MOVES: the action menu with the moves where FIGHT was.
+        Shot("$g-battle-onetap", bw, bh, bd, companion("PARTY", oneTap = true) { battle(BATTLE_INPUT_ACTION_SELECT) }),
         // The POKéMON pane: from the action menu, and over the game's own party menu.
         Shot("$g-battle-switch", bw, bh, bd, companion("PARTY") { battle(BATTLE_INPUT_ACTION_SELECT) }) {
             onNodeWithText("POKéMON").performClick()
@@ -807,16 +1009,63 @@ fun main(args: Array<String>) {
         Shot("$g-items-desc", bw, bh, bd, companion("ITEMS")) {
             onNodeWithText("Potion", substring = true, ignoreCase = true).performClick()
         },
+        // Oak's Parcel starred: first in DEFAULT order, a star on its row and a gold one on the button.
+        Shot("$g-items-favorite", bw, bh, bd, companion("ITEMS")) {
+            onNodeWithText("Parcel", substring = true, ignoreCase = true).performClick()
+            repeat(10) { mainClock.advanceTimeByFrame() }
+            onNodeWithContentDescription("FAVORITE").performClick()
+        },
+        // ...and its FAVORITES tab opened: the starred items alone.
+        Shot("$g-items-favorites-tab", bw, bh, bd, companion("ITEMS")) {
+            onNodeWithText("Parcel", substring = true, ignoreCase = true).performClick()
+            repeat(10) { mainClock.advanceTimeByFrame() }
+            onNodeWithContentDescription("FAVORITE").performClick()
+            repeat(10) { mainClock.advanceTimeByFrame() }
+            onNodeWithText("FAVORITES").performClick()
+        },
+        // USE / GIVE (FieldItems.kt): the row marks (the Potion and the Poké Ball; Oak's Parcel has none)...
+        Shot("$g-items-marks", bw, bh, bd, companion("ITEMS", items = true)),
+        // ...beside a star, on the FAVORITES tab (Potion starred, as is Oak's Parcel, which gets no mark)...
+        Shot("$g-items-marks-favorites", bw, bh, bd, companion("ITEMS", items = true)) {
+            for (name in listOf("Potion", "Parcel")) {
+                onNodeWithText(name, substring = true, ignoreCase = true).performClick()
+                repeat(10) { mainClock.advanceTimeByFrame() }
+                onNodeWithContentDescription("FAVORITE").performClick()
+                repeat(10) { mainClock.advanceTimeByFrame() }
+            }
+            onNodeWithText("FAVORITES").performClick()
+        },
+        // ...and the party picks a Potion's USE and GIVE open.
+        Shot("$g-items-use-pick", bw, bh, bd, companion("ITEMS", items = true)) {
+            onNodeWithText("Potion", substring = true, ignoreCase = true).performClick()
+            repeat(10) { mainClock.advanceTimeByFrame() }
+            onNodeWithText("USE").performClick()
+            repeat(10) { mainClock.advanceTimeByFrame() }
+        },
+        Shot("$g-items-give-pick", bw, bh, bd, companion("ITEMS", items = true)) {
+            onNodeWithText("Potion", substring = true, ignoreCase = true).performClick()
+            repeat(10) { mainClock.advanceTimeByFrame() }
+            onNodeWithText("GIVE").performClick()
+            repeat(10) { mainClock.advanceTimeByFrame() }
+        },
         Shot("$g-states", bw, bh, bd, companion("STATES")),
         // A ROM the companion can't read: the notice over every tab but SETTINGS.
         Shot("$g-unsupported", bw, bh, bd, companion("PARTY") {
             SnapshotView(connected = false, error = "game code AMTE isn't a supported Pokémon game", unsupported = true)
         }),
         Shot("$g-settings", bw, bh, bd, companion("SETTINGS")),
+        // ASPECT on EXPAND: its AUTO ZOOM IN row under it.
+        Shot("$g-settings-expand", bw, bh, bd, companion("SETTINGS", expand = true)) {
+            onNodeWithText("AUTO ZOOM IN").performScrollTo()
+        },
         Shot("$g-settings-ffspeed", bw, bh, bd, companion("SETTINGS")) { onNodeWithText("FF SPEED").performClick() },
         // GAME BUTTONS' subtitle, further down the list.
         Shot("$g-settings-subtitles", bw, bh, bd, companion("SETTINGS")) { onNodeWithText("TWEAKS").performScrollTo() },
         Shot("$g-settings-ffmusic", bw, bh, bd, companion("SETTINGS")) { onAllNodesWithText("FF MUSIC").onFirst().performClick() },
+        // ASPECT's pick-list: WIDE tagged NOT YET (the preview's settings know no game).
+        Shot("$g-settings-aspect", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText("AUTO ZOOM IN").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
         Shot("$g-settings-hotkeys", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText("HOTKEYS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
@@ -844,6 +1093,10 @@ fun main(args: Array<String>) {
         Shot("$g-settings-bottom", bw, bh, bd, companion("SETTINGS")) { onNodeWithText("CLOSE COMPANION").performScrollTo() },
         Shot("$g-settings-close", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText("CLOSE GAME").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
+        // The COMPANION group, ONE-TAP MOVES under BATTLE HINTS.
+        Shot("$g-settings-companion", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText("ONE-TAP MOVES").performScrollTo()
         },
         // TWEAKS: the small on / off preferences.
         Shot("$g-settings-tweaks", bw, bh, bd, companion("SETTINGS")) {
@@ -933,6 +1186,74 @@ fun main(args: Array<String>) {
             }
         }),
         Shot("library-list", tw, th, td, activity { LibraryActivity() }),
+        // The dual-screen launcher: the list on the top screen, the selected game's media on the bottom.
+        Shot("launcher-main", tw, th, td, launcher()),
+        Shot("launcher-second", bw, bh, bd, launcher(second = true)),
+        Shot("launcher-second-down", bw, bh, bd, launcher(second = true)) { pressKey(android.view.KeyEvent.KEYCODE_DPAD_DOWN) },
+        // Signed out, no media: the cover, the library's facts and how to get the rest.
+        Shot("launcher-second-nomedia", bw, bh, bd, launcher(media = false, signedIn = false, second = true)),
+        Shot("launcher-menu", tw, th, td, launcher()) { pressKey(android.view.KeyEvent.KEYCODE_BUTTON_B) },
+        Shot("launcher-menu-down", tw, th, td, launcher()) {
+            pressKey(android.view.KeyEvent.KEYCODE_BUTTON_B)
+            pressKey(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+            pressKey(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+        },
+        // After X: the media on the top screen (its wide layout), the list on the bottom.
+        Shot("launcher-swapped-main", tw, th, td, launcher(swapped = true)),
+        Shot("launcher-swapped-second", bw, bh, bd, launcher(swapped = true, second = true)),
+        Shot("launcher-phone-bottom", 1280, 960, bd, launcher(second = true)),
+        // The update's one-time ScreenScraper window, over the classic library.
+        Shot("library-ss-intro", tw, th, td, activity { Prefs(android.content.Context()).screenScraperAsked = false; withScreenScraper { LibraryActivity() } }),
+        // PC BOXES (a game's library menu): the save's party and boxes, then a Pokémon picked, moved and saved.
+        Shot("pc-boxes", tw, th, td, pcBoxes()),
+        Shot("pc-boxes-selected", tw, th, td, pcBoxes()) { onAllNodesWithText("ABRA")[0].performClick() },
+        Shot("pc-boxes-moving", tw, th, td, pcBoxes()) {
+            onAllNodesWithText("ABRA")[0].performClick(); onNodeWithText("MOVE").performClick()
+        },
+        Shot("pc-boxes-moved", tw, th, td, pcBoxes()) {
+            onAllNodesWithText("ABRA")[0].performClick(); onNodeWithText("MOVE").performClick()
+            onNodeWithContentDescription("Next box").performClick(); onAllNodesWithText("PIDGEY")[0].performClick()
+        },
+        Shot("pc-boxes-save", tw, th, td, pcBoxes()) {
+            onAllNodesWithText("ABRA")[0].performClick(); onNodeWithText("MOVE").performClick()
+            onAllNodesWithText("EGG")[0].performClick()
+            onAllNodesWithText("TREECKO")[0].performClick(); onNodeWithText("MOVE").performClick()
+            onAllNodesWithText("EGG")[0].performClick(); onNodeWithText("SAVE").performClick()
+        },
+        Shot("pc-boxes-phone", 1080, 2400, 2.625f, pcBoxes()) { onAllNodesWithText("TREECKO")[0].performClick() },
+        // With the party icons a ROM gives (stand-in dots here: no game art in this repo).
+        Shot("pc-boxes-icons", tw, th, td, pcBoxes(icons = true)) { onAllNodesWithText("ABRA")[0].performClick() },
+        Shot("pc-boxes-icons-phone", 1080, 2400, 2.625f, pcBoxes(icons = true)),
+        // Editing: a party Pokémon's moves and item, the BAG page, an amount, ADD ITEM.
+        Shot("pc-boxes-edit", tw, th, td, pcBoxes(icons = true)) { onAllNodesWithText("CHARIZARD")[0].performClick() },
+        Shot("pc-boxes-move", tw, th, td, pcBoxes(icons = true)) {
+            onAllNodesWithText("CHARIZARD")[0].performClick(); onNodeWithText("WING ATTACK").performClick()
+        },
+        Shot("pc-boxes-moved-move", tw, th, td, pcBoxes(icons = true)) {
+            onAllNodesWithText("CHARIZARD")[0].performClick(); onNodeWithText("WING ATTACK").performClick()
+            onNodeWithText("BLAST BURN").performClick()
+        },
+        Shot("pc-boxes-item", tw, th, td, pcBoxes(icons = true)) {
+            onAllNodesWithText("CHARIZARD")[0].performClick(); onNodeWithText("LEFTOVERS").performClick()
+        },
+        Shot("pc-boxes-bag", tw, th, td, pcBoxes()) { onNodeWithText("BAG").performClick() },
+        Shot("pc-boxes-bag-tm", tw, th, td, pcBoxes()) { onNodeWithText("BAG").performClick(); onNodeWithText("TMs & HMs").performClick() },
+        Shot("pc-boxes-bag-amount", tw, th, td, pcBoxes()) { onNodeWithText("BAG").performClick(); onNodeWithText("POTION").performClick() },
+        Shot("pc-boxes-bag-money", tw, th, td, pcBoxes()) { onNodeWithText("BAG").performClick(); onNodeWithText("MONEY").performClick() },
+        Shot("pc-boxes-bag-add", tw, th, td, pcBoxes()) { onNodeWithText("BAG").performClick(); onNodeWithText("ADD ITEM").performClick() },
+        Shot("pc-boxes-bag-phone", 1080, 2400, 2.625f, pcBoxes()) { onNodeWithText("BAG").performClick() },
+        // TRADE: two saves side by side; KADABRA sent over (it evolves on arrival), MEW refused (no event), a swap.
+        // Picks are set on the state (Emerald's KADABRA is its 4th, MEW its 6th; FireRed's box 1 has slot 22 free).
+        Shot("trade", tw, th, td, trade()),
+        Shot("trade-send", tw, th, td, trade { selA = BoxSlot(0, 21); selB = BoxSlot(0, 3) }),
+        Shot("trade-evolve", tw, th, td, trade { selA = BoxSlot(0, 21); selB = BoxSlot(0, 3) }) { onNodeWithText("SEND").performClick() },
+        Shot("trade-evolved", tw, th, td, trade { selA = BoxSlot(0, 21); selB = BoxSlot(0, 3) }) {
+            onNodeWithText("SEND").performClick(); onNodeWithText("EVOLVE").performClick()
+        },
+        Shot("trade-refused", tw, th, td, trade { selA = BoxSlot(0, 21); selB = BoxSlot(0, 5) }),
+        Shot("trade-swap", tw, th, td, trade { selA = BoxSlot(0, 0); selB = BoxSlot(0, 0) }),
+        Shot("trade-phone", 1080, 2400, 2.625f, trade { selA = BoxSlot(0, 0); selB = BoxSlot(0, 0) }),
+        Shot("library-expand-intro", tw, th, td, activity(expandIntro = true) { LibraryActivity() }),
         // A ROM imported with "add anyway?": the library tags what the second screen can't read.
         Shot("library-tag-unsupported", tw, th * 2, td, activity {
             val ctx = android.content.Context()
@@ -1112,6 +1433,33 @@ fun main(args: Array<String>) {
                 }
             }
         }),
+        Shot("setup-media", tw, th, td, activity { withScreenScraper { LibraryActivity().apply { setup = SetupState().apply { step = SetupState.Step.MEDIA } } } }),
+        Shot("setup-media-signed-in", tw, th, td, activity {
+            withScreenScraper { LibraryActivity().apply { setup = SetupState().apply { step = SetupState.Step.MEDIA; ssLogin = com.pokedaisy.app.ScreenScraperLogin("preview") } } }
+        }),
+        Shot("settings-screenscraper", tw, th, td, activity { withScreenScraper { SettingsActivity() } }) {
+            onNodeWithText("ScreenScraper").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
+        // A password typed, then shown with the eye; and a refused sign-in with the server's own words under it.
+        Shot("settings-screenscraper-password", tw, th, td, activity { withScreenScraper { SettingsActivity() } }) {
+            runOnIdle { (lastActivity as SettingsActivity).ssLogin.apply { user = "preview"; password = "hunter2" } }
+            onNodeWithText("ScreenScraper").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
+        Shot("settings-screenscraper-password-shown", tw, th, td, activity { withScreenScraper { SettingsActivity() } }) {
+            runOnIdle { (lastActivity as SettingsActivity).ssLogin.apply { user = "preview"; password = "hunter2" } }
+            onNodeWithText("ScreenScraper").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithContentDescription("Show password").performClick()
+        },
+        Shot("settings-screenscraper-error", tw, th, td, activity { withScreenScraper { SettingsActivity() } }) {
+            runOnIdle {
+                (lastActivity as SettingsActivity).ssLogin.apply {
+                    user = "preview"; password = "hunter2"
+                    error = "This build has no ScreenScraper developer access"
+                    errorDetail = "ScreenScraper says: Erreur de login : Vérifier vos identifiants développeur !"
+                }
+            }
+            onNodeWithText("ScreenScraper").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
         Shot("setup-covers", tw, th, td, activity { LibraryActivity().apply { setup = SetupState().apply { step = SetupState.Step.COVERS } } }),
         // SAVE runs the real sync over the fake library (matches nothing - no network).
         Shot("setup-covers-saved", tw, th, td, activity {
@@ -1125,8 +1473,11 @@ fun main(args: Array<String>) {
         Shot("library-hidden", tw, th, td, activity { withHidden { LibraryActivity() } }),
         // ASPECT's picker: the drawn stand-in (no savestates), then a real frame with the status bar.
         Shot("settings-aspect", tw, th, td, activity { SettingsActivity() }) { onNodeWithText("ASPECT").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) },
-        Shot("settings-aspect-stretch", tw, th, td, activity { withAspect(true) { SettingsActivity() } }) {
-            onNodeWithText("ASPECT").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        Shot("settings-aspect-stretch", tw, th, td, activity { withAspect(com.pokedaisy.app.companion.GameAspect.STRETCH) { SettingsActivity() } }) {
+            onNodeWithText("AUTO ZOOM IN").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
+        Shot("settings-aspect-wide", tw, th, td, activity { withAspect(com.pokedaisy.app.companion.GameAspect.WIDE) { SettingsActivity() } }) {
+            onNodeWithText("AUTO ZOOM IN").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
         Shot("settings-shaders", tw, th, td, activity { SettingsActivity() }) {
             onNodeWithText("SHADERS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
@@ -1235,10 +1586,12 @@ fun main(args: Array<String>) {
             onNodeWithText("REPLACE").performClick()
         },
     )
+    val shots = if (docsMode) docsShots(all, bw, bh, bd, tw, th, td) else all
     var failed = 0
     for (shot in shots) {
         if (only.isNotEmpty() && only.none { shot.name.contains(it) }) continue
         try {
+            com.pokedaisy.app.companion.FavoriteItems.load(emptySet()) {} // a shot's stars don't carry into the next
             val content = shot.content()
             runSkikoComposeUiTest(Size(shot.w.toFloat(), shot.h.toFloat()), Density(shot.density)) {
                 // Manual clock: the party icons / map highlight animate forever,

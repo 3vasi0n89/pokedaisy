@@ -14,6 +14,9 @@ import androidx.compose.ui.composed
  */
 val LocalClickSound = staticCompositionLocalOf<() -> Unit> { {} }
 
+/** Whether the game can't be heard right now ([com.pokedaisy.app.companion.BattleInput.gameSilent]): asked on a tap. */
+val LocalGameSilent = staticCompositionLocalOf<() -> Boolean> { { false } }
+
 /**
  * [clickable] that plays the game's click on every tap - the companion's
  * buttons use this. Not for buttons that press the game's own buttons

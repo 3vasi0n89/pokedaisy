@@ -27,7 +27,7 @@ object RomArt {
     const val DIR = "rom-art"
 
     /** Bump when [OUTPUTS] grows, so ROMs scanned before get scanned again. */
-    private const val SCAN_VERSION = 16
+    private const val SCAN_VERSION = 17
 
     /** Bumped whenever new art lands on disk, so loaders can retry. */
     val updates: StateFlow<Int> get() = _updates
@@ -141,7 +141,7 @@ object RomArt {
             listOf("kanto", "sevii123", "sevii45", "sevii67", "hoenn", "seaglass", "lazarus", "soulgold", "glazed", "imperium", "hns", "rowe_hoenn", "rowe_kanto", "rowe_sevii",
                 "mariomon", "quetzal_kanto", "quetzal_sevii123", "quetzal_sevii45", "quetzal_sevii67").map { "regionmap/$it.png" } +
             PLAYER_ICONS.map { "regionmap/${it.first}.png" } +
-            listOf(BAG_STARS_SOULGOLD) +
+            listOf(BAG_STARS_SOULGOLD, HOLD_ICONS) +
             TrainerCardArt.BLOBS.map { rawPath(it) }
     }
 
@@ -346,6 +346,9 @@ object RomArt {
     }
 
 
+    /** The party menu's held-item marker: an item (top 8x8), Mail (bottom). */
+    const val HOLD_ICONS = "partyfr/hold_icons.png"
+
     /** Where a European Emerald's party art goes: partyem_<es|de|fr|it>. */
     fun emeraldPartyDir(lang: String) = "partyem_$lang"
 
@@ -386,6 +389,8 @@ object RomArt {
             if (has(p.font)) out["${p.dir}/font_small.png"] = font(d(p.font), p.halfWidthFont)
         }
         cfru(found, out)
+        // The held-item marker (an item over Mail, 8x8 each): FireRed's bytes, Emerald's the same; every slot style uses it.
+        if (has(RomBlob.FR_HOLD_GFX, RomBlob.FR_HOLD_PAL)) out[HOLD_ICONS] = sprite(d(RomBlob.FR_HOLD_GFX), palette(d(RomBlob.FR_HOLD_PAL)), 8, 16)
         if (has(RomBlob.FR_REGION_GFX, RomBlob.FR_REGION_PAL)) {
             val tiles = d(RomBlob.FR_REGION_GFX)
             val pal = palette(d(RomBlob.FR_REGION_PAL))

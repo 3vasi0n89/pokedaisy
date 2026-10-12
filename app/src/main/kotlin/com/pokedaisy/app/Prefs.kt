@@ -2,6 +2,7 @@ package com.pokedaisy.app
 
 import android.content.Context
 import com.pokedaisy.app.companion.FfMode
+import com.pokedaisy.app.companion.GameAspect
 import com.pokedaisy.app.companion.GridStrength
 import com.pokedaisy.app.companion.ScreenFilter
 import com.pokedaisy.app.companion.Smoothing
@@ -109,6 +110,12 @@ class Prefs(context: Context) {
     fun speedIndexFor(romKey: String): Int = p.getInt("speed_$romKey", 0)
     fun setSpeedIndexFor(romKey: String, index: Int) = p.edit().putInt("speed_$romKey", index).apply()
 
+    /** The ITEMS tab's starred items per ROM (keyed by CRC32, like [speedIndexFor]): the game's item ids. */
+    fun favoriteItemsFor(romKey: String): Set<Int> =
+        p.getString("favorite_items_$romKey", null)?.split(",")?.mapNotNull { it.toIntOrNull() }?.toSet() ?: emptySet()
+    fun setFavoriteItemsFor(romKey: String, ids: Set<Int>) =
+        p.edit().putString("favorite_items_$romKey", ids.sorted().joinToString(",")).apply()
+
     /** On-screen controls: 0 = auto (only if no gamepad), 1 = always, 2 = never. */
     var touchControlsMode: Int
         get() = p.getInt("touch_controls", 0)
@@ -122,6 +129,12 @@ class Prefs(context: Context) {
     var showHints: Boolean
         get() = p.getBoolean("show_hints", true)
         set(v) = p.edit().putBoolean("show_hints", v).apply()
+
+    /** ONE-TAP MOVES: the battle controls' action menu shows the moves where FIGHT is, a tap
+     * picking FIGHT and the move in one go. Off by default. */
+    var oneTapMoves: Boolean
+        get() = p.getBoolean("one_tap_moves", false)
+        set(v) = p.edit().putBoolean("one_tap_moves", v).apply()
 
     /** Whether battle INFO offers the foe's IVs / EVs / nature (its STATS page).
      * Off by default - it's the one thing the game itself never tells you.
@@ -186,10 +199,18 @@ class Prefs(context: Context) {
         get() = p.getBoolean("status_bar_on_companion", false)
         set(v) = p.edit().putBoolean("status_bar_on_companion", v).apply()
 
-    /** Whether the game is stretched to fill the top screen (16:9) instead of kept at the GBA's 3:2. */
-    var stretchGame: Boolean
-        get() = p.getBoolean("stretch_game", false)
-        set(v) = p.edit().putBoolean("stretch_game", v).apply()
+    /** How the game sits on the top screen: the GBA's 3:2, stretched to fill it, or WIDE (more of the
+     * map at the sides). Before WIDE this was a boolean, "stretch_game", which still picks STRETCH. */
+    var gameAspect: GameAspect
+        get() = GameAspect.entries.firstOrNull { it.name == p.getString("game_aspect", null) }
+            ?: if (p.getBoolean("stretch_game", false)) GameAspect.STRETCH else GameAspect.ORIGINAL
+        set(v) = p.edit().putString("game_aspect", v.name).remove("stretch_game").apply()
+
+    /** EXPAND > AUTO ZOOM IN: whether a conversation, a sign, a menu or a picture over the field pulls the zoomed-out
+     * view in to 1x (battles always do). On by default. */
+    var expandZoomOnText: Boolean
+        get() = p.getBoolean("expand_zoom_on_text", true)
+        set(v) = p.edit().putBoolean("expand_zoom_on_text", v).apply()
 
     /** SCREEN > OVERLAY: the frame around the game, an [com.pokedaisy.app.overlay.OverlayChoice.key] - "" (none, the
      * default), a built-in frame ("builtin:DAISY") or an imported overlay ("user:<its folder>"). */
@@ -335,6 +356,16 @@ class Prefs(context: Context) {
         set(v) = p.edit().putInt("app_open_count", v).apply()
 
     /** First-time setup finished or skipped; it only shows while this is false and the library is empty. */
+    /** The Library's one-time EXPAND introduction ([com.pokedaisy.app.companion.ui.ExpandIntro]) has been answered. */
+    var expandIntroSeen: Boolean
+        get() = p.getBoolean("expand_intro_seen", false)
+        set(v) = p.edit().putBoolean("expand_intro_seen", v).apply()
+
+    /** EXPAND's one-time offer in a game it knows (the companion's ExpandIntro) has been answered. */
+    var expandGameOfferSeen: Boolean
+        get() = p.getBoolean("expand_game_offer_seen", false)
+        set(v) = p.edit().putBoolean("expand_game_offer_seen", v).apply()
+
     var setupDone: Boolean
         get() = p.getBoolean("setup_done", false)
         set(v) = p.edit().putBoolean("setup_done", v).apply()
@@ -370,6 +401,37 @@ class Prefs(context: Context) {
     var raWebApiKey: String?
         get() = p.getString("ra_web_api_key", null)
         set(v) = p.edit().putString("ra_web_api_key", v?.trim()?.takeIf { it.isNotEmpty() }).apply()
+
+    /** The player's screenscraper.fr account (Settings > ScreenScraper, setup, the update's popup;
+     * read as `screenScraperAccount`, ScreenScraperClient.kt). Its API has no login token, so the
+     * password is kept here (private prefs) and sent with each call; never logged. */
+    var screenScraperUser: String?
+        get() = p.getString("ss_user", null)
+        set(v) = p.edit().putString("ss_user", v?.trim()?.takeIf { it.isNotEmpty() }).apply()
+    var screenScraperPassword: String?
+        get() = p.getString("ss_password", null)
+        set(v) = p.edit().putString("ss_password", v?.takeIf { it.isNotEmpty() }).apply()
+
+    /** ScreenScraper also downloads each game's video (a few MB each) for the launcher's media screen. */
+    var screenScraperVideos: Boolean
+        get() = p.getBoolean("ss_videos", true)
+        set(v) = p.edit().putBoolean("ss_videos", v).apply()
+
+    /** The update's "set up ScreenScraper?" popup has been shown (whatever the answer): only once. */
+    var screenScraperAsked: Boolean
+        get() = p.getBoolean("ss_asked", false)
+        set(v) = p.edit().putBoolean("ss_asked", v).apply()
+
+    /** With a second screen, the library is the launcher: the game list on one screen, the focused
+     * game's media on the other ([LauncherScreen]). Off = the classic library on the main screen. */
+    var dualScreenLauncher: Boolean
+        get() = p.getBoolean("dual_screen_launcher", true)
+        set(v) = p.edit().putBoolean("dual_screen_launcher", v).apply()
+
+    /** The launcher's X: the game list on the second screen and the media on the main one. */
+    var launcherSwapped: Boolean
+        get() = p.getBoolean("launcher_swapped", false)
+        set(v) = p.edit().putBoolean("launcher_swapped", v).apply()
 
     private companion object {
         const val RECENT_CAP = 10   // more than the 3 shown, so deleted ROMs don't starve the row

@@ -78,6 +78,8 @@ data class Mon(
     // An egg read from the RAM struct's flags where [species] stays the egg's own
     // species (the expansion hacks with no SPECIES_EGG 412; see withNativeGender).
     val isEgg: Boolean = false,
+    // The held item's id from the RAM struct (the party menu's held-item marker); 0 = none or unknown.
+    val heldItem: Int = 0,
 )
 
 // QOL_GENDER_* in the ROM's qol_telemetry.h: what FireRed's party menu shows

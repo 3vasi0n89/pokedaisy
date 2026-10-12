@@ -14,7 +14,7 @@ const val BATTLE_POKEMON_SIZE = 0x58
 
 // gen3SubstructOrder[personality % 24][physicalSlot] = logical substruct index
 // (0=Growth, 1=Attacks, 2=EVs, 3=Misc). Classic "GAEM" permutation table.
-private val gen3SubstructOrder = arrayOf(
+internal val gen3SubstructOrder = arrayOf(
     intArrayOf(0, 1, 2, 3), intArrayOf(0, 1, 3, 2), intArrayOf(0, 2, 1, 3),
     intArrayOf(0, 2, 3, 1), intArrayOf(0, 3, 1, 2), intArrayOf(0, 3, 2, 1),
     intArrayOf(1, 0, 2, 3), intArrayOf(1, 0, 3, 2), intArrayOf(1, 2, 0, 3),
@@ -135,6 +135,7 @@ fun decodePartyMon(raw: ByteArray, off: Int, layout: PartyMonLayout = VANILLA_PA
     if (layout.rowe) return decodeRoweMon(raw, off)
 
     var species: Int
+    var heldItem = 0
     val moves: IntArray
     val pp: IntArray
     var exp: Long? = null
@@ -144,6 +145,7 @@ fun decodePartyMon(raw: ByteArray, off: Int, layout: PartyMonLayout = VANILLA_PA
     val dec = decryptGen3Substructs(raw, off)
     if (dec != null) {
         species = dec.species
+        heldItem = dec.heldItem
         moves = dec.moves
         pp = dec.pp
         exp = dec.exp
@@ -153,6 +155,7 @@ fun decodePartyMon(raw: ByteArray, off: Int, layout: PartyMonLayout = VANILLA_PA
         val box = off + layout.plainBox
         species = u16(raw, box) and layout.plainSpeciesMask
         if (species == 0 || species > 4000) return null
+        heldItem = u16(raw, box + 2)
         moves = IntArray(NUM_MOVES) { u16(raw, box + 0x0C + it * 2) }
         pp = IntArray(NUM_MOVES) { raw[box + 0x0C + 8 + it].toInt() and 0xFF }
         // Plaintext boxes keep the substructs in G-A-E-M order: EVs at +0x18, IVs at Misc +4.
@@ -173,6 +176,7 @@ fun decodePartyMon(raw: ByteArray, off: Int, layout: PartyMonLayout = VANILLA_PA
         exp = exp,
         personality = u32(raw, off),
         stats = if (layout.hasStats) monStats(raw, off, layout, evs, ivWord) else null,
+        heldItem = heldItem,
     )
 }
 
@@ -196,7 +200,7 @@ private fun monStats(raw: ByteArray, off: Int, layout: PartyMonLayout, evs: List
 
 private class Gen3Substructs(
     val species: Int, val exp: Long, val moves: IntArray, val pp: IntArray,
-    val evs: List<Int>, val ivWord: Long,
+    val evs: List<Int>, val ivWord: Long, val heldItem: Int,
 )
 
 private fun decryptGen3Substructs(raw: ByteArray, off: Int): Gen3Substructs? {
@@ -232,13 +236,14 @@ private fun decryptGen3Substructs(raw: ByteArray, off: Int): Gen3Substructs? {
     }
     // Growth: species u16, held item u16, experience u32.
     val species = u16(block, growthOff)
+    val heldItem = u16(block, growthOff + 2)
     val exp = u32(block, growthOff + 4)
     val moves = IntArray(NUM_MOVES) { u16(block, attacksOff + it * 2) }
     val pp = IntArray(NUM_MOVES) { block[attacksOff + 8 + it].toInt() and 0xFF }
     // EVs: HP, ATK, DEF, SPEED, SP.ATK, SP.DEF bytes. Misc: pokerus, met location, origin, then the IV word.
     val evs = List(6) { block[evsOff + it].toInt() and 0xFF }
     val ivWord = u32(block, miscOff + 4)
-    return Gen3Substructs(species, exp, moves, pp, evs, ivWord)
+    return Gen3Substructs(species, exp, moves, pp, evs, ivWord, heldItem)
 }
 
 /**

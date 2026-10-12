@@ -18,6 +18,7 @@ import com.pokedaisy.app.companion.data.MoveView
 import com.pokedaisy.app.companion.data.POCKET_ITEMS
 import com.pokedaisy.app.companion.data.POCKET_KEY_ITEMS
 import com.pokedaisy.app.companion.data.POCKET_POKE_BALLS
+import com.pokedaisy.app.companion.data.SlotVerdict
 import com.pokedaisy.app.companion.data.SnapshotView
 import com.pokedaisy.app.companion.data.TypeMatchup
 import com.pokedaisy.app.companion.data.activeGame
@@ -165,6 +166,12 @@ open class CompanionScreenshotTest {
 
     @Test fun party() = tab("PARTY")
 
+    /** The held-item marker by the icon (from the ROM's own sprite): LEFTOVERS on CHARMANDER, Mail's on PIDGEY. */
+    @Test fun partyHeldItems() = paparazzi.snapshot {
+        val party = SampleCompanion.snapshot.party.mapIndexed { i, m -> m.copy(heldItemId = if (i == 0) 200 else 121) }
+        CompanionScreen(SampleCompanion.snapshot.copy(party = party), SampleCompanion.Slots, SampleCompanion.Settings(), initialTab = "PARTY")
+    }
+
     /** SETTINGS > STATUS BAR > COMPANION: the game's status bar over the tabs. */
     @Test fun partyStatusBar() {
         CompanionStatusBar.shown = true
@@ -263,6 +270,8 @@ open class CompanionScreenshotTest {
                     fps = 60.0f, shownFps = 59.8f, latePerSecond = 0.2f, frameMs = 2.8f, frameMaxMs = 5.1f, emulationLoad = 17,
                     cpu = 14, cores = 8, refreshHz = 60f, refreshesPerFrame = 1, audioDropouts = 0,
                     batteryTempC = 36.5f, thermal = 1, memoryMb = 212,
+                    // In a battle: 4 snapshots a second, ~15 battle-menu checks.
+                    snapshotsPerSecond = 4.0f, battleChecksPerSecond = 15.0f,
                 ),
                 initiallyOpen = open,
             )
@@ -312,6 +321,34 @@ open class CompanionScreenshotTest {
     @Test
     fun partyDetailStats() = paparazzi.snapshot {
         QolTheme { MonDetailScreen(SampleCompanion.snapshot.party, 0, {}, {}, initialShowStats = true) }
+    }
+
+    /** TAKE (FieldItems.kt): CHARMANDER holds a LEFTOVERS, so the summary's bottom row has TAKE with its icon... */
+    @Test fun partyDetailTake() = paparazzi.snapshot { QolTheme { MonDetailScreen(takeParty, 0, {}, {}, itemUse = takeUse) } }
+
+    /** ...and pops up what it did, like the bag's USE / GIVE. */
+    @Test fun partyDetailTaken() = paparazzi.snapshot {
+        QolTheme { MonDetailScreen(takeParty, 0, {}, {}, itemUse = takeUse, initialNotice = ItemNotice(200, "Received LEFTOVERS from CHARMANDER.")) }
+    }
+
+    /** ...which asks first. */
+    @Test fun partyDetailTakeAsk() = paparazzi.snapshot { QolTheme { MonDetailScreen(takeParty, 0, {}, {}, itemUse = takeUse, initialTakeAsk = true) } }
+
+    private val takeParty get() = SampleCompanion.snapshot.party.mapIndexed { i, m -> m.copy(personality = i + 1L, iconAsset = spriteAsset("pokemon", m.species)) }
+
+    private val takeUse = object : com.pokedaisy.app.companion.ItemUse {
+        override fun canUse(itemId: Int) = false
+        override fun use(itemId: Int, done: (com.pokedaisy.app.companion.data.ItemUseOutcome) -> Unit) {}
+        override fun canTake() = true
+        override fun heldItems(done: (com.pokedaisy.app.companion.data.PartyTargets) -> Unit) = done(
+            com.pokedaisy.app.companion.data.PartyTargets(
+                com.pokedaisy.app.companion.data.ItemUseResult.USED,
+                listOf(
+                    com.pokedaisy.app.companion.data.PartyTarget(0, 1, 200, SlotVerdict.OK),
+                    com.pokedaisy.app.companion.data.PartyTarget(1, 2, 0, SlotVerdict.NO_EFFECT),
+                ),
+            ),
+        )
     }
 
     /** Battle INFO's STATS page (FOE IVS on): your battler beside the foe. */
@@ -1225,6 +1262,35 @@ open class CompanionScreenshotTest {
     @Test fun map() = tab("MAP")
     @Test fun items() = tab("ITEMS")
 
+    /** A USE that went through: the popup over the bag, with the item and a tick. */
+    @Test fun itemsUsedNotice() = paparazzi.snapshot {
+        val items = listOf(ItemView(13, "Potion", 2, spriteAsset("items", 13)), ItemView(86, "Repel", 3, spriteAsset("items", 86)))
+        QolTheme {
+            GameBackdrop(GameKind.FIRERED)
+            ItemsScreen(items, androidx.compose.ui.Modifier.fillMaxSize(), itemUse = PartyItemUse(emptyList()), initialNotice = ItemNotice(13, "Used on CHARMANDER."))
+        }
+    }
+
+    /** FLY (Fly.kt): PIDGEY knows it, so the MAP tab gets the button... */
+    private val flyer = SampleCompanion.snapshot.let { s ->
+        s.copy(party = s.party.mapIndexed { i, m -> if (i == 1) m.copy(moves = m.moves + MoveView("Fly", "Flying", 15, 70, id = 19)) else m })
+    }
+    private val flyAction = object : com.pokedaisy.app.companion.FlyAction {
+        override fun canFly() = true
+        override fun targets(done: (com.pokedaisy.app.companion.data.FlyTargets) -> Unit) {}
+        override fun fly(mapsec: Int, targets: com.pokedaisy.app.companion.data.FlyTargets, done: (com.pokedaisy.app.companion.data.FlyResult) -> Unit) {}
+    }
+
+    @Test fun mapFly() = paparazzi.snapshot {
+        CompanionScreen(flyer, SampleCompanion.Slots, SampleCompanion.Settings(), initialTab = "MAP", fly = flyAction)
+    }
+
+    /** ... which lists the towns visited (PALLET, VIRIDIAN, PEWTER, CERULEAN), the flyer by the title. */
+    @Test fun mapFlyList() = paparazzi.snapshot {
+        val t = com.pokedaisy.app.companion.data.FlyTargets(com.pokedaisy.app.companion.data.FlyResult.OK, listOf(0x58, 0x59, 0x5A, 0x5B), 1, 0x222)
+        QolTheme { GameBackdrop(GameKind.FIRERED); MapScreen(flyer, androidx.compose.ui.Modifier.fillMaxSize(), fly = flyAction, initialFly = t) }
+    }
+
     /** A Repel's description with USE (FieldItems.kt). */
     @Test fun itemsRepelUse() = paparazzi.snapshot {
         activeGame = GameKind.EMERALD
@@ -1237,6 +1303,105 @@ open class CompanionScreenshotTest {
             ItemView(13, "Potion", 2, spriteAsset("items", 13)),
         )
         QolTheme { ItemsScreen(items, androidx.compose.ui.Modifier.fillMaxSize(), itemUse = use, initialItemId = 86) }
+    }
+
+    /** FireRed rev 1's USE / GIVE (FieldItems.kt) as the app answers them, with the party pick's slots fixed. */
+    private class PartyItemUse(
+        val targets: List<com.pokedaisy.app.companion.data.PartyTarget>,
+        val result: com.pokedaisy.app.companion.data.ItemUseResult = com.pokedaisy.app.companion.data.ItemUseResult.USED,
+    ) : com.pokedaisy.app.companion.ItemUse {
+        // LEFTOVERS, EXP. SHARE, POTION, ESCAPE ROPE, POKé BALL hold; key items and TMs don't.
+        val support = com.pokedaisy.app.companion.data.FieldItemSupport(
+            com.pokedaisy.app.companion.data.FIELD_ITEMS_FIRERED_REV1, setOf(200, 182, 13, 85, 4, 34),
+        )
+        override fun canUse(itemId: Int) = support.canUse(itemId)
+        override fun canGive(itemId: Int) = support.canGive(itemId)
+        override fun marked(itemId: Int) = support.marked(itemId)
+        override fun picksMon(itemId: Int) = support.picksMon(itemId)
+        override fun picksMove(itemId: Int) = support.picksMove(itemId)
+        override fun use(itemId: Int, done: (com.pokedaisy.app.companion.data.ItemUseOutcome) -> Unit) {}
+        override fun targets(itemId: Int, give: Boolean, done: (com.pokedaisy.app.companion.data.PartyTargets) -> Unit) =
+            done(com.pokedaisy.app.companion.data.PartyTargets(result, targets))
+    }
+
+    /** A party for the pick: hurt, poisoned, an egg, fainted, full, and two holding items. */
+    private val pickParty get() = SampleCompanion.snapshot.party.mapIndexed { i, m -> m.copy(personality = i + 1L) } + listOf(
+        MonView(0, "EGG", 0, 0, 0, "", emptyList(), null, isEgg = true, personality = 3),
+        MonView(25, "PIKACHU", 14, 0, 38, "", listOf("Electric"), null, GENDER_SYMBOL_MALE, personality = 4),
+        MonView(7, "SQUIRTLE", 13, 37, 37, "", listOf("Water"), null, GENDER_SYMBOL_FEMALE, personality = 5,
+            moves = listOf(MoveView("Tackle", "Normal", 35, 35), MoveView("Bubble", "Water", 2, 20), MoveView("Withdraw", "Water", 40, 0))),
+        MonView(10, "CATERPIE", 6, 20, 20, "", listOf("Bug"), null, GENDER_SYMBOL_MALE, personality = 6),
+    ).map { it.copy(iconAsset = spriteAsset("pokemon", if (it.isEgg) 412 else it.species)) }
+
+    private fun pickTargets(vararg v: SlotVerdict, held: List<Int> = List(6) { 0 }) =
+        v.mapIndexed { i, verdict -> com.pokedaisy.app.companion.data.PartyTarget(i, pickParty[i].personality, held[i], verdict, moves = listOf(false, true, false, false)) }
+
+    /** The bag with the row marks: a mark and a star (POTION), a mark (LEFTOVERS, a holdable REPEL), a star alone
+     * (BICYCLE, nothing to do with it) and neither (OLD ROD). */
+    @Test fun itemsMarks() {
+        com.pokedaisy.app.companion.FavoriteItems.load(setOf(13, 360)) {}
+        paparazzi.snapshot { itemsMarksScreen() }
+        com.pokedaisy.app.companion.FavoriteItems.load(emptySet()) {}
+    }
+
+    @androidx.compose.runtime.Composable
+    private fun itemsMarksScreen() {
+        val items = listOf(
+            ItemView(13, "Potion", 3, spriteAsset("items", 13), POCKET_ITEMS),
+            ItemView(200, "Leftovers", 1, spriteAsset("items", 200), POCKET_ITEMS),
+            ItemView(86, "Repel", 4, spriteAsset("items", 86), POCKET_ITEMS),
+            ItemView(68, "Rare Candy", 2, spriteAsset("items", 68), POCKET_ITEMS),
+            ItemView(4, "Poké Ball", 10, spriteAsset("items", 4), POCKET_POKE_BALLS),
+            ItemView(360, "Bicycle", 1, spriteAsset("items", 360), POCKET_KEY_ITEMS),
+            ItemView(262, "Old Rod", 1, spriteAsset("items", 262), POCKET_KEY_ITEMS),
+        )
+        QolTheme { GameBackdrop(GameKind.FIRERED); ItemsScreen(items, androidx.compose.ui.Modifier.fillMaxSize(), itemUse = PartyItemUse(emptyList()), initialItemId = 13) }
+    }
+
+    /** USE on a POTION: who it would help lit (CHARMANDER and PIDGEY below full HP), the egg, the fainted PIKACHU
+     * and the full ones greyed; held items in the corner. */
+    @Test fun itemsUsePick() = paparazzi.snapshot {
+        pickParty.forEach { DecompIconSource.get(it.species) }
+        val use = PartyItemUse(pickTargets(SlotVerdict.OK, SlotVerdict.OK, SlotVerdict.EGG, SlotVerdict.NO_EFFECT, SlotVerdict.NO_EFFECT, SlotVerdict.NO_EFFECT, held = listOf(0, 183, 0, 0, 200, 0)))
+        val items = listOf(ItemView(13, "Potion", 3, spriteAsset("items", 13), POCKET_ITEMS, "Restores the HP of a POKéMON by 20 points."))
+        QolTheme {
+            GameBackdrop(GameKind.FIRERED)
+            ItemsScreen(items, androidx.compose.ui.Modifier.fillMaxSize(), itemUse = use, initialItemId = 13, party = pickParty, initialPick = false)
+        }
+    }
+
+    /** GIVE a LEFTOVERS: the egg greyed, and the Pokémon holding LEFTOVERS already. */
+    @Test fun itemsGivePick() = paparazzi.snapshot {
+        pickParty.forEach { DecompIconSource.get(it.species) }
+        val use = PartyItemUse(pickTargets(SlotVerdict.OK, SlotVerdict.OK, SlotVerdict.EGG, SlotVerdict.OK, SlotVerdict.HOLDS_IT, SlotVerdict.OK, held = listOf(0, 183, 0, 0, 200, 0)))
+        val items = listOf(ItemView(200, "Leftovers", 1, spriteAsset("items", 200), POCKET_ITEMS, "An item to be held by a POKéMON."))
+        QolTheme {
+            GameBackdrop(GameKind.FIRERED)
+            ItemsScreen(items, androidx.compose.ui.Modifier.fillMaxSize(), itemUse = use, initialItemId = 200, party = pickParty, initialPick = true)
+        }
+    }
+
+    /** An ETHER's move pick on SQUIRTLE: only BUBBLE (2 PP) would get any back. */
+    @Test fun itemsMovePick() = paparazzi.snapshot {
+        pickParty.forEach { DecompIconSource.get(it.species) }
+        val pick = ItemPick(
+            ItemView(34, "Ether", 1, spriteAsset("items", 34)), give = false,
+            pickTargets(SlotVerdict.NO_EFFECT, SlotVerdict.NO_EFFECT, SlotVerdict.EGG, SlotVerdict.NO_EFFECT, SlotVerdict.OK, SlotVerdict.NO_EFFECT),
+        )
+        QolTheme {
+            GameBackdrop(GameKind.FIRERED)
+            ItemPartyPicker(pick, pickParty, rememberGbaTextMetrics(), itemName = "Ether", picksMove = true, onCancel = {}, onPick = { _, _ -> }, initialMoveSlot = 4)
+        }
+    }
+
+    /** USE tapped mid-battle: the description bar says NOT NOW, as the Repel's does. */
+    @Test fun itemsUseNotNow() = paparazzi.snapshot {
+        val use = PartyItemUse(emptyList(), com.pokedaisy.app.companion.data.ItemUseResult.NOT_NOW)
+        val items = listOf(ItemView(13, "Potion", 3, spriteAsset("items", 13), POCKET_ITEMS, "Restores the HP of a POKéMON by 20 points."))
+        QolTheme {
+            GameBackdrop(GameKind.FIRERED)
+            ItemsScreen(items, androidx.compose.ui.Modifier.fillMaxSize(), itemUse = use, initialItemId = 13, party = pickParty, initialPick = false)
+        }
     }
 
     /** Two stacks of one item (99 Repels and 5 more): LazyColumn used to throw on the repeated key. */
@@ -1476,8 +1641,8 @@ object SampleCompanion {
         override fun setClickSound(on: Boolean) {}
         override val statusBar = false
         override fun setStatusBar(on: Boolean) {}
-        override val stretchGame = false
-        override fun setStretchGame(on: Boolean) {}
+        override val gameAspect = com.pokedaisy.app.companion.GameAspect.ORIGINAL
+        override fun setGameAspect(aspect: com.pokedaisy.app.companion.GameAspect) {}
         override val gbaColors = false
         override fun setGbaColors(on: Boolean) {}
         override val screenFilter = com.pokedaisy.app.companion.ScreenFilter.NONE

@@ -3,6 +3,7 @@ package com.pokedaisy.app
 import android.app.Activity
 import android.app.ActivityOptions
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.graphics.Point
 import android.hardware.display.DisplayManager
@@ -39,6 +40,53 @@ object Screens {
         val here = activity.windowManager.defaultDisplay.displayId
         if (here == Display.DEFAULT_DISPLAY) return null
         return ActivityOptions.makeBasic().setLaunchDisplayId(Display.DEFAULT_DISPLAY).toBundle()
+    }
+
+    /** Whether [activity]'s window is on the device's main display (the Thor's top screen). */
+    fun isOnMainDisplay(activity: Activity): Boolean {
+        @Suppress("DEPRECATION") // Activity.display is API 30+; the window's display is the activity's on every version.
+        return activity.windowManager.defaultDisplay.displayId == Display.DEFAULT_DISPLAY
+    }
+
+    /** On an activity reopened by [reopenOnMainDisplay]: when, so a move that didn't take isn't tried again in a loop. */
+    private const val EXTRA_MOVED_AT = "com.pokedaisy.app.MOVED_TO_MAIN_DISPLAY_AT"
+    private const val MOVE_GUARD_MS = 5_000L
+
+    /**
+     * The app opened on the second screen (its icon tapped on the bottom screen's launcher, or its task moved there):
+     * [activity] reopens as a fresh task of its own intent on the main display and this one closes, so the app uses
+     * both screens - the activity on the main one, its Presentation (the launcher's media) on the other. Never twice
+     * within a few seconds, in case Android keeps it where it was. True = it's moving: the caller stops there.
+     */
+    fun reopenOnMainDisplay(activity: Activity): Boolean {
+        val options = mainDisplayLaunch(activity) ?: return false
+        if (!hasSecond(activity)) return false
+        val since = System.currentTimeMillis() - (activity.intent?.getLongExtra(EXTRA_MOVED_AT, 0L) ?: 0L)
+        if (since in 0 until MOVE_GUARD_MS) return false
+        val next = Intent(activity.intent ?: Intent()).setClass(activity, activity.javaClass)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
+            .putExtra(EXTRA_MOVED_AT, System.currentTimeMillis())
+        if (runCatching { activity.startActivity(next, options) }.isFailure) return false
+        activity.finishAndRemoveTask()
+        return true
+    }
+
+    @Volatile private var lastBring = 0L
+
+    /**
+     * A running game whose task went to the second screen: asks Android to bring the task back to the main display
+     * (its singleTask instance stays - no restart). At most once every few seconds: an attempt that doesn't move it
+     * resumes it again, and that mustn't loop.
+     */
+    fun bringToMainDisplay(activity: Activity) {
+        val options = mainDisplayLaunch(activity) ?: return
+        if (!hasSecond(activity)) return
+        val now = System.currentTimeMillis()
+        if (now - lastBring < MOVE_GUARD_MS) return
+        lastBring = now
+        runCatching {
+            activity.startActivity(Intent(activity, activity.javaClass).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK), options)
+        }
     }
 
     /** SWAP SCREENS only means something with two. */

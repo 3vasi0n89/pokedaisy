@@ -35,6 +35,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -128,6 +131,14 @@ object OptionColors {
     val labelShadow get() = if (gen1) Color.Transparent else c(0xFFBCBBB4, 0xFF3A404B)
     val value get() = if (gen1) G1_INK else c(0xFFCB0707, 0xFFFF6A5C)
     val valueShadow get() = if (gen1) Color.Transparent else c(0xFFE0A564, 0xFF6E2A22)
+    /** Something done in the game went through: FireRed's stdpal_0 green (TEXT_COLOR_GREEN). */
+    val success get() = if (gen1) G1_INK else c(0xFF209C08, 0xFF6BD65A)
+    /** The party menu's field moves (FLY, CUT...): TEXT_COLOR_BLUE on LIGHT_BLUE, FireRed's stdpal_0. */
+    val fieldMove get() = if (gen1) G1_INK else c(0xFF3152CD, 0xFF86A6FF)
+    val fieldMoveShadow get() = if (gen1) Color.Transparent else c(0xFFA4C5F6, 0xFF26315E)
+    /** A field-move button's frame: [titleLayers]' build in those blues. */
+    val fieldMoveLayers get() = if (gen1) G1_FRAME else if (dark) listOf(Color(0xFF0B0D11) to 2, Color(0xFF4A62C8) to 1)
+        else listOf(Color(0xFF3152CD) to 2, Color(0xFFA4C5F6) to 1)
     /** Secondary text (paths, timestamps, hints) - lighter than [label] (dimmer in dark). */
     val muted get() = if (gen1) c(0xFF787878, 0xFF9A9A9A) else c(0xFF8C8C94, 0xFF8F95A3)
     val mutedShadow get() = if (gen1) Color.Transparent else c(0xFFD6D6D6, 0xFF2C313A)
@@ -166,6 +177,28 @@ object OptionColors {
     val imageWell get() = c(0xFF20242C, 0xFF0C0E12)
     /** Over everything a dark mode backdrop draws (a game's party art): how much black. 0 in light mode. */
     val backdropScrim get() = if (dark) 0.55f else 0f
+
+    // The docs reader (DocsScreen.kt): a page of reading text in Atkinson Hyperlegible, dark on white
+    // (light on slate in dark mode; Gen 1's ink on its paper).
+    val readingPaper get() = if (gen1) G1_PAPER else c(0xFFFFFFFF, 0xFF262B34)
+    val readingText get() = if (gen1) G1_INK else c(0xFF26262E, 0xFFE3E6EC)
+    val readingMuted get() = if (gen1) c(0xFF505050, 0xFFB0B0B0) else c(0xFF5E5D6B, 0xFFA9AFBC)
+    val readingLink get() = if (gen1) G1_INK else c(0xFF2F5FD0, 0xFF8AB4FF)
+    /** Behind a `code` span: a button or setting name, set in the pixel font. */
+    val readingCode get() = if (gen1) c(0xFFE4E4E4, 0xFF303030) else c(0xFFF0EFF5, 0xFF353C49)
+    /** A search hit's matched words. */
+    val readingMark get() = c(0xFFFFE58A, 0xFF6B5A1E)
+    /** A callout's bar and tint: [kind] is tip / note / warning. */
+    fun noteBar(kind: String) = when (kind) {
+        "tip" -> c(0xFF2C9A44, 0xFF4CC266)
+        "warning" -> c(0xFFE83028, 0xFFFF6A5C)
+        else -> c(0xFFF8D030, 0xFFE0B830)
+    }
+    fun noteFill(kind: String) = if (gen1) G1_PAPER else when (kind) {
+        "tip" -> c(0xFFEFFAF1, 0xFF1F3326)
+        "warning" -> c(0xFFFFF1EF, 0xFF3A2422)
+        else -> c(0xFFFFFAF0, 0xFF37321F)
+    }
 }
 
 /** A dashed row divider along the bottom edge, from [start] px in - the bag
@@ -210,6 +243,8 @@ fun OptionTitleWindow(
     onBack: (() -> Unit)? = null,
     /** Drawn before the title (after the back arrow): the Library's logo. */
     leading: (@Composable () -> Unit)? = null,
+    /** Lines the title may wrap to before it's cut short (a prompt on a narrow screen). */
+    titleMaxLines: Int = 1,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     val u = m.u
@@ -228,7 +263,7 @@ fun OptionTitleWindow(
             }
         }
         if (trailing == null) {
-            GbaText(tr(title), OptionColors.titleText, OptionColors.titleShadow, m, modifier = Modifier.weight(1f))
+            GbaText(tr(title), OptionColors.titleText, OptionColors.titleShadow, m, maxLines = titleMaxLines, modifier = Modifier.weight(1f))
         } else {
             // The title whole; the trailing (the game's name) right-aligned after a gap, and the one
             // that shortens when both don't fit (a wide game font: "OPTI…" read badly).
@@ -390,17 +425,25 @@ fun OptionButton(
     contentDescription: String? = label,
     /** A [PixelIcons] bitmap before the label, drawn in the text's own pixels and shadow. */
     pixelIcon: List<String>? = null,
+    /** [pixelIcon]'s colour, when it isn't the label's (a gold favorite star). */
+    pixelIconColor: Color? = null,
+    /** The label's colour and shadow, when they're neither grey nor [emphasis]'s red (a field move's blue). */
+    labelColors: Pair<Color, Color>? = null,
+    /** The frame's layers, when it isn't the title window's ([OptionColors.fieldMoveLayers]). */
+    frameLayers: List<Pair<Color, Int>>? = null,
 ) {
     val u = m.u
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     val fg = when {
         !enabled -> OptionColors.muted
+        labelColors != null -> labelColors.first
         emphasis -> OptionColors.value
         else -> OptionColors.label
     }
     val shadow = when {
         !enabled -> OptionColors.mutedShadow
+        labelColors != null -> labelColors.second
         emphasis -> OptionColors.valueShadow
         else -> OptionColors.labelShadow
     }
@@ -413,7 +456,7 @@ fun OptionButton(
             .heightIn(min = m.rowHeight)
             .drawBehind {
                 drawLayeredBox(
-                    OptionColors.titleLayers.inPx(u.toPx()),
+                    (frameLayers ?: OptionColors.titleLayers).inPx(u.toPx()),
                     if (focused) OptionColors.listFill else OptionColors.titleFill,
                     radius = 3 * u.toPx(),
                 )
@@ -426,7 +469,7 @@ fun OptionButton(
         }
         if (pixelIcon != null) {
             val cell = with(androidx.compose.ui.platform.LocalDensity.current) { m.fontPixel.toDp() }
-            ShadowedPixelIcon(pixelIcon, fg, shadow, m, cell = cell)
+            ShadowedPixelIcon(pixelIcon, pixelIconColor ?: fg, shadow, m, cell = cell)
         }
         if ((icon != null || pixelIcon != null) && label != null) Spacer(Modifier.width(u * 4))
         if (label != null) GbaText(tr(label), fg, shadow, m, bold = gameBoldLabels())
@@ -617,7 +660,8 @@ fun AppBackdrop(
 
 /** A text input in the title window's look (white, grey frame), pixel font: one line, or
  * [minLines] and more. [password] hides what's typed and keeps the keyboard from learning
- * it; [code] asks for capitals with no suggestions (cheat codes). */
+ * it, with an eye at the end to show / hide it; [code] asks for capitals with no suggestions
+ * (cheat codes); [number] for digits. */
 @Composable
 fun OptionTextField(
     value: String,
@@ -628,16 +672,20 @@ fun OptionTextField(
     password: Boolean = false,
     minLines: Int = 1,
     code: Boolean = false,
+    number: Boolean = false,
 ) {
     val u = m.u
+    var shown by remember { androidx.compose.runtime.mutableStateOf(false) }
+    val hidden = password && !shown
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
         singleLine = minLines == 1,
         minLines = minLines,
-        visualTransformation = if (password) PasswordVisualTransformation() else VisualTransformation.None,
+        visualTransformation = if (hidden) PasswordVisualTransformation() else VisualTransformation.None,
         keyboardOptions = when {
             password -> KeyboardOptions(autoCorrect = false, keyboardType = KeyboardType.Password)
+            number -> KeyboardOptions(autoCorrect = false, keyboardType = KeyboardType.Number)
             code -> KeyboardOptions(capitalization = KeyboardCapitalization.Characters, autoCorrect = false, keyboardType = KeyboardType.Ascii)
             else -> KeyboardOptions.Default
         },
@@ -648,9 +696,23 @@ fun OptionTextField(
             .drawBehind { drawLayeredBox(OptionColors.titleLayers.inPx(u.toPx()), OptionColors.titleFill, radius = 2 * u.toPx()) }
             .padding(horizontal = u * 6, vertical = u * 5),
         decorationBox = { inner ->
-            Box {
-                if (value.isEmpty() && placeholder != null) GbaText(placeholder, OptionColors.muted, OptionColors.mutedShadow, m)
-                inner()
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) {
+                    if (value.isEmpty() && placeholder != null) GbaText(placeholder, OptionColors.muted, OptionColors.mutedShadow, m)
+                    inner()
+                }
+                if (password) {
+                    // SHOW / HIDE what's typed: an eye, struck through while it shows.
+                    val noRipple = remember { MutableInteractionSource() }
+                    Box(
+                        Modifier
+                            .padding(start = u * 4)
+                            .clickable(interactionSource = noRipple, indication = null, onClick = { shown = !shown })
+                            .semantics { contentDescription = if (shown) tr("Hide password") else tr("Show password") },
+                    ) {
+                        PixelIcon(if (shown) PixelIcons.eyeClosed else PixelIcons.eyeOpen, OptionColors.label, Modifier.size(m.lineHeight))
+                    }
+                }
             }
         },
     )

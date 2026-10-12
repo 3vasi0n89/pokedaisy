@@ -85,6 +85,7 @@ class GameInfo(
                 add(tr("COVER") to when {
                     prefs.romCoverManual(rom) -> tr("Picked by you")
                     !coverFile(context, rom).isFile -> tr("None")
+                    prefs.romCoverSource(rom) == CoverArtSync.Source.SCREENSCRAPER.name -> tr("From ScreenScraper")
                     prefs.romCoverSource(rom) == CoverArtSync.Source.RETROACHIEVEMENTS.name -> tr("From RetroAchievements")
                     else -> tr("From SteamGridDB")
                 })

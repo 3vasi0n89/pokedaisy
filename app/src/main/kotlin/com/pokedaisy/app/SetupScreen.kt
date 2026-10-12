@@ -33,17 +33,21 @@ import com.pokedaisy.app.companion.ui.OptionTitleWindow
 
 /**
  * First-time setup, on the library's screen: link a ROMs folder, pick where saves
- * go, add a SteamGridDB key - each one skippable, each one also in Settings.
+ * go, check the buttons, sign in to ScreenScraper (game media), add a cover key - each one
+ * skippable, each one also in Settings.
  * [LibraryActivity] owns the folder pickers and background work and feeds this.
  */
 internal class SetupState {
-    enum class Step { ROMS, SAVES, BUTTONS, COVERS }
+    enum class Step { ROMS, SAVES, BUTTONS, MEDIA, COVERS }
 
+    /** The steps shown: GAME MEDIA only while ScreenScraper is on. */
+    val steps: List<Step> = Step.entries.filter { it != Step.MEDIA || ScreenScraperClient.enabled }
     var step by mutableStateOf(Step.ROMS)
+    val index get() = steps.indexOf(step)
     /** Opened by Settings' RUN SETUP: BACK on the first step returns there. */
     var fromSettings by mutableStateOf(false)
     /** Whether BACK has somewhere to go: an earlier step, or Settings. */
-    val canGoBack get() = step.ordinal > 0 || fromSettings
+    val canGoBack get() = index > 0 || fromSettings
     /** False until All files access is granted - picking a folder asks for it first. */
     var hasAccess by mutableStateOf(true)
     /** The folder pick waiting on Android's All files access page, resumed on return. */
@@ -62,6 +66,9 @@ internal class SetupState {
 
     /** GAME BUTTONS: (GBA button, its keys) as bound now - read again on every return from the rebind page. */
     var buttons by mutableStateOf<List<Pair<String, String>>>(emptyList())
+
+    /** GAME MEDIA: the ScreenScraper sign-in (its media pass runs in [covers]). */
+    var ssLogin by mutableStateOf(ScreenScraperLogin())
 
     var apiKey by mutableStateOf("")
     var raKey by mutableStateOf("")
@@ -82,14 +89,16 @@ internal fun SetupScreen(
     onBack: () -> Unit,
     onNext: () -> Unit,
     onChangeButtons: () -> Unit = {},
+    onScreenScraperSignIn: () -> Unit = {},
+    onScreenScraperSignOut: () -> Unit = {},
 ) {
-    val steps = SetupState.Step.entries
+    val steps = s.steps
     Box(Modifier.fillMaxSize()) {
         AppBackdrop()
         Column(Modifier.fillMaxSize().padding(16.dp)) {
             OptionTitleWindow(
                 tr("WELCOME TO POKéDAISY"), m,
-                trailing = "${s.step.ordinal + 1} / ${steps.size}",
+                trailing = "${s.index + 1} / ${steps.size}",
                 onBack = if (s.canGoBack) onBack else null,
             )
             Spacer(Modifier.height(m.u * 4))
@@ -99,6 +108,11 @@ internal fun SetupScreen(
                         SetupState.Step.ROMS -> RomsStep(s, m, small, onChooseRoms)
                         SetupState.Step.SAVES -> SavesStep(s, m, small, onChooseSaves, onUseSaves)
                         SetupState.Step.BUTTONS -> ButtonsStep(s, m, small, onChangeButtons)
+                        SetupState.Step.MEDIA -> ScreenScraperSetupStep(
+                            s.ssLogin, s.covers, m, small,
+                            onSignIn = onScreenScraperSignIn, onSignOut = onScreenScraperSignOut,
+                            onSignUp = { onOpenPage(ScreenScraperClient.SIGN_UP_PAGE) },
+                        )
                         SetupState.Step.COVERS -> CoversStep(s, m, small, onOpenPage, onSaveKey)
                     }
                 }
@@ -114,6 +128,7 @@ internal fun SetupScreen(
                     SetupState.Step.ROMS -> s.romsFolder == null
                     SetupState.Step.SAVES -> false
                     SetupState.Step.BUTTONS -> false
+                    SetupState.Step.MEDIA -> s.ssLogin.signedInAs == null
                     SetupState.Step.COVERS -> !s.keySaved
                 }
                 OptionButton(

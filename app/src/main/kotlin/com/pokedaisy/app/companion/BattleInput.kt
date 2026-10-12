@@ -8,6 +8,10 @@ package com.pokedaisy.app.companion
  * independent of the emulator. See PLAN.md Phase 5.
  */
 interface BattleInput {
+    /** The game can't be heard right now (FF with a STEADY clip, or muted): a button that presses the game's own
+     * button then makes the companion's click, since the game's select sound is silent too. */
+    val gameSilent: Boolean get() = false
+
     /** True while a queued button sequence hasn't fully drained — the UI
      * should disable further taps while this is true. */
     val busy: Boolean

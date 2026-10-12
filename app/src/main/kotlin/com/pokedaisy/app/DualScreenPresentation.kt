@@ -121,6 +121,7 @@ class DualScreenPresentation(
             initialTab: String = "PARTY",
             statusBar: (@androidx.compose.runtime.Composable () -> Unit)? = null,
             itemUse: com.pokedaisy.app.companion.ItemUse? = null,
+            fly: com.pokedaisy.app.companion.FlyAction? = null,
             askForSupport: (() -> Unit)? = null,
             gamePick: com.pokedaisy.app.companion.GamePickActions? = null,
             shareBestEffort: ((com.pokedaisy.app.companion.data.BestEffortReport) -> Unit)? = null,
@@ -130,7 +131,7 @@ class DualScreenPresentation(
                 CompanionScreen(
                     snap, slots, settings, battleInput, initialTab = initialTab,
                     back = back, clickSound = clickSound, achievements = achievements, statusBar = statusBar,
-                    itemUse = itemUse, askForSupport = askForSupport, gamePick = gamePick,
+                    itemUse = itemUse, fly = fly, askForSupport = askForSupport, gamePick = gamePick,
                     shareBestEffort = shareBestEffort,
                 )
             }

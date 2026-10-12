@@ -94,14 +94,17 @@ fun StatesScreen(slots: StateSlots?, tick: Long) {
             // fits and flatter where it doesn't (a 4:3 screen - the Retroid Pocket Duo Lite's 1280x960 -
             // cut the buttons off). The grid's columns, as GridCells.Adaptive works them out.
             val gap = m.u * 4
-            val cols = ((maxWidth + gap) / (SLOT_MIN_WIDTH + gap)).toInt().coerceAtLeast(1)
+            val natural = ((maxWidth + gap) / (SLOT_MIN_WIDTH + gap)).toInt().coerceAtLeast(1)
+            val cols = maxOf(MIN_SLOT_COLUMNS, natural)
+            // Cards narrower than SAVE + LOAD need at the normal size: the buttons take the smaller text.
+            val buttons = if (cols > natural) small else m
             val frame = m.u * (OptionColors.listLayers.sumOf { it.second } + 2) * 2
             val inner = (maxWidth - gap * (cols - 1)) / cols - frame
             val chrome = frame + m.lineHeight + m.u * 7 + small.lineHeight + maxOf(m.rowHeight, m.lineHeight + m.u * 8) + gap + m.u * 2
             val thumb = minOf(inner * 2f / 3f, maxHeight - chrome).coerceAtLeast(inner * 0.4f)
             LazyVerticalGrid(
                 // Wide enough for SAVE and LOAD side by side (at 150 dp the wide screen fit six and cut them to "S…").
-                columns = GridCells.Adaptive(minSize = SLOT_MIN_WIDTH),
+                columns = GridCells.Fixed(cols),
                 horizontalArrangement = Arrangement.spacedBy(gap),
                 verticalArrangement = Arrangement.spacedBy(gap),
                 contentPadding = PaddingValues(bottom = gap),
@@ -111,7 +114,7 @@ fun StatesScreen(slots: StateSlots?, tick: Long) {
                     SlotCard(
                         slot = slot,
                         isCurrent = slot.index == slots.currentIndex,
-                        m = m, small = small, thumbHeight = thumb,
+                        m = m, small = small, buttons = buttons, thumbHeight = thumb,
                         onLoad = { slots.requestLoad(slot.index); requests++ },
                         onSave = { slots.requestSave(slot.index); requests++ },
                     )
@@ -123,12 +126,17 @@ fun StatesScreen(slots: StateSlots?, tick: Long) {
 
 private val SLOT_MIN_WIDTH = 210.dp
 
+/** At least this many cards a row (the Thor's bottom screen fit two at [SLOT_MIN_WIDTH]; the user wanted three). */
+private const val MIN_SLOT_COLUMNS = 3
+
 @Composable
 private fun SlotCard(
     slot: StateSlots.Slot,
     isCurrent: Boolean,
     m: GbaTextMetrics,
     small: GbaTextMetrics,
+    /** SAVE / LOAD's text: [m], or [small] on a narrow card. */
+    buttons: GbaTextMetrics,
     thumbHeight: Dp,
     onLoad: () -> Unit,
     onSave: () -> Unit,
@@ -200,8 +208,8 @@ private fun SlotCard(
             )
             Spacer(Modifier.height(u * 3))
             Row(horizontalArrangement = Arrangement.spacedBy(u * 3)) {
-                OptionButton(tr("SAVE"), m, onClick = onSave, emphasis = true, modifier = Modifier.weight(1f))
-                OptionButton(tr("LOAD"), m, onClick = onLoad, enabled = slot.present, modifier = Modifier.weight(1f))
+                OptionButton(tr("SAVE"), buttons, onClick = onSave, emphasis = true, modifier = Modifier.weight(1f))
+                OptionButton(tr("LOAD"), buttons, onClick = onLoad, enabled = slot.present, modifier = Modifier.weight(1f))
             }
         }
     }

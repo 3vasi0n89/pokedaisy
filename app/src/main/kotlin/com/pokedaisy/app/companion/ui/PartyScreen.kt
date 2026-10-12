@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.draw.clip
@@ -31,6 +32,7 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
@@ -69,6 +71,8 @@ fun PartyScreen(party: List<MonView>, onMonClick: (MonView) -> Unit) {
  * under the game's cursor (-1 = none), [badge] draws over a filled slot's
  * top-right corner, and [sound] false leaves taps silent for the pane, whose
  * picks press the game's own buttons (the game sounds those itself).
+ * [dimmed] greys a slot out and ignores its taps (the ITEMS tab's pick: a
+ * Pokémon the item won't help).
  */
 @Composable
 fun PartyGrid(
@@ -77,6 +81,7 @@ fun PartyGrid(
     onSlotClick: (MonView) -> Unit,
     modifier: Modifier = Modifier.fillMaxSize(),
     sound: Boolean = true,
+    dimmed: (MonView) -> Boolean = { false },
     badge: @Composable BoxScope.(MonView) -> Unit = {},
 ) {
     val slots: List<MonView?> = (0 until PARTY_MAX).map { party.getOrNull(it) }
@@ -97,8 +102,9 @@ fun PartyGrid(
         content = {
             slots.forEachIndexed { i, mon ->
                 val isSelected = i == selected && mon != null
-                val onClick = { mon?.let(onSlotClick); Unit }
-                Box {
+                val dim = mon != null && dimmed(mon)
+                val onClick = { if (!dim) mon?.let(onSlotClick); Unit }
+                Box(if (dim) Modifier.graphicsLayer { alpha = DIMMED_SLOT_ALPHA } else Modifier) {
                     if (gameStyle != null) {
                         GbaPartySlot(gameStyle, mon, selected = isSelected, onClick = onClick, modifier = Modifier.fillMaxSize(), sound = sound)
                     } else {
@@ -134,9 +140,17 @@ fun PartyGrid(
  */
 private const val WIDE_PARTY_ASPECT = 2.0f
 
-/** A slot's tap: with the companion's click, or silent when the game makes its own sound. */
+/** A [PartyGrid] slot that can't be picked: as faint as a disabled battle button. */
+private const val DIMMED_SLOT_ALPHA = 0.45f
+
+/** A slot's tap: with the companion's click, or silent when the game makes its own sound - unless the game can't be
+ * heard right now ([LocalGameSilent]: FF's STEADY music mutes it). */
 internal fun Modifier.slotClickable(sound: Boolean, enabled: Boolean, onClick: () -> Unit): Modifier =
-    if (sound) soundClickable(enabled = enabled, onClick = onClick) else clickable(enabled = enabled, onClick = onClick)
+    if (sound) soundClickable(enabled = enabled, onClick = onClick) else composed {
+        val click = LocalClickSound.current
+        val gameSilent = LocalGameSilent.current
+        clickable(enabled = enabled) { onClick(); if (gameSilent()) click() }
+    }
 
 /** One slot state's frame colors: [outline] 2px, a 1px [light] inner edge,
  * the upper [fill], the HP [band] below it (FireRed's is the light edge's
@@ -527,6 +541,8 @@ private fun PartySlot(palette: PartyPalette, mon: MonView?, selected: Boolean, o
             mon.iconAsset, size = with(density) { (32 * u).toDp() },
             modifier = Modifier.offset { IntOffset((g.fx - 8 * u).toInt(), (g.fy + iconDy * u).toInt()) },
         )
+        // The held-item marker, where GbaPartySlot puts it: the icon's top-left + (16, 22), moving with it.
+        HeldItemMarker(mon.heldItemId, u, g.fx - 8 * u + 16 * u, g.fy + iconDy * u + 22 * u)
 
         val textWidth = with(density) { (g.fx + g.fw - 4 * u - g.textX).toDp() }
         GbaText(mon.name, text, textShadow, nameM, density.at(g.textX, g.nameMid, nameM).width(textWidth))
@@ -628,5 +644,25 @@ private fun DrawScope.drawPixelBitmap(bitmap: List<String>, palette: Map<Char, C
         line.forEachIndexed { col, ch ->
             palette[ch]?.let { drawRect(it, Offset(x + col * cell, y + row * cell), Size(cell, cell)) }
         }
+    }
+}
+
+/** The party menu's held-item marker (RomArt.HOLD_ICONS, from the ROM): an item, or Mail's, [u] screen px per GBA px
+ * with its top-left at ([x], [y]). Nothing while no ROM has supplied the art, or for [itemId] 0. */
+@Composable
+internal fun HeldItemMarker(itemId: Int, u: Int, x: Float, y: Float) {
+    if (itemId == 0) return
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val gen = rememberArtGeneration()
+    val icons = androidx.compose.runtime.remember(gen) {
+        GameArt.get(context, RomArt.HOLD_ICONS)?.asImageBitmap()
+    } ?: return
+    val mail = itemId in com.pokedaisy.app.companion.data.MAIL_ITEMS
+    Canvas(Modifier.fillMaxSize()) {
+        drawImage(
+            icons, srcOffset = IntOffset(0, if (mail) 8 else 0), srcSize = androidx.compose.ui.unit.IntSize(8, 8),
+            dstOffset = IntOffset(x.toInt(), y.toInt()), dstSize = androidx.compose.ui.unit.IntSize(8 * u, 8 * u),
+            filterQuality = androidx.compose.ui.graphics.FilterQuality.None,
+        )
     }
 }

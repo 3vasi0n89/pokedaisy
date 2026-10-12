@@ -23,6 +23,11 @@ interface CompanionSettings {
     val ffMaxSpeed: Float
     fun setFfMaxSpeed(v: Float)
 
+    /** GAME SPEED: the running game's speed step (1x normal; slower or faster until changed), kept per game. */
+    val gameSpeed: Float get() = 1f
+    val gameSpeeds: List<Float> get() = listOf(0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f)
+    fun setGameSpeed(v: Float) {}
+
     /** Whether fast-forward is currently toggled on (independent of the hold trigger). */
     val ffToggled: Boolean
     fun setFfToggled(on: Boolean)
@@ -96,6 +101,10 @@ interface CompanionSettings {
     val showFoeIvs: Boolean get() = false
     fun setShowFoeIvs(on: Boolean) {}
 
+    /** ONE-TAP MOVES - see [Prefs.oneTapMoves]. */
+    val oneTapMoves: Boolean get() = false
+    fun setOneTapMoves(on: Boolean) {}
+
     /** Whether battle INFO shows FOE DETAILS - see [Prefs.foeDetails]. */
     val foeDetails: Boolean get() = false
     fun setFoeDetails(on: Boolean) {}
@@ -123,10 +132,21 @@ interface CompanionSettings {
     val showPerformance: Boolean get() = false
     fun setShowPerformance(on: Boolean) {}
 
-    /** Whether the game is stretched to fill the top screen instead of kept at
-     * 3:2 - see [Prefs.stretchGame]. */
-    val stretchGame: Boolean
-    fun setStretchGame(on: Boolean)
+    /** How the game sits on the top screen: 3:2, stretched or WIDE - see [Prefs.gameAspect]. */
+    val gameAspect: GameAspect
+    fun setGameAspect(aspect: GameAspect)
+
+    /** Whether WIDE knows the running game (WideScreen.gameFor); it shows as ORIGINAL otherwise. */
+    val wideSupported: Boolean get() = false
+
+    /** EXPAND's AUTO ZOOM IN - see [com.pokedaisy.app.Prefs.expandZoomOnText]. */
+    val expandZoomOnText: Boolean get() = true
+    fun setExpandZoomOnText(on: Boolean) {}
+
+    /** EXPAND's one-time offer in a game it knows, while EXPAND is off ([com.pokedaisy.app.Prefs.expandGameOfferSeen]):
+     * true while it's up (Compose state). Shown once ever - the setting is global. */
+    val expandOffer: Boolean get() = false
+    fun answerExpandOffer(turnOn: Boolean) {}
 
     /** SCREEN > OVERLAY's choices, as (key, label) - see [com.pokedaisy.app.Prefs.overlay]; empty = no row (no game).
      * Imported in the top screen's Settings (a file picker); picked here, live. */
@@ -223,6 +243,19 @@ enum class FfMode(val label: String) {
     NORMAL(tk("NORMAL")),
 }
 
+
+/** SETTINGS > ASPECT: how the game sits on its screen, in the order the pickers list them.
+ * [label] stays English; the rows translate it. */
+enum class GameAspect(val label: String) {
+    /** The GBA's 3:2, bars at the sides. */
+    ORIGINAL(tk("ORIGINAL")),
+    /** The game stretched to fill the screen. */
+    STRETCH(tk("STRETCH")),
+    /** EXPAND (WIDE in the code and prefs): the overworld drawn past the GBA's edges - beside the game on a wide
+     * screen, above and below it on a phone upright - rebuilt from the game's own memory (WideScreen, pk_wide.c);
+     * ZOOM and the look-around on top (WideCamera). The games it doesn't know yet show as ORIGINAL. */
+    WIDE(tk("EXPAND")),
+}
 
 /** SETTINGS > SHADERS > FILTER: the screen effect drawn over the game (EmulatorView, ScreenShaders),
  * in the order the selector lists them. [label] stays English; the rows translate it. */

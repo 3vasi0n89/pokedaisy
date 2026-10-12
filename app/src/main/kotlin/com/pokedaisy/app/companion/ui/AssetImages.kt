@@ -68,7 +68,7 @@ fun rememberArtGeneration(): Int = RomArt.updates.collectAsState().value
  * vertically (see docs/telemetry.md). Crop to just the first frame, matching
  * the web UI's background-position trick.
  */
-private fun cropToFirstFrame(bitmap: Bitmap): Bitmap {
+internal fun cropToFirstFrame(bitmap: Bitmap): Bitmap {
     val frameHeight = bitmap.width // icon sheets are square-frame, height = 2x width
     if (bitmap.height <= frameHeight) return bitmap
     return Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, frameHeight)

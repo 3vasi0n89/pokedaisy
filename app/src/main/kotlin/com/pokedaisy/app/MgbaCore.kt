@@ -41,12 +41,37 @@ object MgbaCore {
     /** Resample the core's audio to [rate] samples per emulated second (default [pkSampleRate]). Emu thread. */
     external fun pkSetAudioRate(rate: Double)
 
-    /** Runs the game's Thumb function [fn] (r0 = [a0], r1 = [a1]) to its return on the player's
+    /** Runs the game's Thumb function [fn] (r0-r3 = [a0]-[a3]) to its return on the player's
      * core and gives back its r0, or -1 if it never returned. Emu thread, between frames. */
-    external fun pkCall(fn: Long, a0: Int, a1: Int): Long
+    external fun pkCall(fn: Long, a0: Int, a1: Int, a2: Int, a3: Int): Long
 
     external fun pkSetKeys(mask: Int)
     external fun pkRunFrame()
+
+    /** WIDE ([WideScreen]): draw the game whose ROM has this CRC32 ([WideScreen.gameFor]; 0 = off). Emu thread. */
+    external fun pkWideConfigure(crc: Int)
+    /** WIDE: whether pk_wide.c has tables for the ROM with this CRC32 (pk_wide_games.h). Any thread. */
+    external fun pkWideKnows(crc: Int): Boolean
+    /** WIDE: the window to draw around the frame from the next frame on ([WideCamera]), in the frame's pixels
+     * (its top-left 0, 0); [w] 0 = none. Any thread. */
+    external fun pkWideSetView(x: Int, y: Int, w: Int, h: Int)
+    /** Direct buffer over the wide frame (room for the largest window); null for a Game Boy core. */
+    external fun pkWideBuffer(): ByteBuffer?
+    /** The last frame's window ([pkWideBuffer] holds [pkWideWidth] x [pkWideHeight]), or 0 if it wasn't drawn wide. Emu thread. */
+    external fun pkWideWidth(): Int
+    external fun pkWideHeight(): Int
+    /** WIDE: draw the next frame's window, or (false) only keep its RAM - a frame the screen won't show. Emu thread. */
+    external fun pkWideSetDraw(draw: Boolean)
+    /** WIDE: the last frame was only noted ([pkWideSetDraw] false): nothing new to put on screen. Emu thread. */
+    external fun pkWideSkipped(): Boolean
+    /** WIDE: the signal that made it switch itself off for this game (a fault while drawing, caught: the game goes on
+     * with the plain frame), or 0. */
+    external fun pkWideFault(): Int
+    /** ZOOM: whether the last frame wants the game seen close up (a battle, a menu, a text box). Emu thread. */
+    external fun pkWideWantsClose(): Boolean
+    /** ZOOM: what the last frame is ([WideCamera.SCENE_FIELD] ... [WideCamera.SCENE_OFF]), known a frame early so the
+     * pull-in starts before anything shows (a battle's flashes, a text box). Emu thread. */
+    external fun pkWideScene(): Int
 
     /** REWIND: keep [entries] states, one every 2 frames (0 = off, its memory freed). Emu thread. */
     external fun pkSetRewind(entries: Int)
@@ -68,6 +93,9 @@ object MgbaCore {
 
     /** Reads [len] bytes of emulated bus memory from GBA address [addr]. */
     external fun pkReadBytes(addr: Long, len: Int): ByteArray?
+
+    /** Writes [bytes] at GBA address [addr], EWRAM / IWRAM only (false otherwise). Emu thread, between frames. */
+    external fun pkWriteBytes(addr: Long, bytes: ByteArray): Boolean
 
     /** GBA address of the first occurrence of [magic] (4 bytes) in IWRAM/EWRAM, or -1. */
     external fun pkFindMagic(magic: ByteArray): Long

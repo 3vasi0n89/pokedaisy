@@ -6,4 +6,7 @@ object Screens {
     fun secondAspect(context: android.content.Context): Float? = 1240f / 1080f
     /** The preview is the main display: no options needed. */
     fun mainDisplayLaunch(activity: Any): android.os.Bundle? = null
+    fun isOnMainDisplay(activity: Any) = true
+    fun reopenOnMainDisplay(activity: Any) = false
+    fun bringToMainDisplay(activity: Any) {}
 }

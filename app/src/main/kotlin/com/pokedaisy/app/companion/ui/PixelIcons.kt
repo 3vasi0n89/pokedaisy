@@ -149,6 +149,45 @@ object PixelIcons {
         "...11....",
     )
 
+    /** A five-pointed star: a favorite (the ITEMS tab's starred items). Cap-height of the pixel font. */
+    val star = listOf(
+        "....1....",
+        "...111...",
+        "...111...",
+        "111111111",
+        ".1111111.",
+        "..11111..",
+        "..11111..",
+        ".111.111.",
+        ".11...11.",
+    )
+
+    /** A Poké Ball, its top filled and its bottom an outline: a bag item the companion can USE / GIVE
+     * (the ITEMS tab's row mark - for a Pokémon). Round, so it never reads as the favorites' [star];
+     * cap-height of the pixel font like it. */
+    val itemAction = listOf(
+        "..11111..",
+        ".1111111.",
+        "111111111",
+        "111...111",
+        "1..1.1..1",
+        "1..111..1",
+        "1.......1",
+        ".1.....1.",
+        "..11111..",
+    )
+
+    /** A tick: something the companion did in the game went through (USE / GIVE). Cap-height like [star]. */
+    val check = listOf(
+        "........1",
+        ".......11",
+        "......11.",
+        "1....11..",
+        "11..11...",
+        ".1111....",
+        "..11.....",
+    )
+
     /** A trophy cup, for [PixelArt]: '1' the cup, '2' its shading and base. A badge not loaded (yet). */
     val trophy = listOf(
         "111111111111",
@@ -312,6 +351,37 @@ object PixelIcons {
         "....11....11....",
         "....11....11....",
     ) + lockBody()
+
+    /** An open eye: a password field's SHOW (what's typed is hidden). */
+    val eyeOpen = listOf(
+        "................",
+        "................",
+        "................",
+        ".....111111.....",
+        "...11......11...",
+        "..1....11....1..",
+        ".1....1111....1.",
+        "1.....1111.....1",
+        ".1....1111....1.",
+        "..1....11....1..",
+        "...11......11...",
+        ".....111111.....",
+        "................",
+        "................",
+        "................",
+        "................",
+    )
+
+    /** [eyeOpen] struck through (a clear pixel either side of the stroke): HIDE (what's typed is showing). */
+    val eyeClosed = eyeOpen.mapIndexed { y, row ->
+        row.mapIndexed { x, c ->
+            when (x) {
+                14 - y -> '1'
+                13 - y, 15 - y -> '.'
+                else -> c
+            }
+        }.joinToString("")
+    }
 
     /** [lockClosed] with the shackle up and open: the side panel over the game. */
     val lockOpen = listOf(

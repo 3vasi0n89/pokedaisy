@@ -24,6 +24,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
+import android.view.KeyEvent
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -59,6 +60,7 @@ import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.automirrored.filled.ViewList
 import androidx.compose.material.icons.filled.Add
@@ -76,6 +78,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOff
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Save
@@ -213,6 +216,7 @@ class LibraryActivity : ComponentActivity() {
         unsupportedRoms = RomFolder.unsupported(this)
         partialRoms = RomFolder.partial(this)
         revision++
+        if (launcherOn) refreshLauncherGames()
     }
 
     /** ROMs the second screen can't read, per [RomFolder]'s cache: their NOT SUPPORTED tag (internal for ui-preview). */
@@ -223,6 +227,8 @@ class LibraryActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Opened on the bottom screen: start over on the top one, so the app uses both (the launcher's media below).
+        if (Screens.reopenOnMainDisplay(this)) return
         RomFolder.useBestEffortStore(this)
         BestEffortShare.flush(this)   // a shared best-effort match that couldn't go out last time
         prefs = Prefs(this)
@@ -249,12 +255,25 @@ class LibraryActivity : ComponentActivity() {
             return
         }
 
+        // The device's marker can change between visits (FeatureFlags): read before setup builds its steps.
+        ScreenScraperClient.enabled = FeatureFlags.screenScraper(this)
+        sort = LibrarySort.of(prefs.librarySort)
+        launcher.swapped = prefs.launcherSwapped
         if (intent?.action != Intent.ACTION_VIEW && !prefs.setupDone && listRoms().isEmpty()) startSetup()
+        // The update's news, once: ScreenScraper, to everyone not signed in (setup has its own step).
+        // Only once ScreenScraper is on (FeatureFlags): until then nobody is asked, so it still comes when it ships.
+        ssIntro = ScreenScraperClient.enabled && !prefs.screenScraperAsked && prefs.screenScraperAccount == null
+        // EXPAND's introduction, once: to everyone not already on it (first-time setup goes first).
+        expandIntro = !prefs.expandIntroSeen && prefs.gameAspect != com.pokedaisy.app.companion.GameAspect.WIDE
 
         setContent {
             QolTheme {
                 val s = setup
-                if (s == null) LibraryScreen() else SetupHost(s)
+                when {
+                    s != null -> SetupHost(s)
+                    launcherOn -> LauncherMainWindow()
+                    else -> LibraryScreen()
+                }
             }
         }
 
@@ -266,8 +285,20 @@ class LibraryActivity : ComponentActivity() {
         if (savedInstanceState == null && !BuildConfig.DEBUG) updates.check()
     }
 
+    override fun onStart() {
+        super.onStart()
+        syncLauncher()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        secondScreen.dismiss()
+    }
+
     override fun onResume() {
         super.onResume()
+        // Brought back on the bottom screen (its icon tapped there while open): over to the top one again.
+        if (Screens.reopenOnMainDisplay(this)) return
         com.pokedaisy.app.companion.ui.OptionColors.inGame = false
         com.pokedaisy.app.companion.i18n.L10n.apply(prefs.appLanguage, null)
         unsupportedRoms = RomFolder.unsupported(this)
@@ -293,19 +324,25 @@ class LibraryActivity : ComponentActivity() {
         rescanRomsFolder()
         identifyGames()
         updates.onResume()
+        // The manual (Settings > HELP), fetched in the background so it's there offline later.
+        if (com.pokedaisy.app.companion.ui.DocsSources.override == null) DocsStore.prefetch(this)
         bump()   // refresh list / PLAYING marker after returning
+        launcher.mediaChanged()   // Settings may have fetched some
+        syncLauncher()
     }
+
+    /** The library's order, SORT BY's picker, and the game RENAME / DELETE are open for (both views). */
+    private var sort by mutableStateOf(LibrarySort.NAME)
+    private var pickingSort by mutableStateOf(false)
+    private var renaming by mutableStateOf<File?>(null)
+    private var deleting by mutableStateOf<File?>(null)
 
     @Composable
     private fun LibraryScreen() {
         @Suppress("UNUSED_EXPRESSION") revision
         val m = rememberGbaTextMetrics()
         val small = rememberGbaTextMetrics(textScale = 1f)
-        var sort by remember { mutableStateOf(LibrarySort.of(prefs.librarySort)) }
-        var pickingSort by remember { mutableStateOf(false) }
         val roms = remember(revision, sort) { sortLibrary(this@LibraryActivity, prefs, listRoms(), sort) }
-        var renaming by remember { mutableStateOf<File?>(null) }
-        var deleting by remember { mutableStateOf<File?>(null) }
         var gridView by remember { mutableStateOf(prefs.libraryViewMode == 1) }
         val recentRoms = remember(revision, roms) {
             prefs.recentRomPaths().mapNotNull { path -> roms.find { it.absolutePath == path } }.take(3)
@@ -328,6 +365,10 @@ class LibraryActivity : ComponentActivity() {
                     }
                     HeaderIcon(Icons.Filled.Add, tr("Import ROM"), m) { importRom.launch(arrayOf("*/*")) }
                     HeaderIcon(Icons.Filled.Refresh, tr("Refresh"), m) { refreshLibrary() }
+                    // The manual (Settings > HELP), on its own.
+                    HeaderIcon(Icons.AutoMirrored.Filled.HelpOutline, tr("Help"), m) {
+                        startActivity(Intent(this@LibraryActivity, SettingsActivity::class.java).putExtra(SettingsActivity.EXTRA_SCREEN, SettingsActivity.SCREEN_HELP))
+                    }
                     HeaderIcon(Icons.Filled.Settings, tr("Settings"), m) {
                         startActivity(Intent(this@LibraryActivity, SettingsActivity::class.java))
                     }
@@ -364,10 +405,18 @@ class LibraryActivity : ComponentActivity() {
                 }
             }
 
+            LibraryDialogs(m, small)
+        }
+    }
+
+    /** Every window that opens over the library (the classic view or the launcher's main screen). */
+    @Composable
+    private fun LibraryDialogs(m: GbaTextMetrics, small: GbaTextMetrics) {
+        Box(Modifier.fillMaxSize()) {
             if (pickingSort) {
                 OptionSelector(
                     tr("SORT BY"), LibrarySort.entries.toList(), sort, { tr(it.label) }, m,
-                    onPick = { sort = it; prefs.librarySort = it.id; pickingSort = false },
+                    onPick = { sort = it; prefs.librarySort = it.id; pickingSort = false; refreshLauncherGames() },
                     onDismiss = { pickingSort = false },
                 )
             }
@@ -389,8 +438,11 @@ class LibraryActivity : ComponentActivity() {
                 CoverPicker(
                     rom = rom,
                     displayName = romLabel(rom),
-                    source = coverSourceOverride ?: LibraryCoverSource(prefs.steamGridDbApiKey, prefs.raWebApiKey)
-                        .takeIf { prefs.steamGridDbApiKey != null || prefs.raWebApiKey != null },
+                    source = coverSourceOverride ?: LibraryCoverSource(
+                        prefs.steamGridDbApiKey, prefs.raWebApiKey,
+                        GameMedia.root(this@LibraryActivity).takeIf { ScreenScraperClient.enabled },
+                    )
+                        .takeIf { prefs.steamGridDbApiKey != null || prefs.raWebApiKey != null || prefs.screenScraperAccount != null },
                     saving = coverSaving,
                     error = coverError,
                     m = m, small = small,
@@ -455,6 +507,19 @@ class LibraryActivity : ComponentActivity() {
                 )
             }
 
+            // After the crash-reports question, one at a time.
+            if (expandIntro && setup == null && !crashAsk && updates.release == null) {
+                com.pokedaisy.app.companion.ui.ExpandIntro(
+                    m, small,
+                    onTurnOn = {
+                        prefs.gameAspect = com.pokedaisy.app.companion.GameAspect.WIDE
+                        prefs.expandIntroSeen = true
+                        expandIntro = false
+                    },
+                    onNotNow = { prefs.expandIntroSeen = true; expandIntro = false },
+                )
+            }
+
             backupPick?.let { b ->
                 OptionSelector(
                     tr("RESTORE BACKUP"), b.files.indices.toList(), -1, { backupLabel(b.files[it]) }, m,
@@ -505,10 +570,22 @@ class LibraryActivity : ComponentActivity() {
                         prefs.setRomCoverManual(rom, false)
                         prefs.setRomCoverSource(rom, null)
                         coverFile(rom).delete()
+                        GameMedia.forget(GameMedia.root(this@LibraryActivity), rom)
                         if (prefs.lastRomPath == rom.absolutePath) prefs.lastRomPath = null
                         deleting = null
                         bump()
                     },
+                )
+            }
+
+            // The update's news, after the other one-time windows: ScreenScraper's game media.
+            if (ssIntroShown) {
+                LaunchedEffect(Unit) { prefs.screenScraperAsked = true }
+                ScreenScraperIntro(
+                    ssLogin, mediaSync, m, small,
+                    onSignIn = { ssLogin.signIn(prefs, { r -> runOnUiThread { r() } }) { startMediaSync() } },
+                    onSignUp = { openUrl(ScreenScraperClient.SIGN_UP_PAGE) },
+                    onClose = { ssIntro = false },
                 )
             }
         }
@@ -696,6 +773,9 @@ class LibraryActivity : ComponentActivity() {
     /** The library screen's size, for a game's menu to pick one or two columns. */
     private var screenSize by mutableStateOf(DpSize.Zero)
 
+    /** One entry of a game's menu: the classic view's dropdown and the launcher's B. */
+    private class RomMenuItem(val label: String, val icon: ImageVector, val danger: Boolean = false, val onClick: () -> Unit)
+
     @Composable
     private fun RomOptionsMenu(
         expanded: Boolean,
@@ -705,24 +785,36 @@ class LibraryActivity : ComponentActivity() {
         onRename: () -> Unit,
         onDelete: () -> Unit,
     ) {
-        class Item(val label: String, val icon: ImageVector, val danger: Boolean = false, val onClick: () -> Unit)
-        val items = buildList {
+        val items = romMenuItems(rom, onRename, onDelete)
+        RomMenuDropdown(expanded, onDismiss, items, m)
+    }
+
+    /** What a game's menu offers, in order (DELETE last). */
+    private fun romMenuItems(rom: File, onRename: () -> Unit, onDelete: () -> Unit): List<RomMenuItem> {
+        return buildList {
             if (rom.absolutePath in prefs.favoriteRoms) {
-                add(Item(tr("UNFAVORITE"), Icons.Filled.StarBorder) { setFavorite(rom, false) })
+                add(RomMenuItem(tr("UNFAVORITE"), Icons.Filled.StarBorder) { setFavorite(rom, false) })
             } else {
-                add(Item(tr("FAVORITE"), Icons.Filled.Star) { setFavorite(rom, true) })
+                add(RomMenuItem(tr("FAVORITE"), Icons.Filled.Star) { setFavorite(rom, true) })
             }
-            add(Item(tr("INFO"), Icons.Filled.Info) { showInfo(rom) })
-            add(Item(tr("RENAME"), Icons.Filled.Edit, onClick = onRename))
-            add(Item(tr("REPLACE COVER"), Icons.Filled.Search) { coverError = null; coverPickerFor = rom })
-            add(Item(tr("SET COVER"), Icons.Filled.Image) { pendingCoverTarget = rom; pickCoverImage.launch("image/*") })
+            add(RomMenuItem(tr("INFO"), Icons.Filled.Info) { showInfo(rom) })
+            add(RomMenuItem(tr("RENAME"), Icons.Filled.Edit, onClick = onRename))
+            add(RomMenuItem(tr("REPLACE COVER"), Icons.Filled.Search) { coverError = null; coverPickerFor = rom })
+            add(RomMenuItem(tr("SET COVER"), Icons.Filled.Image) { pendingCoverTarget = rom; pickCoverImage.launch("image/*") })
             if (prefs.romCoverManual(rom)) {
-                add(Item(tr("RESET COVER"), Icons.Filled.Refresh) { resetCover(rom) })
+                add(RomMenuItem(tr("RESET COVER"), Icons.Filled.Refresh) { resetCover(rom) })
             }
-            add(Item(tr("LOAD SAVE"), Icons.Filled.FileOpen) { saveTarget = rom; pickSaveFile.launch(arrayOf("*/*")) })
-            add(Item(tr("RESTORE BACKUP"), Icons.Filled.History) { showBackups(rom) })
+            add(RomMenuItem(tr("LOAD SAVE"), Icons.Filled.FileOpen) { saveTarget = rom; pickSaveFile.launch(arrayOf("*/*")) })
+            add(RomMenuItem(tr("RESTORE BACKUP"), Icons.Filled.History) { showBackups(rom) })
+            // The save's party and PC boxes, read (and edited) from the file; Game Boy saves aren't Gen 3's. Behind a
+            // feature flag until it's been tried on real saves (FeatureFlags).
+            if (FeatureFlags.saveEditor(this@LibraryActivity) && rom.extension.lowercase() !in setOf("gb", "gbc")) {
+                add(RomMenuItem(tr("PC BOXES"), Icons.Filled.Inventory2) {
+                    startActivity(Intent(this@LibraryActivity, SaveEditorActivity::class.java).putExtra(SaveEditorActivity.EXTRA_ROM, rom.absolutePath))
+                })
+            }
             // This game's saves in a folder of its own (another emulator's), or back to the usual search.
-            add(Item(tr("SAVE FOLDER"), Icons.Filled.Folder) {
+            add(RomMenuItem(tr("SAVE FOLDER"), Icons.Filled.Folder) {
                 if (!StorageAccess.hasAllFilesAccess(this@LibraryActivity)) {
                     StorageAccess.requestAllFilesAccess(this@LibraryActivity)
                     Toast.makeText(this@LibraryActivity, tr("Grant \"All files access\", then tap the button again"), Toast.LENGTH_LONG).show()
@@ -732,21 +824,24 @@ class LibraryActivity : ComponentActivity() {
                 }
             })
             if (prefs.romSaveDir(rom) != null) {
-                add(Item(tr("DEFAULT SAVE FOLDER"), Icons.Filled.FolderOff) { setGameSaveFolder(rom, null) })
+                add(RomMenuItem(tr("DEFAULT SAVE FOLDER"), Icons.Filled.FolderOff) { setGameSaveFolder(rom, null) })
             }
             // The game's cheats, on Settings' CHEATS page.
-            add(Item(tr("CHEATS"), Icons.Filled.Code) {
+            add(RomMenuItem(tr("CHEATS"), Icons.Filled.Code) {
                 startActivity(Intent(this@LibraryActivity, SettingsActivity::class.java).putExtra(SettingsActivity.EXTRA_CHEATS_ROM, rom.absolutePath))
             })
-            add(Item(tr("HIDE"), Icons.Filled.VisibilityOff) { hideRom(rom) })
+            add(RomMenuItem(tr("HIDE"), Icons.Filled.VisibilityOff) { hideRom(rom) })
             // A linked folder's ROM is the player's own file: it can be hidden, never deleted.
             if (!RomFolder.isLinked(prefs, rom)) {
-                add(Item(tr("DELETE"), Icons.Filled.Delete, danger = true, onClick = onDelete))
+                add(RomMenuItem(tr("DELETE"), Icons.Filled.Delete, danger = true, onClick = onDelete))
             }
         }
+    }
 
+    @Composable
+    private fun RomMenuDropdown(expanded: Boolean, onDismiss: () -> Unit, items: List<RomMenuItem>, m: GbaTextMetrics) {
         @Composable
-        fun MenuItem(item: Item) {
+        fun MenuItem(item: RomMenuItem) {
             val fg = if (item.danger) OptionColors.value else OptionColors.label
             DropdownMenuItem(
                 text = { GbaText(item.label, fg, if (item.danger) OptionColors.valueShadow else OptionColors.labelShadow, m) },
@@ -1027,6 +1122,9 @@ class LibraryActivity : ComponentActivity() {
     private fun coverFile(rom: File): File = File(coversDir, "${rom.name}.png")
 
     private fun play(rom: File) {
+        // The game puts its own window on the second screen.
+        secondScreen.dismiss()
+        launcher.menu = null
         prefs.lastRomPath = rom.absolutePath
         prefs.pushRecentRom(rom.absolutePath)
         // Opened on the bottom screen, the game still goes to the top one (Screens.mainDisplayLaunch).
@@ -1042,15 +1140,16 @@ class LibraryActivity : ComponentActivity() {
      * SettingsActivity's Cover Art screen). Call only from a background thread
      * — never the UI thread (network I/O), never inside a Compose recomposition
      * (the ROM's SHA1 / MD5 are whole-file reads). */
-    private fun generateAutoCoverBlocking(rom: File): Boolean =
-        CoverArtSync.fetchOne(rom, coverFile(rom), prefs) ==
+    private fun generateAutoCoverBlocking(rom: File, ss: CoverArtSync.ScreenScraperPass = CoverArtSync.ScreenScraperPass.of(prefs)): Boolean =
+        CoverArtSync.fetchOne(rom, coverFile(rom), prefs, ss = ss, mediaRoot = GameMedia.root(this), label = romLabel(rom)) ==
             CoverArtSync.Status.FETCHED
 
     /** Fire-and-forget wrapper for a single ROM — used right after import or
      * a manual Reset Cover, both triggered from the UI thread. */
     private fun generateAutoCoverAsync(rom: File) {
         Thread({
-            if (generateAutoCoverBlocking(rom)) runOnUiThread { bump() }
+            generateAutoCoverBlocking(rom)
+            runOnUiThread { launcher.mediaChanged(); bump() }
         }, "pokedaisy-cover-fetch").apply { isDaemon = true; start() }
     }
 
@@ -1061,8 +1160,13 @@ class LibraryActivity : ComponentActivity() {
      * ROMs in a row is real work (see generateAutoCoverBlocking's doc). */
     private fun backfillCovers() {
         Thread({
-            val any = listRoms().map { generateAutoCoverBlocking(it) }.any { it }
-            if (any) runOnUiThread { bump() }
+            val ss = CoverArtSync.ScreenScraperPass.of(prefs)
+            val any = listRoms().map { generateAutoCoverBlocking(it, ss) }.any { it }
+            runOnUiThread {
+                // ScreenScraper media may have landed without a new cover.
+                if (prefs.screenScraperAccount != null) launcher.mediaChanged()
+                if (any || prefs.screenScraperAccount != null) bump()
+            }
         }, "pokedaisy-cover-backfill-scan").apply { isDaemon = true; start() }
     }
 
@@ -1071,6 +1175,8 @@ class LibraryActivity : ComponentActivity() {
     /** Canned picker data for the ui-preview harness (no network there). */
     internal var coverSourceOverride: CoverSource? = null
     private var coverSaving by mutableStateOf(false)
+    /** EXPAND's one-time introduction is up ([com.pokedaisy.app.companion.ui.ExpandIntro]). */
+    private var expandIntro by mutableStateOf(false)
     private var coverError by mutableStateOf<String?>(null)
 
     /** Downloads the picked icon over [rom]'s cover (only swapped once it has
@@ -1080,7 +1186,12 @@ class LibraryActivity : ComponentActivity() {
         coverSaving = true
         coverError = null
         Thread({
-            val ok = SteamGridDbClient.download(icon.url, coverFile(rom))
+            // ScreenScraper's tile is a file already here (its path); the others are downloads.
+            val ok = if (icon.url.startsWith("/")) {
+                runCatching { File(icon.url).copyTo(coverFile(rom), overwrite = true) }.isSuccess
+            } else {
+                SteamGridDbClient.download(icon.url, coverFile(rom))
+            }
             runOnUiThread {
                 coverSaving = false
                 if (ok) {
@@ -1290,6 +1401,304 @@ class LibraryActivity : ComponentActivity() {
         bump()
     }
 
+
+    // ---- the dual-screen launcher ---------------------------------------------
+
+    /** Both screens' launcher state (internal for ui-preview). */
+    internal val launcher = LauncherState()
+
+    /** With a second screen (and Settings > DUAL-SCREEN LAUNCHER on): the launcher, not the classic view. */
+    internal var launcherOn by mutableStateOf(false)
+
+    /** The second screen's window: whichever of the list / media the main screen isn't showing. */
+    private val secondScreen by lazy { LauncherSecondScreen(this) { LauncherSecondWindow() } }
+
+    /** The main window's coroutine scope - X's animation needs its frame clock. */
+    private var launcherScope: kotlinx.coroutines.CoroutineScope? = null
+
+    /** Turns the launcher on or off by the displays and the setting, showing / hiding the second screen. */
+    private fun syncLauncher() {
+        // Only from the main display: on the second one the "other" screen would be this same one.
+        val want = prefs.dualScreenLauncher && setup == null && Screens.hasSecond(this) && Screens.isOnMainDisplay(this)
+        val was = launcherOn
+        launcherOn = want && secondScreen.show()
+        if (!launcherOn) secondScreen.dismiss()
+        if (launcherOn && !was) refreshLauncherGames()
+    }
+
+    /** The launcher's games: the library in its order (favorites first), the last played selected at first. */
+    private fun refreshLauncherGames() {
+        launcher.setGames(sortLibrary(this, prefs, listRoms(), sort), prefer = prefs.lastRomPath)
+    }
+
+    /** Every window over the main screen (pass keys to them, not the launcher). */
+    private val libraryDialogOpen
+        get() = pickingSort || renaming != null || deleting != null || gameInfo != null || coverPickerFor != null ||
+            pendingImport != null || saveLoad != null || backupPick != null || updates.release != null || crashAsk ||
+            (expandIntro && !crashAsk) || ssIntroShown
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (launcherOn && setup == null && !libraryDialogOpen && launcherKey(event)) return true
+        return super.dispatchKeyEvent(event)
+    }
+
+    /** The launcher's controls: the D-pad walks the list, A opens the game, B its options, X swaps the
+     * screens, Y opens Settings (L / R and LEFT / RIGHT a page, SELECT the sort). True = handled. */
+    private fun launcherKey(event: KeyEvent): Boolean {
+        val down = event.action == KeyEvent.ACTION_DOWN
+        val first = down && event.repeatCount == 0
+        val code = event.keyCode
+        launcher.menu?.let { menu ->
+            when (code) {
+                KeyEvent.KEYCODE_DPAD_UP -> if (down) menu.move(-1)
+                KeyEvent.KEYCODE_DPAD_DOWN -> if (down) menu.move(1)
+                KeyEvent.KEYCODE_DPAD_LEFT -> if (down) menu.moveColumn(-1)
+                KeyEvent.KEYCODE_DPAD_RIGHT -> if (down) menu.moveColumn(1)
+                KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> if (first) {
+                    launcher.menu = null
+                    menu.items.getOrNull(menu.cursor)?.onClick?.invoke()
+                }
+                KeyEvent.KEYCODE_BUTTON_B, KeyEvent.KEYCODE_BACK, KeyEvent.KEYCODE_ESCAPE -> if (first) launcher.menu = null
+                else -> return code in LAUNCHER_KEYS
+            }
+            return true
+        }
+        when (code) {
+            KeyEvent.KEYCODE_DPAD_UP -> if (down) launcher.move(-1)
+            KeyEvent.KEYCODE_DPAD_DOWN -> if (down) launcher.move(1)
+            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_BUTTON_L1 -> if (down) launcher.move(-LAUNCHER_PAGE)
+            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_BUTTON_R1 -> if (down) launcher.move(LAUNCHER_PAGE)
+            KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_BUTTON_START ->
+                if (first) launcher.current?.let(::play)
+            KeyEvent.KEYCODE_BUTTON_B -> if (first) openLauncherMenu()
+            KeyEvent.KEYCODE_BUTTON_X -> if (first) swapLauncher()
+            KeyEvent.KEYCODE_BUTTON_Y -> if (first) openSettings()
+            KeyEvent.KEYCODE_BUTTON_SELECT -> if (first) pickingSort = true
+            else -> return false
+        }
+        return true
+    }
+
+    private fun openLauncherMenu() {
+        val rom = launcher.current ?: return
+        launcher.menu = LauncherMenu(
+            romLabel(rom),
+            romMenuItems(rom, onRename = { renaming = rom }, onDelete = { deleting = rom })
+                .map { LauncherMenu.Item(it.label, it.danger, it.onClick) },
+        )
+    }
+
+    /** X: the list and the media trade screens, animated on both. */
+    private fun swapLauncher() {
+        launcherScope?.launch { launcher.swap { prefs.launcherSwapped = it } }
+    }
+
+    private fun openSettings() {
+        startActivity(Intent(this, SettingsActivity::class.java))
+    }
+
+    /** The launcher on the activity's (main) screen: the list, or the media after a swap, under the library's windows. */
+    @Composable
+    private fun LauncherMainWindow() {
+        val m = rememberGbaTextMetrics()
+        val small = rememberGbaTextMetrics(textScale = 1f)
+        val scope = rememberCoroutineScope()
+        androidx.compose.runtime.SideEffect { launcherScope = scope }
+        Box(Modifier.fillMaxSize().background(OptionColors.imageWell)) {
+            Box(Modifier.fillMaxSize().launcherSwapMotion(launcher, onMain = true)) {
+                if (launcher.swapped) LauncherMedia(m, small) else LauncherList(m, small)
+            }
+            LibraryDialogs(m, small)
+        }
+    }
+
+    /** The second screen's half (the media, or the list after a swap). */
+    @Composable
+    internal fun LauncherSecondWindow() {
+        val m = rememberGbaTextMetrics()
+        val small = rememberGbaTextMetrics(textScale = 1f)
+        Box(Modifier.fillMaxSize().background(OptionColors.imageWell)) {
+            Box(Modifier.fillMaxSize().launcherSwapMotion(launcher, onMain = false)) {
+                if (launcher.swapped) LauncherList(m, small) else LauncherMedia(m, small)
+            }
+        }
+    }
+
+    @Composable
+    private fun LauncherMedia(m: GbaTextMetrics, small: GbaTextMetrics) {
+        LauncherMediaPane(
+            launcher, GameMedia.root(this), ::coverFile, ::launcherFacts, m, small,
+            video = launcherVideo,
+        )
+    }
+
+    /** Plays a game's video in the media screen (null in ui-preview: no player there). */
+    internal var launcherVideo: (@Composable (File, Modifier) -> Unit)? = { f, mod -> LauncherVideo(f, mod) }
+
+    private fun launcherFacts(rom: File): LauncherFacts {
+        val played = prefs.romLastPlayed(rom.absolutePath).takeIf { it > 0 }?.let {
+            java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date(it))
+        }
+        return LauncherFacts(
+            label = romLabel(rom),
+            lastPlayed = played,
+            hasSave = SavesLocation.saveFor(this, prefs, rom).exists(),
+            signedIn = prefs.screenScraperAccount != null,
+        )
+    }
+
+    /** The launcher's game list: a header (sort, import, refresh, settings), the games - the selected one the
+     * white row with the focus ring - and the button legend bottom right. Tap = select, tap again = play. */
+    @Composable
+    private fun LauncherList(m: GbaTextMetrics, small: GbaTextMetrics) {
+        @Suppress("UNUSED_EXPRESSION") revision
+        val games = launcher.games
+        val list = androidx.compose.foundation.lazy.rememberLazyListState(launcher.scrollIndex, launcher.scrollOffset)
+        androidx.compose.runtime.DisposableEffect(list) {
+            onDispose {
+                launcher.scrollIndex = list.firstVisibleItemIndex
+                launcher.scrollOffset = list.firstVisibleItemScrollOffset
+            }
+        }
+        // Keeps the selected game in view, a row of context above and below it.
+        LaunchedEffect(launcher.selected, games) {
+            val visible = list.layoutInfo.visibleItemsInfo
+            val sel = launcher.selected
+            if (visible.isEmpty()) {
+                list.scrollToItem((sel - 1).coerceAtLeast(0))
+                return@LaunchedEffect
+            }
+            val firstFull = visible.first().index + if (visible.first().offset < 0) 1 else 0
+            val lastFull = visible.last().index - if (visible.last().offset + visible.last().size > list.layoutInfo.viewportEndOffset) 1 else 0
+            when {
+                sel <= firstFull -> list.animateScrollToItem((sel - 1).coerceAtLeast(0))
+                sel >= lastFull -> list.animateScrollToItem((sel - (lastFull - firstFull) + 1).coerceAtLeast(0))
+            }
+        }
+        Box(Modifier.fillMaxSize()) {
+            AppBackdrop(logos = true)
+            Column(Modifier.fillMaxSize()) {
+                OptionTitleWindow("POKéDAISY", m, Modifier.padding(start = SCREEN_MARGIN, end = SCREEN_MARGIN, top = SCREEN_MARGIN), leading = {
+                    PixelArt(LOGO_ROWS, LOGO_PALETTE, Modifier.size(m.lineHeight))
+                }) {
+                    HeaderIcon(Icons.AutoMirrored.Filled.Sort, tr("Sort"), m) { pickingSort = true }
+                    HeaderIcon(Icons.Filled.Add, tr("Import ROM"), m) { importRom.launch(arrayOf("*/*")) }
+                    HeaderIcon(Icons.Filled.Refresh, tr("Refresh"), m) { refreshLibrary() }
+                    HeaderIcon(Icons.Filled.Settings, tr("Settings"), m) { openSettings() }
+                }
+                Spacer(Modifier.height(m.u * 4))
+                if (games.isEmpty()) {
+                    OptionListWindow(m, Modifier.fillMaxWidth().padding(horizontal = SCREEN_MARGIN)) {
+                        GbaText(
+                            tr(
+                                "No ROMs yet. Tap + to import a .gba (or a .zip / .7z), link your ROMs folder in SETTINGS > FOLDERS, or drop files into {0}",
+                                "Android/data/$packageName/files/roms/",
+                            ),
+                            OptionColors.label, OptionColors.labelShadow, small, maxLines = Int.MAX_VALUE,
+                            modifier = Modifier.padding(m.u * 4),
+                        )
+                    }
+                } else {
+                    androidx.compose.foundation.lazy.LazyColumn(
+                        state = list,
+                        modifier = Modifier.fillMaxWidth().weight(1f),
+                        // Room at the end for the legend, so the last game can scroll clear of it.
+                        contentPadding = PaddingValues(start = SCREEN_MARGIN, end = SCREEN_MARGIN, bottom = SCREEN_MARGIN + m.rowHeight * 1.6f),
+                        verticalArrangement = Arrangement.spacedBy(m.u * 3),
+                    ) {
+                        itemsIndexed(games, key = { _, rom -> rom.absolutePath }) { i, rom ->
+                            LauncherRow(rom, i == launcher.selected, m, small)
+                        }
+                    }
+                }
+            }
+            ButtonLegend(
+                listOf(
+                    LegendEntry("A", tr("OPEN")) { launcher.current?.let(::play) },
+                    LegendEntry("B", tr("OPTIONS")) { openLauncherMenu() },
+                    LegendEntry("X", tr("SWAP")) { swapLauncher() },
+                    LegendEntry("Y", tr("SETTINGS")) { openSettings() },
+                ),
+                small,
+                Modifier.align(Alignment.BottomEnd).padding(SCREEN_MARGIN),
+            )
+            launcher.menu?.let { menu -> LauncherMenuOverlay(menu, m) { launcher.menu = null } }
+        }
+    }
+
+    /** One game in the launcher's list: cover, name, its marks; selected = the white row with the focus ring. */
+    @Composable
+    @OptIn(ExperimentalFoundationApi::class)
+    private fun LauncherRow(rom: File, selected: Boolean, m: GbaTextMetrics, small: GbaTextMetrics) {
+        val isNew = remember(rom, revision) { RomAdded.isNew(this@LibraryActivity, rom) }
+        val hasSave = remember(rom, revision) { SavesLocation.saveFor(this@LibraryActivity, prefs, rom).exists() }
+        val haptic = LocalHapticFeedback.current
+        OptionListWindow(
+            m,
+            Modifier.fillMaxWidth()
+                .gbaFocusRing(selected, PixelRoundedShape(m.u * 2))
+                .combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() }, indication = null,
+                    onLongClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        launcher.select(rom)
+                        openLauncherMenu()
+                    },
+                    onClick = { if (selected) play(rom) else launcher.select(rom) },
+                ),
+            fill = if (selected) OptionColors.rowSelected else OptionColors.listFill,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                CoverThumb(rom, m, modifier = Modifier.height(48.dp))
+                Spacer(Modifier.width(m.u * 6))
+                GbaText(romLabel(rom), OptionColors.label, OptionColors.labelShadow, m, Modifier.weight(1f, fill = false))
+                if (rom.absolutePath in prefs.favoriteRoms) {
+                    Spacer(Modifier.width(m.u * 4))
+                    FavoriteStar(small.lineHeight)
+                }
+                if (hasSave) {
+                    Spacer(Modifier.width(m.u * 4))
+                    Icon(Icons.Filled.Save, contentDescription = tr("Save file exists"), tint = OptionColors.label, modifier = Modifier.size(small.lineHeight))
+                }
+                Spacer(Modifier.weight(1f))
+                if (isNew) {
+                    Spacer(Modifier.width(m.u * 4))
+                    OptionBadge(tk("NEW"), m, fill = OptionColors.newBadge, shadow = OptionColors.newBadgeShadow)
+                }
+                if (rom.absolutePath in unsupportedRoms) {
+                    Spacer(Modifier.width(m.u * 4))
+                    OptionBadge(tk("NOT SUPPORTED"), m)
+                } else if (rom.absolutePath in partialRoms) {
+                    Spacer(Modifier.width(m.u * 4))
+                    OptionBadge(tk("PARTIALLY SUPPORTED"), m, fill = OptionColors.muted)
+                }
+            }
+        }
+    }
+
+    // ---- ScreenScraper ----------------------------------------------------------
+
+    /** The update's one-time "set up ScreenScraper?" window: wanted (set in onCreate), then shown once nothing else is up. */
+    internal var ssIntro by mutableStateOf(false)
+    private val ssIntroShown get() = ssIntro && setup == null && !crashAsk && updates.release == null && !expandIntro
+
+    /** The popup's sign-in (internal for ui-preview). */
+    internal val ssLogin by lazy { ScreenScraperLogin.of(prefs) }
+
+    /** The library's media pass after a ScreenScraper sign-in (the popup shows its progress). */
+    internal val mediaSync = CoverSync()
+
+    private fun startMediaSync(sync: CoverSync = mediaSync) {
+        sync.start(this, prefs, replace = false) {
+            launcher.mediaChanged()
+            bump()
+        }
+    }
+
+    private fun openUrl(url: String) {
+        runCatching { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+    }
+
     // ---- first-time setup ---------------------------------------------------
 
     private fun startSetup() {
@@ -1301,7 +1710,10 @@ class LibraryActivity : ComponentActivity() {
             apiKey = prefs.steamGridDbApiKey.orEmpty()
             raKey = prefs.raWebApiKey.orEmpty()
             keySaved = prefs.steamGridDbApiKey != null || prefs.raWebApiKey != null
+            ssLogin = ScreenScraperLogin.of(prefs)
         }
+        secondScreen.dismiss()
+        launcherOn = false
     }
 
     @Composable
@@ -1322,12 +1734,14 @@ class LibraryActivity : ComponentActivity() {
                 if (s.keySaved) s.covers.start(this, prefs, replace = false)
             },
             onBack = { setupBack(s) },
+            onScreenScraperSignIn = { s.ssLogin.signIn(prefs, { r -> runOnUiThread { r() } }) { startMediaSync(s.covers) } },
+            onScreenScraperSignOut = { s.ssLogin.signOut(prefs) },
             onChangeButtons = {
                 startActivity(Intent(this, SettingsActivity::class.java).putExtra(SettingsActivity.EXTRA_SCREEN, SettingsActivity.SCREEN_CONTROLS))
             },
             onNext = {
-                val steps = SetupState.Step.entries
-                if (s.step == steps.last()) finishSetup() else enterStep(s, steps[s.step.ordinal + 1])
+                val steps = s.steps
+                if (s.step == steps.last()) finishSetup() else enterStep(s, steps[s.index + 1])
             },
         )
     }
@@ -1335,8 +1749,8 @@ class LibraryActivity : ComponentActivity() {
     /** BACK: the previous step; on the first, leaves setup as if skipped - back to
      * Settings when RUN SETUP opened it. */
     private fun setupBack(s: SetupState) {
-        if (s.step.ordinal > 0) {
-            enterStep(s, SetupState.Step.entries[s.step.ordinal - 1])
+        if (s.index > 0) {
+            enterStep(s, s.steps[s.index - 1])
             return
         }
         finishSetup()
@@ -1363,8 +1777,12 @@ class LibraryActivity : ComponentActivity() {
 
     private fun finishSetup() {
         prefs.setupDone = true
+        // Setup had its own GAME MEDIA step: no ScreenScraper popup after it (none while ScreenScraper is off).
+        if (ScreenScraperClient.enabled) prefs.screenScraperAsked = true
+        ssIntro = false
         setup = null
         bump()
+        syncLauncher()
     }
 
     /** Folders are opened by raw path, so All files access comes first: Android's page
@@ -1522,6 +1940,13 @@ class LibraryActivity : ComponentActivity() {
         /** The options popup's subtle 1u frame. */
         private val MenuBorder get() = if (OptionColors.dark) Color(0xFF4A5262) else Color(0xFFA8A8B0)
         const val EXTRA_ROM = "rom"
+        /** LEFT / RIGHT / L / R in the launcher: this many games at a time. */
+        private const val LAUNCHER_PAGE = 6
+        /** Keys the launcher's menu swallows (the launcher's own), so they don't act behind it. */
+        private val LAUNCHER_KEYS = setOf(
+            KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1,
+            KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y, KeyEvent.KEYCODE_BUTTON_START, KeyEvent.KEYCODE_BUTTON_SELECT,
+        )
         private const val MAX_COVER_WIDTH = 480
     }
 }

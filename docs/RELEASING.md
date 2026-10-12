@@ -75,6 +75,8 @@ gh secret set KEYSTORE_PASSWORD --env release     # paste storePassword from key
 gh secret set KEY_ALIAS --env release --body pokedaisey
 gh secret set KEY_PASSWORD --env release          # paste keyPassword
 gh secret set GOOGLE_SERVICES_JSON --env release < app/google-services.json
+gh secret set SCREENSCRAPER_DEV_ID --env release        # ScreenScraper developer login
+gh secret set SCREENSCRAPER_DEV_PASSWORD --env release
 ```
 
 | Secret | What it is |
@@ -83,6 +85,7 @@ gh secret set GOOGLE_SERVICES_JSON --env release < app/google-services.json
 | `KEYSTORE_PASSWORD` / `KEY_PASSWORD` | the two passwords from your `keystore.properties` |
 | `KEY_ALIAS` | `pokedaisey` (the key predates the rename) |
 | `GOOGLE_SERVICES_JSON` | the Firebase project's `google-services.json` (crash reports). Optional: without it the release builds without crash reporting |
+| `SCREENSCRAPER_DEV_ID` / `SCREENSCRAPER_DEV_PASSWORD` | the app's ScreenScraper developer account (asked for on screenscraper.fr's forum), sent with every API call next to the player's own login. Locally: `screenscraper.devId` / `screenscraper.devPassword` in `local.properties`. Optional for the build, but without them ScreenScraper may refuse the app |
 
 Also add one **repository variable**, so a release signed with any other key fails
 instead of stranding users. **Every release must use the same key**, or the in-app
