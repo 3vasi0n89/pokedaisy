@@ -32,7 +32,7 @@ Descriptions are read from your own ROM, in your game's words and language. That
 
 Some items you reach for all the time: your best healing item, the balls you throw most. Star them and they're always at hand.
 
-Open an item's description and tap the star button in its bar (next to `USE`, where that shows). The item gets a gold star on its row and moves to the top of the bag's default order, ahead of everything else. Starred items keep the bag's own order among themselves, and the star shows whichever order you pick.
+Open an item's description and tap the star button in its bar (next to `USE`, where that shows). The item gets a gold star before its name and moves to the top of the bag's default order, ahead of everything else. Starred items keep the bag's own order among themselves, and the star shows whichever order you pick.
 
 While you have at least one starred item in the bag, a `FAVORITES` tab appears under `ALL`, listing only those. Tap the star again to unstar an item. Unstar the last one and the tab goes away, taking you back to `ALL`.
 

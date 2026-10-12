@@ -32,6 +32,7 @@ class FieldItemsTest {
         var failSetMonData = false
         val ram = mutableMapOf<Long, Byte>()
         val calls = mutableListOf<Long>()
+        val bagSnapshots = mutableListOf<Map<Int, Int>>()
 
         private fun mon(addr: Int) = party[((addr.toLong() and 0xFFFFFFFFL) - p.party).toInt() / 100]
 
@@ -92,6 +93,12 @@ class FieldItemsTest {
                 snapshots += party[monIndex(addr)!!].copyOf()
                 ByteArray(100).also { it[0] = (snapshots.size - 1).toByte() }
             }
+            // All of EWRAM (TAKE's room check, put back after): the bag lives there, so a copy of it stands in -
+            // byte 0 names the copy, so what's read after a change differs and the write-back restores it.
+            addr == 0x02000000L && len == 0x40000 -> {
+                bagSnapshots += bag.toMap()
+                ByteArray(len).also { it[0] = (bagSnapshots.size - 1).toByte() }
+            }
             addr == p.partyCount -> byteArrayOf(party.size.toByte())
             addr == fns.items + 86 * 44L + 0x13 -> byteArrayOf(100)
             addr >= 0x08000000L -> ByteArray(len)
@@ -101,6 +108,11 @@ class FieldItemsTest {
         override fun write(addr: Long, bytes: ByteArray): Boolean {
             if (bytes.size == 100 && monIndex(addr) != null) {
                 party[monIndex(addr)!!] = snapshots[bytes[0].toInt()].copyOf()
+                return true
+            }
+            if (addr == 0x02000000L) {
+                bag.clear()
+                bag.putAll(bagSnapshots[bytes[0].toInt()])
                 return true
             }
             bytes.forEachIndexed { i, b -> ram[addr + i] = b }
@@ -349,6 +361,7 @@ class FieldItemsTest {
         val held = partyHeldItems(support(g), g)
         assertEquals(listOf(182, 0, 121, 200), held.targets.map { it.heldItem })
         assertEquals(listOf(SlotVerdict.OK, SlotVerdict.NO_EFFECT, SlotVerdict.HOLDS_MAIL, SlotVerdict.EGG), held.targets.map { it.verdict })
+        assertEquals(mapOf(86 to 1), g.bag) // the room check took nothing in
         assertEquals(ItemUseOutcome(ItemUseResult.TAKEN, swapped = 182), takeFromMon(support(g), held.targets[0], false, g))
         assertEquals(0, g.party[0].held)
         assertEquals(1, g.bag[182])
@@ -364,7 +377,10 @@ class FieldItemsTest {
         g.bag[13] = 1
         g.bagKinds = 1
         g.party += FakeGame.Mon(0x111, held = 182)
-        val t = partyHeldItems(support(g), g).targets[0]
+        // The summary knows before TAKE is pressed: no room, no TAKE - and asking left the bag as it was.
+        assertEquals(SlotVerdict.BAG_FULL, partyHeldItems(support(g), g).targets[0].verdict)
+        assertEquals(mapOf(13 to 1), g.bag)
+        val t = partyHeldItems(support(g), g).targets[0].copy(verdict = SlotVerdict.OK) // a stale pick
         assertEquals(ItemUseOutcome(ItemUseResult.BAG_FULL, swapped = 182), takeFromMon(support(g), t, false, g))
         assertEquals(182, g.party[0].held)
         g.bagKinds = 30

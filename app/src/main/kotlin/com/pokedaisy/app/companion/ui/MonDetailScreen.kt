@@ -151,7 +151,7 @@ fun MonDetailScreen(
                                     {
                                         HeldItemLine(t.heldItem, small, onTake = if (t.verdict == com.pokedaisy.app.companion.data.SlotVerdict.OK) {
                                             { takeResult = null; takeAsk = true }
-                                        } else null)
+                                        } else null, bagFull = t.verdict == com.pokedaisy.app.companion.data.SlotVerdict.BAG_FULL)
                                     }
                                 },
                             )
@@ -225,9 +225,10 @@ internal fun takeMessage(o: com.pokedaisy.app.companion.data.ItemUseOutcome, mon
     else -> tr("It can't be used here.")
 }
 
-/** The summary's ITEM line: what the Pokémon holds, its icon and name, and TAKE where it can be taken ([onTake]). */
+/** The summary's ITEM line: what the Pokémon holds, its icon and name, and TAKE where it can be taken ([onTake]) -
+ * or BAG FULL where TAKE would be, when the bag has no room for it ([bagFull]). */
 @Composable
-private fun HeldItemLine(itemId: Int, small: GbaTextMetrics, onTake: (() -> Unit)?) {
+private fun HeldItemLine(itemId: Int, small: GbaTextMetrics, onTake: (() -> Unit)?, bagFull: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = small.u * 3)) {
         GbaText(tr("ITEM"), OptionColors.value, OptionColors.valueShadow, small)
         Spacer(Modifier.width(small.u * 6))
@@ -235,6 +236,7 @@ private fun HeldItemLine(itemId: Int, small: GbaTextMetrics, onTake: (() -> Unit
         Spacer(Modifier.width(small.u * 3))
         GbaText(bagItemName(itemId), OptionColors.label, OptionColors.labelShadow, small, modifier = Modifier.weight(1f))
         if (onTake != null) OptionButton(tk("TAKE"), small, onClick = onTake, modifier = Modifier.padding(start = small.u * 4))
+        else if (bagFull) GbaText(tr("BAG FULL"), OptionColors.label, OptionColors.labelShadow, small, modifier = Modifier.padding(start = small.u * 4))
     }
 }
 

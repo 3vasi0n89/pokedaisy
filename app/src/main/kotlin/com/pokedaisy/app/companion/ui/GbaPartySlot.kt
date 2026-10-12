@@ -37,7 +37,7 @@ import kotlin.math.min
  * HP bar were checked pixel-for-pixel against real screenshots of every game
  * (mgba_dump `shot`); per-game numbers live in the generated [PartySlotStyle]s.
  *
- * Not drawn: the held-item badge. The gender symbol needs a QoL ROM with the
+ * The gender symbol needs a QoL ROM with the
  * QOL_GENDER_* telemetry byte or a native read that knows the game's gender
  * ratios - otherwise it's reported unknown and just left off.
  */
@@ -97,7 +97,7 @@ fun GbaPartySlot(
             }
             px.ball(assets, selected)
             sheetImg?.let { px.monIcon(it, mon, selected, phase) }
-            px.heldItem(assets, mon, selected, phase)
+            px.heldItem(assets, mon)
             return@Canvas
         }
         val fainted = mon.hp == 0
@@ -137,7 +137,7 @@ fun GbaPartySlot(
         // Poke Ball (open while selected), then the icon above it, then the held-item marker over the icon.
         px.ball(assets, selected)
         sheetImg?.let { px.monIcon(it, mon, selected, phase) }
-        px.heldItem(assets, mon, selected, phase)
+        px.heldItem(assets, mon)
     }
 }
 
@@ -211,14 +211,14 @@ private class Px(
     }
 
     /** The party menu's held-item marker (CreatePartyMonHeldItemSprite): at the icon's top-left + (16, 22) - sprite
-     * coords (20, 50) beside the icon's (16, 40), 8x8 sprites centred - moving with the icon (SpriteCB_HeldItem),
-     * Mail's frame for Mail. */
-    fun heldItem(assets: PartySlotAssets, mon: MonView, selected: Boolean, phase: Int) {
+     * coords (20, 50) beside the icon's (16, 40), 8x8 sprites centred - Mail's frame for Mail. It stays put while the
+     * icon rests and bounces: the party menu's sprite has SpriteCallbackDummy (only the trade screen's copy follows
+     * its icon, SpriteCB_HeldItem). */
+    fun heldItem(assets: PartySlotAssets, mon: MonView) {
         val icons = assets.heldIcons ?: return
         if (mon.heldItemId == 0) return
-        val (dx, dy) = iconOffset(mon, selected, phase)
         val mail = mon.heldItemId in com.pokedaisy.app.companion.data.MAIL_ITEMS
-        image(icons, 0, if (mail) 8 else 0, st.iconX + dx + 16, st.iconY + dy + 22 + stretchTop, 8, 8)
+        image(icons, 0, if (mail) 8 else 0, st.iconX + 16, st.iconY + 22 + stretchTop, 8, 8)
     }
 
     /** The party icon, animated like the game (see PartySlotLayout.ICON_*). */

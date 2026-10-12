@@ -1239,8 +1239,13 @@ policy refuses it): there `fakeMedia` draws stand-in media (never real art).
 **Dual-screen launcher** (`LauncherScreen.kt` + `LauncherHost.kt`, `LibraryActivity`'s launcher section; Settings >
 DUAL-SCREEN LAUNCHER, `Prefs.dualScreenLauncher`, on by default): with a second screen the library is the game list on
 one screen and the selected game's media on the other (`LauncherMediaPane`: two layouts by aspect, the story
-auto-scrolls on an infinite transition, the video starts after 1.2 s on a TextureView). One `LauncherState` drives both
-windows; the second is a `DualScreenPresentation` (never focusable, it forwards keys), so **every key goes through
+auto-scrolls on an infinite transition, the video starts after 1.2 s on a TextureView) - **only with ScreenScraper on**:
+while its flag is off there is no second-screen window (`syncLauncher` dismisses it), no SWAP (X, the legend) and
+`launcherSwapped` is ignored - the list on the main screen alone. The list is the classic library's own
+pieces (`RomRow` / `RomTile` / RECENTLY PLAYED with a `LauncherCard`: the launcher's cursor, tap = select then play, ⋮ /
+long press = B's menu), list or grid (`gridView`, shared), the path under a row on the main display only.
+`LauncherState` keeps the cursor on the strip (`recentCursor`) or in the games, by grid row (`columns`). One `LauncherState`
+drives both windows; the second is a `DualScreenPresentation` (never focusable, it forwards keys), so **every key goes through
 `LibraryActivity.dispatchKeyEvent`**, which moves `launcher.selected` itself - no Compose focus, the D-pad works
 whichever screen holds the list. A = play, B = the game's menu (`LauncherMenuOverlay`, two columns when it doesn't fit),
 X = swap (`LauncherState.swap`: out 130 ms toward the other screen, trade, in 210 ms - needs the main window's frame

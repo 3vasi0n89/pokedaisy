@@ -18,6 +18,7 @@
 #include <mgba-util/vfs.h>
 #include <mgba/internal/arm/arm.h>
 #include <mgba/internal/arm/isa-inlines.h>
+#include <mgba/internal/gba/gba.h>
 #include <mgba/internal/gb/gb.h>
 #include <mgba/internal/gb/io.h>
 #include <mgba/internal/sm83/sm83.h>
@@ -567,10 +568,30 @@ static int pk_call(struct mCore* core, uint32_t fn, const uint32_t args[4]) {
     struct ARMCore* cpu = (struct ARMCore*) core->cpu;
     struct ARMRegisterFile saved = cpu->regs;
     uint32_t prefetch0 = cpu->prefetch[0], prefetch1 = cpu->prefetch[1];
+    // The memory region the CPU fetches from, and the idle-loop detector that region switches feed: the call
+    // moves both to the ROM. A frame often ends just inside the interrupt handler (IWRAM, or the BIOS), and
+    // with only the registers put back the CPU went on fetching that address from the ROM - garbage: the game
+    // froze or reset (a TAKE on the Thor, reproduced with mgba_dump's `stepinto 3` + `call`).
+    struct ARMMemory mem = cpu->memory;
+    struct GBA* gba = (struct GBA*) core->board;
+    int region = gba->memory.activeRegion;
+    uint32_t biosPrefetch = gba->memory.biosPrefetch;
+    uint32_t idleLoop = gba->idleLoop, lastJump = gba->lastJump;
+    bool haltPending = gba->haltPending;
+    int idleStep = gba->idleDetectionStep, idleFailures = gba->idleDetectionFailures;
+    int32_t cached[16];
+    memcpy(cached, gba->cachedRegisters, sizeof(cached));
     enum ExecutionMode exec = cpu->executionMode;
     int halted = cpu->halted;
+    enum PrivilegeMode priv = cpu->privilegeMode;
     cpu->halted = 0;
     cpu->cpsr.i = 1;
+    // On the main stack, in System mode: inside an interrupt the IRQ stack is 160 bytes with the main one right
+    // under it (and the BIOS's SVC stack is smaller still), while below the main stack's SP nothing is in use.
+    if (priv != MODE_SYSTEM && priv != MODE_USER) {
+        ARMSetPrivilegeMode(cpu, MODE_SYSTEM);
+        cpu->cpsr.priv = MODE_SYSTEM;
+    }
     for (int i = 0; i < 4; i++) {
         cpu->gprs[i] = (int32_t) args[i];
     }
@@ -587,11 +608,21 @@ static int pk_call(struct mCore* core, uint32_t fn, const uint32_t args[4]) {
         core->step(core);
     }
     pk_call_r0 = (uint32_t) cpu->gprs[0];
-    cpu->regs = saved;
+    cpu->regs = saved; // the banked registers too: the mode's own SP / LR are back as they were
+    cpu->privilegeMode = priv;
     cpu->executionMode = exec == MODE_ARM ? MODE_THUMB : MODE_ARM; // so _ARMSetMode applies
     _ARMSetMode(cpu, exec);
     cpu->prefetch[0] = prefetch0;
     cpu->prefetch[1] = prefetch1;
+    cpu->memory = mem;
+    gba->memory.activeRegion = region;
+    gba->memory.biosPrefetch = biosPrefetch;
+    gba->idleLoop = idleLoop;
+    gba->lastJump = lastJump;
+    gba->haltPending = haltPending;
+    gba->idleDetectionStep = idleStep;
+    gba->idleDetectionFailures = idleFailures;
+    memcpy(gba->cachedRegisters, cached, sizeof(cached));
     cpu->halted = halted;
     return ok;
 }

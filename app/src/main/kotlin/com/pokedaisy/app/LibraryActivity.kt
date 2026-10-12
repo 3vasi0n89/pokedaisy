@@ -53,6 +53,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.runtime.SideEffect
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -98,6 +101,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
@@ -212,6 +216,35 @@ class LibraryActivity : ComponentActivity() {
     }
 
     private var revision by mutableStateOf(0)
+
+    /** What a library card shows that costs file IO - its name (a size / date check of the ROM), whether it has a save
+     * (a look in every saves folder), NEW, a cover - worked out once per game per [revision]. A lazy list or grid
+     * composes a card again each time it scrolls back into view, and doing this there on the UI thread made the grid
+     * stutter (a quarter of its frames late on the Thor, the ROMs on its SD card). Main thread only. */
+    private class CardFacts(val label: String, val hasSave: Boolean, val isNew: Boolean, val hasCover: Boolean)
+    private val cardFacts = HashMap<String, CardFacts>()
+    private var cardFactsRevision = -1
+
+    private fun factsFor(rom: File): CardFacts {
+        if (cardFactsRevision != revision) {
+            cardFacts.clear()
+            cardFactsRevision = revision
+        }
+        return cardFacts.getOrPut(rom.absolutePath) {
+            CardFacts(
+                label = romLabel(rom),
+                hasSave = SavesLocation.saveFor(this, prefs, rom).exists(),
+                isNew = RomAdded.isNew(this, rom),
+                hasCover = coverFile(rom).let { it.isFile && it.length() > 0 },
+            )
+        }
+    }
+
+    /** Decoded covers, by path and [revision]: decoded off the UI thread once, not each time a card comes back. */
+    private val coverBitmaps = object : android.util.LruCache<String, androidx.compose.ui.graphics.ImageBitmap>(COVER_CACHE_BYTES) {
+        override fun sizeOf(key: String, value: androidx.compose.ui.graphics.ImageBitmap) = value.width * value.height * 4
+    }
+
     private fun bump() {
         unsupportedRoms = RomFolder.unsupported(this)
         partialRoms = RomFolder.partial(this)
@@ -258,7 +291,8 @@ class LibraryActivity : ComponentActivity() {
         // The device's marker can change between visits (FeatureFlags): read before setup builds its steps.
         ScreenScraperClient.enabled = FeatureFlags.screenScraper(this)
         sort = LibrarySort.of(prefs.librarySort)
-        launcher.swapped = prefs.launcherSwapped
+        // The second screen (and so SWAP) is the game's media page: ScreenScraper's, off until its flag is on.
+        launcher.swapped = prefs.launcherSwapped && ScreenScraperClient.enabled
         if (intent?.action != Intent.ACTION_VIEW && !prefs.setupDone && listRoms().isEmpty()) startSetup()
         // The update's news, once: ScreenScraper, to everyone not signed in (setup has its own step).
         // Only once ScreenScraper is on (FeatureFlags): until then nobody is asked, so it still comes when it ships.
@@ -334,6 +368,18 @@ class LibraryActivity : ComponentActivity() {
     /** The library's order, SORT BY's picker, and the game RENAME / DELETE are open for (both views). */
     private var sort by mutableStateOf(LibrarySort.NAME)
     private var pickingSort by mutableStateOf(false)
+    /** The grid view (else the list), the classic library's and the launcher's alike (Prefs.libraryViewMode). */
+    private var gridViewState: androidx.compose.runtime.MutableState<Boolean>? = null
+    private var gridView: Boolean
+        get() = (gridViewState ?: mutableStateOf(prefs.libraryViewMode == 1).also { gridViewState = it }).value
+        set(v) {
+            (gridViewState ?: mutableStateOf(v).also { gridViewState = it }).value = v
+            prefs.libraryViewMode = if (v) 1 else 0
+        }
+
+    /** RECENTLY PLAYED: the last 3 played of [roms], newest first. */
+    private fun recentOf(roms: List<File>): List<File> =
+        prefs.recentRomPaths().mapNotNull { path -> roms.find { it.absolutePath == path } }.take(3)
     private var renaming by mutableStateOf<File?>(null)
     private var deleting by mutableStateOf<File?>(null)
 
@@ -343,10 +389,7 @@ class LibraryActivity : ComponentActivity() {
         val m = rememberGbaTextMetrics()
         val small = rememberGbaTextMetrics(textScale = 1f)
         val roms = remember(revision, sort) { sortLibrary(this@LibraryActivity, prefs, listRoms(), sort) }
-        var gridView by remember { mutableStateOf(prefs.libraryViewMode == 1) }
-        val recentRoms = remember(revision, roms) {
-            prefs.recentRomPaths().mapNotNull { path -> roms.find { it.absolutePath == path } }.take(3)
-        }
+        val recentRoms = remember(revision, roms) { recentOf(roms) }
 
         val density = androidx.compose.ui.platform.LocalDensity.current
         Box(modifier = Modifier.fillMaxSize().onSizeChanged { screenSize = with(density) { DpSize(it.width.toDp(), it.height.toDp()) } }) {
@@ -361,7 +404,6 @@ class LibraryActivity : ComponentActivity() {
                     HeaderIcon(Icons.AutoMirrored.Filled.Sort, tr("Sort"), m, Modifier.focusRequester(headerFirst)) { pickingSort = true }
                     HeaderIcon(if (gridView) Icons.AutoMirrored.Filled.ViewList else Icons.Filled.GridView, tr("Toggle view"), m) {
                         gridView = !gridView
-                        prefs.libraryViewMode = if (gridView) 1 else 0
                     }
                     HeaderIcon(Icons.Filled.Add, tr("Import ROM"), m) { importRom.launch(arrayOf("*/*")) }
                     HeaderIcon(Icons.Filled.Refresh, tr("Refresh"), m) { refreshLibrary() }
@@ -650,7 +692,7 @@ class LibraryActivity : ComponentActivity() {
             headerFirst.takeIf { recentRoms.isEmpty() && grid.layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }?.row == 0 }
         }
         LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 150.dp),
+            columns = GridCells.Adaptive(minSize = GRID_TILE_MIN),
             state = grid,
             modifier = modifier.fillMaxWidth(),
             contentPadding = PaddingValues(start = SCREEN_MARGIN, end = SCREEN_MARGIN, bottom = SCREEN_MARGIN),
@@ -684,6 +726,8 @@ class LibraryActivity : ComponentActivity() {
         m: GbaTextMetrics,
         small: GbaTextMetrics,
         onPlay: (File) -> Unit,
+        /** The launcher's cursor: whether it's on this tile. */
+        cursorOn: (File) -> Boolean = { false },
     ) {
         // A tile focused with the D-pad brings the whole section into view, its title too (the list
         // alone scrolled just far enough for the tile, leaving RECENTLY PLAYED off the top).
@@ -703,9 +747,9 @@ class LibraryActivity : ComponentActivity() {
             ) {
                 recentRoms.forEach { rom ->
                     if (gridView) {
-                        RecentTile(rom, m, small, onClick = { onPlay(rom) })
+                        RecentTile(rom, m, small, cursor = cursorOn(rom), onClick = { onPlay(rom) })
                     } else {
-                        RecentListItem(rom, m, small, onClick = { onPlay(rom) })
+                        RecentListItem(rom, m, small, cursor = cursorOn(rom), onClick = { onPlay(rom) })
                     }
                 }
             }
@@ -718,10 +762,16 @@ class LibraryActivity : ComponentActivity() {
      * like the save-state screenshots. */
     @Composable
     private fun CoverThumb(rom: File, m: GbaTextMetrics, modifier: Modifier = Modifier) {
-        @Suppress("UNUSED_EXPRESSION") revision
-        val bitmap = remember(rom.absolutePath, revision) {
-            coverFile(rom).takeIf { it.isFile && it.length() > 0 }
-                ?.let { runCatching { BitmapFactory.decodeFile(it.absolutePath)?.asImageBitmap() }.getOrNull() }
+        val key = "${rom.absolutePath}#$revision"
+        val hasCover = factsFor(rom).hasCover
+        // From the cache at once when it's been decoded before; else decoded off the UI thread (the placeholder meanwhile).
+        val bitmap by androidx.compose.runtime.produceState(if (hasCover) coverBitmaps.get(key) else null, key, hasCover) {
+            if (value == null && hasCover) {
+                val file = coverFile(rom)
+                value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    runCatching { BitmapFactory.decodeFile(file.absolutePath)?.asImageBitmap() }.getOrNull()
+                }?.also { coverBitmaps.put(key, it) }
+            }
         }
         val u = m.u
         Box(
@@ -736,9 +786,10 @@ class LibraryActivity : ComponentActivity() {
                 },
             contentAlignment = Alignment.Center,
         ) {
-            if (bitmap != null) {
+            val shown = bitmap
+            if (shown != null) {
                 CoverImage(
-                    bitmap = bitmap,
+                    bitmap = shown,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
@@ -888,10 +939,16 @@ class LibraryActivity : ComponentActivity() {
     @Composable
     private fun RomMenuButton(rom: File, m: GbaTextMetrics, menu: Boolean, onMenu: (Boolean) -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
         Box {
-            Box(modifier = Modifier.clip(PixelRoundedShape(m.u * 3)).clickable { onMenu(true) }.padding(m.u * 3)) {
-                Icon(Icons.Filled.MoreVert, contentDescription = tr("ROM options"), tint = OptionColors.label, modifier = Modifier.size(m.lineHeight))
-            }
+            MenuDots(m) { onMenu(true) }
             RomOptionsMenu(menu, onDismiss = { onMenu(false) }, rom = rom, m = m, onRename = onRename, onDelete = onDelete)
+        }
+    }
+
+    /** The "⋮" button alone (the launcher's opens its own menu). */
+    @Composable
+    private fun MenuDots(m: GbaTextMetrics, onClick: () -> Unit) {
+        Box(modifier = Modifier.clip(PixelRoundedShape(m.u * 3)).clickable(onClick = onClick).padding(m.u * 3)) {
+            Icon(Icons.Filled.MoreVert, contentDescription = tr("ROM options"), tint = OptionColors.label, modifier = Modifier.size(m.lineHeight))
         }
     }
 
@@ -924,11 +981,14 @@ class LibraryActivity : ComponentActivity() {
         onLongClick: (() -> Unit)? = null,
         /** Where D-pad UP goes from this card, if not the card above ([toHeader] for the top row). */
         upTo: () -> FocusRequester? = noUp,
+        /** The launcher's cursor is on it (the launcher moves its own, not Compose focus): ring and white fill. */
+        cursor: Boolean = false,
         onClick: () -> Unit,
         content: @Composable () -> Unit,
     ) {
         val interaction = remember { MutableInteractionSource() }
-        val focused by interaction.collectIsFocusedAsState()
+        val hasFocus by interaction.collectIsFocusedAsState()
+        val focused = hasFocus || cursor
         OptionListWindow(
             m,
             modifier
@@ -941,18 +1001,29 @@ class LibraryActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun RomRow(rom: File, m: GbaTextMetrics, small: GbaTextMetrics, onRename: () -> Unit, onDelete: () -> Unit, upTo: () -> FocusRequester? = noUp) {
+    private fun RomRow(
+        rom: File, m: GbaTextMetrics, small: GbaTextMetrics, onRename: () -> Unit, onDelete: () -> Unit, upTo: () -> FocusRequester? = noUp,
+        /** In the launcher (null = the classic library). */
+        launcherCard: LauncherCard? = null,
+        /** The file's path under the name (the launcher shows it on the main screen only). */
+        showPath: Boolean = true,
+    ) {
         val isLast = rom.absolutePath == prefs.lastRomPath
-        val isNew = remember(rom, revision) { RomAdded.isNew(this@LibraryActivity, rom) }
-        val display = romLabel(rom)
+        val facts = factsFor(rom)
+        val isNew = facts.isNew
+        val display = facts.label
         // Existing progress indicator: does a .sav/.srm already exist for this ROM?
-        val hasSave = remember(rom, revision) {
-            SavesLocation.saveFor(this@LibraryActivity, prefs, rom).exists()
-        }
+        val hasSave = facts.hasSave
         val favorite = rom.absolutePath in prefs.favoriteRoms
         // The ⋮ menu opens from a long press on the row too, like a grid tile.
         var menu by remember { mutableStateOf(false) }
-        RomCard(isLast, m, Modifier.fillMaxWidth(), onLongClick = longPressMenu { menu = true }, upTo = upTo, onClick = { play(rom) }) {
+        RomCard(
+            // In the launcher only its cursor gets the white fill (two white rows read as two cursors).
+            if (launcherCard != null) false else isLast, m, Modifier.fillMaxWidth(),
+            onLongClick = longPressMenu { launcherCard?.onMenu?.invoke() ?: run { menu = true } }, upTo = upTo,
+            cursor = launcherCard?.cursor == true,
+            onClick = launcherCard?.onTap ?: { play(rom) },
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CoverThumb(rom, m, modifier = Modifier.height(56.dp))
                 Spacer(Modifier.width(m.u * 6))
@@ -986,32 +1057,39 @@ class LibraryActivity : ComponentActivity() {
                             OptionBadge(tk("PARTIALLY SUPPORTED"), m, fill = OptionColors.muted)
                         }
                     }
-                    GbaText(
-                        prefs.romSourcePath(rom) ?: rom.absolutePath,
-                        OptionColors.muted, OptionColors.mutedShadow, small,
-                    )
+                    if (showPath) {
+                        GbaText(
+                            prefs.romSourcePath(rom) ?: rom.absolutePath,
+                            OptionColors.muted, OptionColors.mutedShadow, small,
+                        )
+                    }
                 }
-                RomMenuButton(rom, m, menu, { menu = it }, onRename, onDelete)
+                if (launcherCard != null) MenuDots(m, launcherCard.onMenu)
+                else RomMenuButton(rom, m, menu, { menu = it }, onRename, onDelete)
             }
         }
     }
 
     @Composable
-    private fun RomTile(rom: File, m: GbaTextMetrics, small: GbaTextMetrics, onRename: () -> Unit, onDelete: () -> Unit, upTo: () -> FocusRequester? = noUp) {
+    private fun RomTile(
+        rom: File, m: GbaTextMetrics, small: GbaTextMetrics, onRename: () -> Unit, onDelete: () -> Unit, upTo: () -> FocusRequester? = noUp,
+        /** In the launcher (null = the classic library). */
+        launcherCard: LauncherCard? = null,
+    ) {
         val isLast = rom.absolutePath == prefs.lastRomPath
-        val isNew = remember(rom, revision) { RomAdded.isNew(this@LibraryActivity, rom) }
-        val display = romLabel(rom)
-        val hasSave = remember(rom, revision) {
-            SavesLocation.saveFor(this@LibraryActivity, prefs, rom).exists()
-        }
+        val facts = factsFor(rom)
+        val isNew = facts.isNew
+        val display = facts.label
+        val hasSave = facts.hasSave
         // Just the cover and the title (+ save marker); the options menu is a long press.
         var menu by remember { mutableStateOf(false) }
         Box {
             RomCard(
-                isLast, m, Modifier.fillMaxWidth(),
-                onLongClick = longPressMenu { menu = true },
+                if (launcherCard != null) false else isLast, m, Modifier.fillMaxWidth(),
+                onLongClick = longPressMenu { launcherCard?.onMenu?.invoke() ?: run { menu = true } },
                 upTo = upTo,
-                onClick = { play(rom) },
+                cursor = launcherCard?.cursor == true,
+                onClick = launcherCard?.onTap ?: { play(rom) },
             ) {
                 Column {
                     CoverThumb(rom, m, modifier = Modifier.fillMaxWidth())
@@ -1048,12 +1126,23 @@ class LibraryActivity : ComponentActivity() {
         }
     }
 
+    /** A card in the launcher: its cursor, a tap (the cursor onto it, then play), a long press / ⋮ (the launcher's menu). */
+    private class LauncherCard(val cursor: Boolean, val onTap: () -> Unit, val onMenu: () -> Unit)
+
+    /** The RECENTLY PLAYED strip scrolls sideways to the launcher's cursor (3 tiles are wider than the bottom screen). */
+    @OptIn(ExperimentalFoundationApi::class)
+    private fun Modifier.cursorInView(cursor: Boolean): Modifier = composed {
+        val requester = remember { BringIntoViewRequester() }
+        LaunchedEffect(cursor) { if (cursor) requester.bringIntoView() }
+        bringIntoViewRequester(requester)
+    }
+
     /** Compact, menu-less version of [RomTile] for the "Recently Played" row —
      * a shortcut, not a full library entry. */
     @Composable
-    private fun RecentTile(rom: File, m: GbaTextMetrics, small: GbaTextMetrics, onClick: () -> Unit) {
-        val display = romLabel(rom)
-        RomCard(false, m, Modifier.width(112.dp), upTo = toHeader, onClick = onClick) {
+    private fun RecentTile(rom: File, m: GbaTextMetrics, small: GbaTextMetrics, cursor: Boolean = false, onClick: () -> Unit) {
+        val display = factsFor(rom).label
+        RomCard(false, m, Modifier.width(112.dp).cursorInView(cursor), upTo = toHeader, cursor = cursor, onClick = onClick) {
             Column {
                 CoverThumb(rom, m, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(m.u * 3))
@@ -1069,9 +1158,9 @@ class LibraryActivity : ComponentActivity() {
      * icon-left/text-right shape) for the "Recently Played" row while in
      * list view. */
     @Composable
-    private fun RecentListItem(rom: File, m: GbaTextMetrics, small: GbaTextMetrics, onClick: () -> Unit) {
-        val display = romLabel(rom)
-        RomCard(false, m, Modifier.width(220.dp), upTo = toHeader, onClick = onClick) {
+    private fun RecentListItem(rom: File, m: GbaTextMetrics, small: GbaTextMetrics, cursor: Boolean = false, onClick: () -> Unit) {
+        val display = factsFor(rom).label
+        RomCard(false, m, Modifier.width(220.dp).cursorInView(cursor), upTo = toHeader, cursor = cursor, onClick = onClick) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CoverThumb(rom, m, modifier = Modifier.height(44.dp))
                 Spacer(Modifier.width(m.u * 4))
@@ -1421,14 +1510,19 @@ class LibraryActivity : ComponentActivity() {
         // Only from the main display: on the second one the "other" screen would be this same one.
         val want = prefs.dualScreenLauncher && setup == null && Screens.hasSecond(this) && Screens.isOnMainDisplay(this)
         val was = launcherOn
-        launcherOn = want && secondScreen.show()
-        if (!launcherOn) secondScreen.dismiss()
+        // The second screen only shows the game's media, which is ScreenScraper's: without it (its flag off) the list
+        // stays on this one alone, and the second screen is left to the system rather than shown empty.
+        val media = ScreenScraperClient.enabled
+        launcherOn = want && (!media || secondScreen.show())
+        if (!launcherOn || !media) secondScreen.dismiss()
         if (launcherOn && !was) refreshLauncherGames()
     }
 
-    /** The launcher's games: the library in its order (favorites first), the last played selected at first. */
+    /** The launcher's games: the library in its order (favorites first) under RECENTLY PLAYED, the last played
+     * selected at first. */
     private fun refreshLauncherGames() {
-        launcher.setGames(sortLibrary(this, prefs, listRoms(), sort), prefer = prefs.lastRomPath)
+        val roms = sortLibrary(this, prefs, listRoms(), sort)
+        launcher.setGames(roms, recentOf(roms), prefer = prefs.lastRomPath)
     }
 
     /** Every window over the main screen (pass keys to them, not the launcher). */
@@ -1442,8 +1536,9 @@ class LibraryActivity : ComponentActivity() {
         return super.dispatchKeyEvent(event)
     }
 
-    /** The launcher's controls: the D-pad walks the list, A opens the game, B its options, X swaps the
-     * screens, Y opens Settings (L / R and LEFT / RIGHT a page, SELECT the sort). True = handled. */
+    /** The launcher's controls: the D-pad walks the list (the grid's rows and columns, the RECENTLY PLAYED strip),
+     * A opens the game, B its options, X swaps the screens, Y opens Settings (L / R a page - LEFT / RIGHT too in the
+     * list view - SELECT the sort). True = handled. */
     private fun launcherKey(event: KeyEvent): Boolean {
         val down = event.action == KeyEvent.ACTION_DOWN
         val first = down && event.repeatCount == 0
@@ -1464,10 +1559,12 @@ class LibraryActivity : ComponentActivity() {
             return true
         }
         when (code) {
-            KeyEvent.KEYCODE_DPAD_UP -> if (down) launcher.move(-1)
-            KeyEvent.KEYCODE_DPAD_DOWN -> if (down) launcher.move(1)
-            KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_BUTTON_L1 -> if (down) launcher.move(-LAUNCHER_PAGE)
-            KeyEvent.KEYCODE_DPAD_RIGHT, KeyEvent.KEYCODE_BUTTON_R1 -> if (down) launcher.move(LAUNCHER_PAGE)
+            KeyEvent.KEYCODE_DPAD_UP -> if (down) launcher.moveRow(-1)
+            KeyEvent.KEYCODE_DPAD_DOWN -> if (down) launcher.moveRow(1)
+            KeyEvent.KEYCODE_DPAD_LEFT -> if (down) launcher.moveColumn(-1)
+            KeyEvent.KEYCODE_DPAD_RIGHT -> if (down) launcher.moveColumn(1)
+            KeyEvent.KEYCODE_BUTTON_L1 -> if (down) launcher.page(-1)
+            KeyEvent.KEYCODE_BUTTON_R1 -> if (down) launcher.page(1)
             KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER, KeyEvent.KEYCODE_BUTTON_START ->
                 if (first) launcher.current?.let(::play)
             KeyEvent.KEYCODE_BUTTON_B -> if (first) openLauncherMenu()
@@ -1490,6 +1587,7 @@ class LibraryActivity : ComponentActivity() {
 
     /** X: the list and the media trade screens, animated on both. */
     private fun swapLauncher() {
+        if (!ScreenScraperClient.enabled) return
         launcherScope?.launch { launcher.swap { prefs.launcherSwapped = it } }
     }
 
@@ -1506,7 +1604,7 @@ class LibraryActivity : ComponentActivity() {
         androidx.compose.runtime.SideEffect { launcherScope = scope }
         Box(Modifier.fillMaxSize().background(OptionColors.imageWell)) {
             Box(Modifier.fillMaxSize().launcherSwapMotion(launcher, onMain = true)) {
-                if (launcher.swapped) LauncherMedia(m, small) else LauncherList(m, small)
+                if (launcher.swapped) LauncherMedia(m, small) else LauncherList(m, small, onMain = true)
             }
             LibraryDialogs(m, small)
         }
@@ -1519,7 +1617,7 @@ class LibraryActivity : ComponentActivity() {
         val small = rememberGbaTextMetrics(textScale = 1f)
         Box(Modifier.fillMaxSize().background(OptionColors.imageWell)) {
             Box(Modifier.fillMaxSize().launcherSwapMotion(launcher, onMain = false)) {
-                if (launcher.swapped) LauncherList(m, small) else LauncherMedia(m, small)
+                if (launcher.swapped) LauncherList(m, small, onMain = false) else LauncherMedia(m, small)
             }
         }
     }
@@ -1547,34 +1645,24 @@ class LibraryActivity : ComponentActivity() {
         )
     }
 
-    /** The launcher's game list: a header (sort, import, refresh, settings), the games - the selected one the
-     * white row with the focus ring - and the button legend bottom right. Tap = select, tap again = play. */
+    /** The launcher's game list, the classic library's look: a header (sort, view, import, refresh, help, settings),
+     * RECENTLY PLAYED, then the games as rows or tiles - the cursor's the white card with the focus ring - and the
+     * button legend bottom right. [onMain]: on the main display (the Thor's top screen, the wide one), where a row
+     * has room for the file's path. Tap = the cursor onto it, tap again = play. */
     @Composable
-    private fun LauncherList(m: GbaTextMetrics, small: GbaTextMetrics) {
+    private fun LauncherList(m: GbaTextMetrics, small: GbaTextMetrics, onMain: Boolean) {
         @Suppress("UNUSED_EXPRESSION") revision
         val games = launcher.games
-        val list = androidx.compose.foundation.lazy.rememberLazyListState(launcher.scrollIndex, launcher.scrollOffset)
-        androidx.compose.runtime.DisposableEffect(list) {
-            onDispose {
-                launcher.scrollIndex = list.firstVisibleItemIndex
-                launcher.scrollOffset = list.firstVisibleItemScrollOffset
-            }
-        }
-        // Keeps the selected game in view, a row of context above and below it.
-        LaunchedEffect(launcher.selected, games) {
-            val visible = list.layoutInfo.visibleItemsInfo
-            val sel = launcher.selected
-            if (visible.isEmpty()) {
-                list.scrollToItem((sel - 1).coerceAtLeast(0))
-                return@LaunchedEffect
-            }
-            val firstFull = visible.first().index + if (visible.first().offset < 0) 1 else 0
-            val lastFull = visible.last().index - if (visible.last().offset + visible.last().size > list.layoutInfo.viewportEndOffset) 1 else 0
-            when {
-                sel <= firstFull -> list.animateScrollToItem((sel - 1).coerceAtLeast(0))
-                sel >= lastFull -> list.animateScrollToItem((sel - (lastFull - firstFull) + 1).coerceAtLeast(0))
-            }
-        }
+        val recent = launcher.recent
+        val grid = gridView
+        // Lazy items before the games: the strip and the ALL GAMES title.
+        val lead = if (recent.isEmpty()) 0 else 2
+        val context = with(androidx.compose.ui.platform.LocalDensity.current) { (m.rowHeight / 2).roundToPx() }
+        fun card(rom: File, fromRecent: Boolean) = LauncherCard(
+            cursor = launcher.isCursor(rom, fromRecent),
+            onTap = { if (launcher.isCursor(rom, fromRecent)) play(rom) else launcher.select(rom, fromRecent) },
+            onMenu = { launcher.select(rom, fromRecent); openLauncherMenu() },
+        )
         Box(Modifier.fillMaxSize()) {
             AppBackdrop(logos = true)
             Column(Modifier.fillMaxSize()) {
@@ -1582,11 +1670,19 @@ class LibraryActivity : ComponentActivity() {
                     PixelArt(LOGO_ROWS, LOGO_PALETTE, Modifier.size(m.lineHeight))
                 }) {
                     HeaderIcon(Icons.AutoMirrored.Filled.Sort, tr("Sort"), m) { pickingSort = true }
+                    HeaderIcon(if (grid) Icons.AutoMirrored.Filled.ViewList else Icons.Filled.GridView, tr("Toggle view"), m) {
+                        gridView = !gridView
+                    }
                     HeaderIcon(Icons.Filled.Add, tr("Import ROM"), m) { importRom.launch(arrayOf("*/*")) }
                     HeaderIcon(Icons.Filled.Refresh, tr("Refresh"), m) { refreshLibrary() }
+                    HeaderIcon(Icons.AutoMirrored.Filled.HelpOutline, tr("Help"), m) {
+                        startActivity(Intent(this@LibraryActivity, SettingsActivity::class.java).putExtra(SettingsActivity.EXTRA_SCREEN, SettingsActivity.SCREEN_HELP))
+                    }
                     HeaderIcon(Icons.Filled.Settings, tr("Settings"), m) { openSettings() }
                 }
                 Spacer(Modifier.height(m.u * 4))
+                // Room at the end for the legend, so the last game can scroll clear of it.
+                val padding = PaddingValues(start = SCREEN_MARGIN, end = SCREEN_MARGIN, bottom = SCREEN_MARGIN + m.rowHeight * 1.6f)
                 if (games.isEmpty()) {
                     OptionListWindow(m, Modifier.fillMaxWidth().padding(horizontal = SCREEN_MARGIN)) {
                         GbaText(
@@ -1598,25 +1694,79 @@ class LibraryActivity : ComponentActivity() {
                             modifier = Modifier.padding(m.u * 4),
                         )
                     }
+                } else if (grid) {
+                    val state = rememberLazyGridState(launcher.scrollIndex, launcher.scrollOffset)
+                    KeepScroll({ state.firstVisibleItemIndex }, { state.firstVisibleItemScrollOffset })
+                    val spacing = m.u * 4
+                    BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
+                        // GridCells.Adaptive's own count, worked out here so the D-pad knows the rows.
+                        val columns = maxOf(1, ((maxWidth - SCREEN_MARGIN * 2 + spacing) / (GRID_TILE_MIN + spacing)).toInt())
+                        SideEffect { launcher.columns = columns }
+                        LaunchedEffect(launcher.selected, launcher.recentCursor, games, columns) {
+                            val target = if (launcher.recentCursor >= 0) 0 else launcher.selected + lead
+                            val info = state.layoutInfo
+                            keepInView(
+                                target, info.visibleItemsInfo.map { intArrayOf(it.index, it.offset.y, it.size.height) },
+                                info.viewportEndOffset - info.afterContentPadding, context,
+                                { state.animateScrollBy(it) }, { state.scrollToItem(it) },
+                            )
+                        }
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(columns),
+                            state = state,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = padding,
+                            horizontalArrangement = Arrangement.spacedBy(spacing),
+                            verticalArrangement = Arrangement.spacedBy(spacing),
+                        ) {
+                            if (recent.isNotEmpty()) {
+                                item(key = "recent", span = { GridItemSpan(maxLineSpan) }) {
+                                    RecentPlayedSection(recent, gridView = true, m, small, onPlay = { card(it, true).onTap() }, cursorOn = { launcher.isCursor(it, true) })
+                                }
+                                item(key = "all", span = { GridItemSpan(maxLineSpan) }) { BackdropText(tr("ALL GAMES"), small) }
+                            }
+                            gridItemsIndexed(games, key = { _, rom -> rom.absolutePath }) { _, rom ->
+                                RomTile(rom, m, small, onRename = { renaming = rom }, onDelete = { deleting = rom }, launcherCard = card(rom, false))
+                            }
+                        }
+                    }
                 } else {
-                    androidx.compose.foundation.lazy.LazyColumn(
-                        state = list,
+                    val state = androidx.compose.foundation.lazy.rememberLazyListState(launcher.scrollIndex, launcher.scrollOffset)
+                    KeepScroll({ state.firstVisibleItemIndex }, { state.firstVisibleItemScrollOffset })
+                    SideEffect { launcher.columns = 1 }
+                    LaunchedEffect(launcher.selected, launcher.recentCursor, games) {
+                        val target = if (launcher.recentCursor >= 0) 0 else launcher.selected + lead
+                        val info = state.layoutInfo
+                        keepInView(
+                            target, info.visibleItemsInfo.map { intArrayOf(it.index, it.offset, it.size) },
+                            info.viewportEndOffset - info.afterContentPadding, context,
+                            { state.animateScrollBy(it) }, { state.scrollToItem(it) },
+                        )
+                    }
+                    LazyColumn(
+                        state = state,
                         modifier = Modifier.fillMaxWidth().weight(1f),
-                        // Room at the end for the legend, so the last game can scroll clear of it.
-                        contentPadding = PaddingValues(start = SCREEN_MARGIN, end = SCREEN_MARGIN, bottom = SCREEN_MARGIN + m.rowHeight * 1.6f),
-                        verticalArrangement = Arrangement.spacedBy(m.u * 3),
+                        contentPadding = padding,
+                        verticalArrangement = Arrangement.spacedBy(m.u * 4),
                     ) {
-                        itemsIndexed(games, key = { _, rom -> rom.absolutePath }) { i, rom ->
-                            LauncherRow(rom, i == launcher.selected, m, small)
+                        if (recent.isNotEmpty()) {
+                            item(key = "recent") {
+                                RecentPlayedSection(recent, gridView = false, m, small, onPlay = { card(it, true).onTap() }, cursorOn = { launcher.isCursor(it, true) })
+                            }
+                            item(key = "all") { BackdropText(tr("ALL GAMES"), small) }
+                        }
+                        itemsIndexed(games, key = { _, rom -> rom.absolutePath }) { _, rom ->
+                            RomRow(rom, m, small, onRename = { renaming = rom }, onDelete = { deleting = rom }, launcherCard = card(rom, false), showPath = onMain)
                         }
                     }
                 }
             }
             ButtonLegend(
-                listOf(
+                listOfNotNull(
                     LegendEntry("A", tr("OPEN")) { launcher.current?.let(::play) },
                     LegendEntry("B", tr("OPTIONS")) { openLauncherMenu() },
-                    LegendEntry("X", tr("SWAP")) { swapLauncher() },
+                    // SWAP comes with the second screen's media page (ScreenScraper).
+                    LegendEntry("X", tr("SWAP")) { swapLauncher() }.takeIf { ScreenScraperClient.enabled },
                     LegendEntry("Y", tr("SETTINGS")) { openSettings() },
                 ),
                 small,
@@ -1626,53 +1776,40 @@ class LibraryActivity : ComponentActivity() {
         }
     }
 
-    /** One game in the launcher's list: cover, name, its marks; selected = the white row with the focus ring. */
+    /** The list's scroll, kept for when it moves to the other screen (or the view changes) - read as it goes away,
+     * never while composing: that made the whole list recompose on every scrolled frame (the grid stuttered). */
     @Composable
-    @OptIn(ExperimentalFoundationApi::class)
-    private fun LauncherRow(rom: File, selected: Boolean, m: GbaTextMetrics, small: GbaTextMetrics) {
-        val isNew = remember(rom, revision) { RomAdded.isNew(this@LibraryActivity, rom) }
-        val hasSave = remember(rom, revision) { SavesLocation.saveFor(this@LibraryActivity, prefs, rom).exists() }
-        val haptic = LocalHapticFeedback.current
-        OptionListWindow(
-            m,
-            Modifier.fillMaxWidth()
-                .gbaFocusRing(selected, PixelRoundedShape(m.u * 2))
-                .combinedClickable(
-                    interactionSource = remember { MutableInteractionSource() }, indication = null,
-                    onLongClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        launcher.select(rom)
-                        openLauncherMenu()
-                    },
-                    onClick = { if (selected) play(rom) else launcher.select(rom) },
-                ),
-            fill = if (selected) OptionColors.rowSelected else OptionColors.listFill,
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                CoverThumb(rom, m, modifier = Modifier.height(48.dp))
-                Spacer(Modifier.width(m.u * 6))
-                GbaText(romLabel(rom), OptionColors.label, OptionColors.labelShadow, m, Modifier.weight(1f, fill = false))
-                if (rom.absolutePath in prefs.favoriteRoms) {
-                    Spacer(Modifier.width(m.u * 4))
-                    FavoriteStar(small.lineHeight)
-                }
-                if (hasSave) {
-                    Spacer(Modifier.width(m.u * 4))
-                    Icon(Icons.Filled.Save, contentDescription = tr("Save file exists"), tint = OptionColors.label, modifier = Modifier.size(small.lineHeight))
-                }
-                Spacer(Modifier.weight(1f))
-                if (isNew) {
-                    Spacer(Modifier.width(m.u * 4))
-                    OptionBadge(tk("NEW"), m, fill = OptionColors.newBadge, shadow = OptionColors.newBadgeShadow)
-                }
-                if (rom.absolutePath in unsupportedRoms) {
-                    Spacer(Modifier.width(m.u * 4))
-                    OptionBadge(tk("NOT SUPPORTED"), m)
-                } else if (rom.absolutePath in partialRoms) {
-                    Spacer(Modifier.width(m.u * 4))
-                    OptionBadge(tk("PARTIALLY SUPPORTED"), m, fill = OptionColors.muted)
-                }
+    private fun KeepScroll(index: () -> Int, offset: () -> Int) {
+        androidx.compose.runtime.DisposableEffect(Unit) {
+            onDispose {
+                launcher.scrollIndex = index()
+                launcher.scrollOffset = offset()
             }
+        }
+    }
+
+    /**
+     * Scrolls lazy item [target] fully into view with some of its neighbours: [items] are the visible ones as
+     * (index, offset, size) along the scroll, [viewEnd] where the legend's room starts, [context] the most of what's
+     * around it to show too (px). Off screen, it jumps there.
+     */
+    private suspend fun keepInView(
+        target: Int, items: List<IntArray>, viewEnd: Int, context: Int,
+        scrollBy: suspend (Float) -> Unit, scrollTo: suspend (Int) -> Unit,
+    ) {
+        val item = items.firstOrNull { it[0] == target }
+        if (item == null) {
+            scrollTo(target)
+            return
+        }
+        val top = item[1]
+        val bottom = top + item[2]
+        // A little of what's past it (half a row at most: a grid's tall tiles scrolled the strip away); the strip at the
+        // top goes all the way up, its title with it.
+        val margin = if (target == 0) 0 else minOf(item[2] / 2, context)
+        when {
+            top < margin -> scrollBy((top - margin).toFloat())
+            bottom > viewEnd - margin -> scrollBy((bottom - viewEnd + margin).toFloat())
         }
     }
 
@@ -1940,13 +2077,15 @@ class LibraryActivity : ComponentActivity() {
         /** The options popup's subtle 1u frame. */
         private val MenuBorder get() = if (OptionColors.dark) Color(0xFF4A5262) else Color(0xFFA8A8B0)
         const val EXTRA_ROM = "rom"
-        /** LEFT / RIGHT / L / R in the launcher: this many games at a time. */
-        private const val LAUNCHER_PAGE = 6
+        /** The grid view's narrowest tile (GridCells.Adaptive's minimum). */
+        private val GRID_TILE_MIN = 150.dp
         /** Keys the launcher's menu swallows (the launcher's own), so they don't act behind it. */
         private val LAUNCHER_KEYS = setOf(
             KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1,
             KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y, KeyEvent.KEYCODE_BUTTON_START, KeyEvent.KEYCODE_BUTTON_SELECT,
         )
         private const val MAX_COVER_WIDTH = 480
+        /** Decoded covers kept ([coverBitmaps]): ~36 at the largest (480 px square). */
+        private const val COVER_CACHE_BYTES = 32 * 1024 * 1024
     }
 }

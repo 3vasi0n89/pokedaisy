@@ -46,7 +46,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.CompositingStrategy
@@ -71,6 +74,7 @@ import com.pokedaisy.app.companion.ui.OptionTitleWindow
 import com.pokedaisy.app.companion.ui.PixelPillShape
 import com.pokedaisy.app.companion.ui.PixelRoundedShape
 import com.pokedaisy.app.companion.ui.drawLayeredFrame
+import com.pokedaisy.app.companion.ui.drawPixelRoundRect
 import com.pokedaisy.app.companion.ui.inPx
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -91,7 +95,15 @@ import java.io.File
 class LauncherState {
     var games by mutableStateOf<List<File>>(emptyList())
         private set
+    /** The RECENTLY PLAYED strip over the games (up to 3, newest first). */
+    var recent by mutableStateOf<List<File>>(emptyList())
+        private set
+    /** The cursor in the games... */
     var selected by mutableIntStateOf(0)
+    /** ...or on the RECENTLY PLAYED strip, at this tile (-1 = in the games). */
+    var recentCursor by mutableIntStateOf(-1)
+    /** Games per row as last laid out: 1 in the list view, the grid's columns in the grid view. */
+    var columns by mutableIntStateOf(1)
     /** The list on the second screen, the media on the main one. */
     var swapped by mutableStateOf(false)
     /** 0 at rest; 1 = both screens' contents fully out, mid-swap. */
@@ -106,23 +118,82 @@ class LauncherState {
     /** Bumped when a game's media lands on the device (re-reads the media screen). */
     var mediaGeneration by mutableIntStateOf(0)
 
-    val current: File? get() = games.getOrNull(selected)
+    val current: File? get() = if (recentCursor >= 0) recent.getOrNull(recentCursor) else games.getOrNull(selected)
 
-    /** A new list, keeping the selected game where it can (else [prefer], else the first). */
-    fun setGames(list: List<File>, prefer: String?) {
+    /** A new list, keeping the cursor on its game where it can (else on [prefer] - the strip's first tile when it's
+     * the last played - else where it was). */
+    fun setGames(list: List<File>, recentList: List<File>, prefer: String?) {
         val keep = current?.absolutePath ?: prefer
+        val onStrip = recentCursor >= 0 || current == null
         games = list
+        recent = recentList
+        val inRecent = recentList.indexOfFirst { it.absolutePath == keep }
+        if (onStrip && inRecent >= 0) {
+            recentCursor = inRecent
+            return
+        }
+        recentCursor = -1
         selected = list.indexOfFirst { it.absolutePath == keep }.takeIf { it >= 0 } ?: selected.coerceIn(0, (list.size - 1).coerceAtLeast(0))
     }
 
-    fun move(delta: Int) {
+    /** UP / DOWN: a row (a grid row in the grid view); up off the games' top row onto the strip, down off it into them. */
+    fun moveRow(delta: Int) {
+        if (recentCursor >= 0) {
+            if (delta > 0 && games.isNotEmpty()) {
+                selected = recentCursor.coerceAtMost(columns - 1).coerceAtMost(games.lastIndex)
+                recentCursor = -1
+            }
+            return
+        }
         if (games.isEmpty()) return
-        selected = (selected + delta).coerceIn(0, games.lastIndex)
+        val next = selected + delta * columns
+        when {
+            next < 0 -> if (recent.isNotEmpty() && delta < 0) recentCursor = (selected % columns).coerceAtMost(recent.lastIndex)
+            // Down into a last row that's short of this column: its last game.
+            next > games.lastIndex -> if (selected / columns < games.lastIndex / columns) selected = games.lastIndex
+            else -> selected = next
+        }
     }
 
-    fun select(rom: File) {
-        games.indexOfFirst { it.absolutePath == rom.absolutePath }.takeIf { it >= 0 }?.let { selected = it }
+    /** LEFT / RIGHT: along the strip or a grid row; in the list view, a page. */
+    fun moveColumn(delta: Int) {
+        when {
+            recentCursor >= 0 -> recentCursor = (recentCursor + delta).coerceIn(0, recent.lastIndex)
+            columns > 1 -> if (games.isNotEmpty()) selected = (selected + delta).coerceIn(0, games.lastIndex)
+            else -> page(delta)
+        }
     }
+
+    /** L / R: [PAGE] rows at a time (off the strip, into the games). */
+    fun page(delta: Int) {
+        if (games.isEmpty()) return
+        if (recentCursor >= 0) {
+            if (delta < 0) return
+            recentCursor = -1
+            selected = 0
+            return
+        }
+        val next = selected + delta * PAGE * columns
+        if (next < 0 && selected < columns && recent.isNotEmpty()) {
+            recentCursor = 0
+            return
+        }
+        selected = next.coerceIn(0, games.lastIndex)
+    }
+
+    /** A tap: the cursor onto [rom] - the strip's tile when [fromRecent]. */
+    fun select(rom: File, fromRecent: Boolean = false) {
+        if (fromRecent) {
+            recent.indexOfFirst { it.absolutePath == rom.absolutePath }.takeIf { it >= 0 }?.let { recentCursor = it }
+            return
+        }
+        games.indexOfFirst { it.absolutePath == rom.absolutePath }.takeIf { it >= 0 }?.let { selected = it; recentCursor = -1 }
+    }
+
+    /** Whether the cursor is on [rom] - on the strip's tile when [fromRecent], else in the games. */
+    fun isCursor(rom: File, fromRecent: Boolean): Boolean =
+        if (fromRecent) recentCursor >= 0 && recent.getOrNull(recentCursor)?.absolutePath == rom.absolutePath
+        else recentCursor < 0 && games.getOrNull(selected)?.absolutePath == rom.absolutePath
 
     /** X: out (130 ms), trade screens, in (210 ms). Needs a frame clock: launch it from a composition's scope. */
     suspend fun swap(onSwapped: (Boolean) -> Unit) {
@@ -151,6 +222,8 @@ class LauncherState {
     fun mediaChanged() { mediaGeneration++ }
 
     companion object {
+        /** Rows a page (L / R, and LEFT / RIGHT in the list view) moves. */
+        const val PAGE = 6
         const val SWAP_OUT_MS = 130
         const val SWAP_IN_MS = 210
         /** Games whose decoded media are kept (a few MB each): going back and forth is instant. */
@@ -560,7 +633,7 @@ class LegendEntry(val button: String, val label: String, val onClick: () -> Unit
 
 /**
  * The floating legend, bottom right of the list's screen: A / B / X / Y and what each does. Each entry
- * is a button too, for touch.
+ * is a button too, for touch. A stepped glow and a drop shadow lift it off the rows scrolling under it.
  */
 @Composable
 fun ButtonLegend(entries: List<LegendEntry>, m: GbaTextMetrics, modifier: Modifier = Modifier) {
@@ -568,6 +641,19 @@ fun ButtonLegend(entries: List<LegendEntry>, m: GbaTextMetrics, modifier: Modifi
     Row(
         modifier
             .wrapContentSize()
+            .drawBehind {
+                val px = u.toPx()
+                // The glow: rings a GBA pixel apart, fading out (whole pixels and pixel corners, like the frame).
+                for (i in LEGEND_GLOW downTo 1) {
+                    val grow = i * px
+                    drawPixelRoundRect(
+                        Color.Black.copy(alpha = 0.07f), Offset(-grow, -grow), Size(size.width + 2 * grow, size.height + 2 * grow),
+                        radius = 3 * px + grow, step = px,
+                    )
+                }
+                // The drop shadow: the window's own shape, 2 pixels down.
+                drawPixelRoundRect(Color.Black.copy(alpha = 0.25f), Offset(0f, 2 * px), size, radius = 3 * px, step = px)
+            }
             .clip(PixelRoundedShape(u * 3))
             .background(OptionColors.titleFill.copy(alpha = 0.94f))
             .drawWithContent {
@@ -592,6 +678,9 @@ fun ButtonLegend(entries: List<LegendEntry>, m: GbaTextMetrics, modifier: Modifi
         }
     }
 }
+
+/** The legend's glow, in GBA pixels past its frame. */
+private const val LEGEND_GLOW = 4
 
 /** A round face button with its letter, in the colours it has on most pads' legends. */
 @Composable

@@ -87,9 +87,9 @@ fun ItemPartyPicker(
     }
 }
 
-/** A party slot's held item: its icon and name on a small white tag, like the title window. */
+/** A party slot's held item: its icon and name on a small white tag, like the title window (also the PARTY tab's). */
 @Composable
-private fun HeldItemTag(itemId: Int, modifier: Modifier = Modifier) {
+internal fun HeldItemTag(itemId: Int, modifier: Modifier = Modifier) {
     val m = rememberGbaTextMetrics(0.75f)
     val u = m.u
     Row(

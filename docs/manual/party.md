@@ -3,7 +3,7 @@ title: Party and summaries
 summary: Your team at a glance, each Pokémon's full summary, its exact IVs and EVs, and which new moves are worth learning.
 section: companion
 order: 2
-keywords: [team, pokemon, summary, ivs, evs, nature, hidden power, stats, moves, exp, experience, learn, tm, forget, move advice, weakness, resistance]
+keywords: [team, pokemon, summary, ivs, evs, nature, hidden power, stats, moves, exp, experience, learn, tm, forget, move advice, weakness, resistance, held item, holding, item]
 ---
 
 The `PARTY` tab is your team, live. Glance down and you know who's hurt, who's poisoned and who's about to level up, without pausing to open the game's menu.
@@ -11,6 +11,8 @@ The `PARTY` tab is your team, live. Glance down and you know who's hurt, who's p
 ## Your party
 
 Each Pokémon gets a slot with its icon, name, level and HP bar, plus its status if it has one (poisoned, asleep and so on). A fainted Pokémon's slot changes colour the way the game shows it.
+
+A Pokémon holding an item gets a small tag in its slot's top right corner with the item's icon and name, so you can see who holds what without opening each summary. The game's own little held-item marker sits by its icon too.
 
 The slots are your game's own party screen: FireRed and Emerald use their real slot art, and many hacks have their own colours. Games without a look of their own get a FireRed-style slot. The art is rebuilt from your own ROM the first time you play it, so it can take a moment to appear the very first time.
 
@@ -27,6 +29,8 @@ Tap any slot to open that Pokémon's summary. It fills the tab:
 - **Right**: its four moves, each with its type, power (`PWR`) and remaining `PP`.
 
 ![EMBERPUP's summary: level, HP and EXP on the left above its weaknesses and resistances, its four moves on the right](shots/companion-summary.png "A Pokémon's summary")
+
+If the Pokémon holds an item, its `ITEM` line shows it. In games where the companion can use items, a `TAKE` button puts the item back in your bag, after asking first. When the bag has no room for it, the line says `BAG FULL` instead, just as the game would refuse.
 
 Along the bottom is a strip with every Pokémon in your party: tap another one to switch to its summary. The page you're on (moves, stats or learn) stays put while you switch, so you can compare the whole team's IVs one after another. The blue button at the bottom right, or BACK, returns to the party.
 

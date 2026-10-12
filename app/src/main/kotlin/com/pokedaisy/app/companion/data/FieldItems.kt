@@ -357,7 +357,8 @@ fun usableItems(fns: FieldItemFns, items: ByteArray): Set<Int> {
 }
 
 /** Why a Pokémon can't be picked; [OK] = it can. */
-enum class SlotVerdict { OK, NO_EFFECT, EGG, HOLDS_MAIL, HOLDS_IT }
+/** BAG_FULL: TAKE's - what it holds has no room in the bag ([partyHeldItems]). */
+enum class SlotVerdict { OK, NO_EFFECT, EGG, HOLDS_MAIL, HOLDS_IT, BAG_FULL }
 
 /** One party slot as USE / GIVE sees it: the Pokémon ([personality], checked again before acting),
  * what it holds, and for a one-move item which moves the item would help. */
@@ -515,9 +516,38 @@ private fun setHeldItem(p: PartyItemFns, g: GameCalls, slot: Int, item: Int): Bo
 }.getOrDefault(false)
 
 /**
+ * Whether the bag has room for one more [item]: the game's own AddBagItem, then EWRAM put back byte for byte -
+ * the bag (SaveBlock1) and whatever else the call touches (Emerald's heap) live there, so nothing it did stays.
+ * Null = couldn't tell.
+ */
+private fun PartyItemFns.bagHasRoom(g: GameCalls, item: Int): Boolean? {
+    val before = g.read(EWRAM_START, EWRAM_SIZE).takeIf { it.size == EWRAM_SIZE } ?: return null
+    val added = g.call(addBagItem, item, 1)
+    val after = g.read(EWRAM_START, EWRAM_SIZE)
+    fun restore(from: Int, to: Int) {
+        if (!g.write(EWRAM_START + from, before.copyOfRange(from, to))) throw IllegalStateException("couldn't put the bag back")
+    }
+    if (after.size != EWRAM_SIZE) restore(0, EWRAM_SIZE)
+    else {
+        var i = 0
+        while (i < EWRAM_SIZE) {
+            if (after[i] == before[i]) { i++; continue }
+            var j = i
+            while (j < EWRAM_SIZE && after[j] != before[j]) j++
+            restore(i, j)
+            i = j
+        }
+    }
+    return if (added < 0) null else added == 1L
+}
+
+private const val EWRAM_START = 0x02000000L
+private const val EWRAM_SIZE = 0x40000
+
+/**
  * What each party Pokémon holds, for TAKE: [PartyTarget.heldItem] with OK where it can be taken,
- * NO_EFFECT where there's nothing, HOLDS_MAIL / EGG. Reads only (GetMonData), so not gated on the
- * field. Emu thread.
+ * BAG_FULL where the bag has no room for it (the game's own check, undone: [bagHasRoom]), NO_EFFECT
+ * where there's nothing, HOLDS_MAIL / EGG. Changes nothing, so not gated on the field. Emu thread.
  */
 fun partyHeldItems(support: FieldItemSupport, g: GameCalls): PartyTargets {
     val p = support.fns.party ?: return PartyTargets(ItemUseResult.FAILED)
@@ -530,6 +560,7 @@ fun partyHeldItems(support: FieldItemSupport, g: GameCalls): PartyTargets {
                 p.get(g, slot, MON_DATA_IS_EGG) != 0L -> SlotVerdict.EGG
                 held == 0 -> SlotVerdict.NO_EFFECT
                 held in p.mail -> SlotVerdict.HOLDS_MAIL
+                p.bagHasRoom(g, held) == false -> SlotVerdict.BAG_FULL
                 else -> SlotVerdict.OK
             }
             PartyTarget(slot, p.get(g, slot, MON_DATA_PERSONALITY), held, verdict)

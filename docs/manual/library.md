@@ -122,16 +122,15 @@ To use your own image instead, tap `SET COVER` in the menu and pick a picture fr
 
 ## The dual-screen launcher
 
-On a device with two screens, the library spreads over both: the game list on one, and on the other the game you're on, with its cover and what PokeDaisy knows about it, like `LAST PLAYED` and whether it has a `SAVE`.
+On a device with two screens, the library is made for buttons. It's the same library: `RECENTLY PLAYED` at the top, then all your games as a list or a grid (the view button in the header switches), each row with where its file is.
 
-It's made for buttons. The D-pad moves through the list, whichever screen it's on, and a small legend in the corner reminds you of the rest:
+The D-pad moves a cursor through it: up and down a row, left and right along `RECENTLY PLAYED` or a row of the grid. L and R jump a page. A small legend in the corner reminds you of the rest:
 
 - **A** opens the game.
 - **B** opens the game's menu (the same entries as a long press).
-- **X** swaps the two screens, with a short slide, so the list goes where you'd rather have it.
 - **Y** opens Settings.
 
-Prefer the plain library on one screen? Turn off `DUAL-SCREEN LAUNCHER` in Settings, in the `LIBRARY` group.
+Prefer the library without the cursor and legend? Turn off `DUAL-SCREEN LAUNCHER` in Settings, in the `LIBRARY` group.
 
 ## Game info
 

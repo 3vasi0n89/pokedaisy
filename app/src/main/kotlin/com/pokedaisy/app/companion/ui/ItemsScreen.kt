@@ -929,17 +929,18 @@ private fun ItemRow(
             .soundClickable(interactionSource = noRipple, indication = null, onClick = onClick),
     ) {
         Box(Modifier.width(u * 8)) { if (selected) BagCursor(pal, m) }
+        val cell = with(LocalDensity.current) { m.fontPixel.toDp() }
+        // The gold star (the player's own) just before the name.
+        if (favorite) {
+            ShadowedPixelIcon(PixelIcons.star, OptionColors.favorite, pal.textShadow, m, cell = cell, modifier = Modifier.padding(end = u * 4))
+        }
         GbaText(
             item.name, pal.text, pal.textShadow, m,
             modifier = Modifier.weight(1f),
         )
-        // Both before "× qty": the mark, then the gold star (the player's own, nearest the count as before).
-        val cell = with(LocalDensity.current) { m.fontPixel.toDp() }
+        // The mark before "× qty".
         if (marked) {
             ShadowedPixelIcon(PixelIcons.itemAction, pal.text, pal.textShadow, m, cell = cell, modifier = Modifier.padding(end = u * 4))
-        }
-        if (favorite) {
-            ShadowedPixelIcon(PixelIcons.star, OptionColors.favorite, pal.textShadow, m, cell = cell, modifier = Modifier.padding(end = u * 4))
         }
         GbaText("× ${item.quantity}", pal.text, pal.textShadow, m, modifier = Modifier.padding(end = u * 4))
     }

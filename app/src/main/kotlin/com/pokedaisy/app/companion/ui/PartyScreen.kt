@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import com.pokedaisy.app.companion.data.GENDER_SYMBOL_FEMALE
 import com.pokedaisy.app.companion.data.GENDER_SYMBOL_MALE
 import com.pokedaisy.app.companion.data.GameKind
@@ -54,10 +55,13 @@ import kotlin.math.roundToInt
 
 private const val PARTY_MAX = 6
 
-/** The PARTY tab: the lead under the cursor, a tap opens that Pokémon's summary. */
+/** The PARTY tab: the lead under the cursor, a tap opens that Pokémon's summary; what each one holds on a tag in its
+ * corner, as ITEMS' GIVE pick shows it. */
 @Composable
 fun PartyScreen(party: List<MonView>, onMonClick: (MonView) -> Unit) {
-    PartyGrid(party, selected = 0, onSlotClick = onMonClick)
+    PartyGrid(party, selected = 0, onSlotClick = onMonClick) { mon ->
+        if (mon.heldItemId != 0) HeldItemTag(mon.heldItemId, Modifier.align(Alignment.TopEnd).padding(top = 4.dp, end = 8.dp))
+    }
 }
 
 /**
@@ -541,8 +545,8 @@ private fun PartySlot(palette: PartyPalette, mon: MonView?, selected: Boolean, o
             mon.iconAsset, size = with(density) { (32 * u).toDp() },
             modifier = Modifier.offset { IntOffset((g.fx - 8 * u).toInt(), (g.fy + iconDy * u).toInt()) },
         )
-        // The held-item marker, where GbaPartySlot puts it: the icon's top-left + (16, 22), moving with it.
-        HeldItemMarker(mon.heldItemId, u, g.fx - 8 * u + 16 * u, g.fy + iconDy * u + 22 * u)
+        // The held-item marker, where GbaPartySlot puts it: the resting icon's place + (16, 22). It doesn't bob.
+        HeldItemMarker(mon.heldItemId, u, g.fx - 8 * u + 16 * u, g.fy + 22 * u)
 
         val textWidth = with(density) { (g.fx + g.fw - 4 * u - g.textX).toDp() }
         GbaText(mon.name, text, textShadow, nameM, density.at(g.textX, g.nameMid, nameM).width(textWidth))

@@ -290,6 +290,8 @@ fun companion(
     expandOffer: Boolean = false,
     /** The ITEMS tab's USE / GIVE ([PreviewItemUse]): its row marks and party picks. */
     items: Boolean = false,
+    /** With [items]: TAKE finds no room in the bag. */
+    bagFull: Boolean = false,
     expand: Boolean = false,
     snap: () -> SnapshotView = ::snapshot,
 ): () -> (@Composable () -> Unit) = {
@@ -299,7 +301,7 @@ fun companion(
     val content: @Composable () -> Unit = {
         CompanionScreen(
             sv, FakeSlots(), FakeSettings(hints, oneTap = oneTap, expandOffer = expandOffer, expand = expand), FakeBattleInput(busy), initialTab = tab,
-            initialMonIndex = mon, initialCardBack = cardBack, back = back, itemUse = if (items) PreviewItemUse(sv.party) else null,
+            initialMonIndex = mon, initialCardBack = cardBack, back = back, itemUse = if (items) PreviewItemUse(sv.party, bagFull) else null,
         )
     }
     content
@@ -310,7 +312,21 @@ fun companion(
  * BagPalette shows the row mark, though the app has it on FireRed rev 1 only so far. The lead holds
  * nothing, the second a QUICK CLAW; a Potion helps whoever is below full HP.
  */
-class PreviewItemUse(private val party: List<MonView>) : com.pokedaisy.app.companion.ItemUse {
+class PreviewItemUse(private val party: List<MonView>, private val bagFull: Boolean = false) : com.pokedaisy.app.companion.ItemUse {
+    override fun canTake() = true
+    // TAKE's answer: the QUICK CLAW can come off, or ([bagFull]) the bag has no room for it.
+    override fun heldItems(done: (com.pokedaisy.app.companion.data.PartyTargets) -> Unit) = done(com.pokedaisy.app.companion.data.PartyTargets(
+        com.pokedaisy.app.companion.data.ItemUseResult.USED,
+        party.mapIndexed { i, m ->
+            val held = if (i == 1) 183 else 0
+            val verdict = when {
+                held == 0 -> com.pokedaisy.app.companion.data.SlotVerdict.NO_EFFECT
+                bagFull -> com.pokedaisy.app.companion.data.SlotVerdict.BAG_FULL
+                else -> com.pokedaisy.app.companion.data.SlotVerdict.OK
+            }
+            com.pokedaisy.app.companion.data.PartyTarget(i, m.personality, held, verdict)
+        },
+    ))
     private val support = com.pokedaisy.app.companion.data.FieldItemSupport(
         com.pokedaisy.app.companion.data.FIELD_ITEMS_FIRERED_REV1, setOf(13, 4, 200, 182, 183),
     )
@@ -700,12 +716,13 @@ fun <T> withScreenScraper(make: () -> T): T {
 
 /** The launcher (a second screen, Settings > DUAL-SCREEN LAUNCHER on): [swapped] = the list on the
  * second screen; [media] = stand-in ScreenScraper media for two games; [signedIn] = an account. */
-fun launcher(swapped: Boolean = false, media: Boolean = true, signedIn: Boolean = true, second: Boolean = false): () -> (@Composable () -> Unit) {
+fun launcher(swapped: Boolean = false, media: Boolean = true, signedIn: Boolean = true, second: Boolean = false, grid: Boolean = false): () -> (@Composable () -> Unit) {
     val main = activity(start = true) {
         val ctx = android.content.Context()
         val prefs = Prefs(ctx)
         prefs.dualScreenLauncher = true
         prefs.launcherSwapped = swapped
+        prefs.libraryViewMode = if (grid) 1 else 0
         if (signedIn) { prefs.screenScraperUser = "preview"; prefs.screenScraperPassword = "x" }
         if (media) fakeMedia(ctx)
         // Media or an account only mean something with ScreenScraper on; without either, the launcher players get now.
@@ -868,6 +885,13 @@ fun main(args: Array<String>) {
     val tw = 1920; val th = 1080; val td = 2.5f
     val all = listOf(
         Shot("$g-party", bw, bh, bd, companion("PARTY")),
+        // The lead holds a Potion, the second a QUICK CLAW: the tag in each slot's corner and the game's marker by the icon.
+        Shot("$g-party-held", bw, bh, bd, companion("PARTY") {
+            snapshot().let { s -> s.copy(party = s.party.mapIndexed { i, m -> m.copy(heldItemId = listOf(13, 183).getOrElse(i) { 0 }) }) }
+        }),
+        // The second Pokémon's summary with its QUICK CLAW: TAKE, or BAG FULL where the bag has no room for it.
+        Shot("$g-party-detail-take", bw, bh, bd, companion("PARTY", mon = 1, items = true)),
+        Shot("$g-party-detail-bagfull", bw, bh, bd, companion("PARTY", mon = 1, items = true, bagFull = true)),
         Shot("$g-expand-offer", bw, bh, bd, companion("PARTY", expandOffer = true)),
         Shot("$g-party-detail", bw, bh, bd, companion("PARTY", mon = 0)),
         Shot("$g-party-detail-next", bw, bh, bd, companion("PARTY", mon = 0)) {
@@ -1191,7 +1215,8 @@ fun main(args: Array<String>) {
         Shot("launcher-second", bw, bh, bd, launcher(second = true)),
         Shot("launcher-second-down", bw, bh, bd, launcher(second = true)) { pressKey(android.view.KeyEvent.KEYCODE_DPAD_DOWN) },
         // Signed out, no media: the cover, the library's facts and how to get the rest.
-        Shot("launcher-second-nomedia", bw, bh, bd, launcher(media = false, signedIn = false, second = true)),
+        // ScreenScraper off (the release): the list alone on the main screen, no second screen and no SWAP.
+        Shot("launcher-main-off", tw, th, td, launcher(media = false, signedIn = false)),
         Shot("launcher-menu", tw, th, td, launcher()) { pressKey(android.view.KeyEvent.KEYCODE_BUTTON_B) },
         Shot("launcher-menu-down", tw, th, td, launcher()) {
             pressKey(android.view.KeyEvent.KEYCODE_BUTTON_B)
@@ -1199,6 +1224,13 @@ fun main(args: Array<String>) {
             pressKey(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
         },
         // After X: the media on the top screen (its wide layout), the list on the bottom.
+        // RECENTLY PLAYED and the grid view, as the classic library has them; DOWN takes the cursor off the strip.
+        Shot("launcher-main-down", tw, th, td, launcher()) { pressKey(android.view.KeyEvent.KEYCODE_DPAD_DOWN) },
+        Shot("launcher-grid", tw, th, td, launcher(grid = true)),
+        Shot("launcher-grid-down-right", tw, th, td, launcher(grid = true)) {
+            pressKey(android.view.KeyEvent.KEYCODE_DPAD_DOWN)
+            pressKey(android.view.KeyEvent.KEYCODE_DPAD_RIGHT)
+        },
         Shot("launcher-swapped-main", tw, th, td, launcher(swapped = true)),
         Shot("launcher-swapped-second", bw, bh, bd, launcher(swapped = true, second = true)),
         Shot("launcher-phone-bottom", 1280, 960, bd, launcher(second = true)),
