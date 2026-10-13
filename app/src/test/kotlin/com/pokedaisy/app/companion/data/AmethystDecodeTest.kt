@@ -53,4 +53,22 @@ class AmethystDecodeTest {
             amethystV141 = false
         }
     }
+
+    @Test
+    fun `moves past Gen 3 have their names (GitHub 96)`() {
+        activeGame = GameKind.AMETHYST
+        for (v141 in listOf(false, true)) {
+            amethystV141 = v141
+            try {
+                // The report's two, and a Fairy move (CFRU's type 23).
+                assertEquals("Worry Seed", lookupMove(475).name)
+                assertEquals("Power Trip", lookupMove(602).name)
+                assertEquals(23, lookupMove(461).type)
+                val t = decodeNative(if (v141) "amethyst_v141" else "amethyst", if (v141) NATIVE_AMETHYST_V1_4_1 else NATIVE_AMETHYST)
+                t.party.flatMap { it.moves.toList() }.filter { it != 0 }.forEach { assert('#' !in lookupMove(it).name) { "move $it" } }
+            } finally {
+                amethystV141 = false
+            }
+        }
+    }
 }

@@ -166,6 +166,7 @@ val activeMoveData: Map<Int, MoveInfo> get() = localText?.moveData ?: when {
     uv -> moveDataUltraVioletMerged
     rechargedYellow -> moveDataRechargedYellow
     mariomon -> if (mariomonV13) moveDataMariomonV13 else moveDataMariomon
+    amethyst -> moveDataAmethyst   // both versions' (GitHub #96: past Gen 3's 354 they read "Move#N")
     else -> moveData
 }
 val activeItemNames: Map<Int, String> get() = localText?.items ?: when {
