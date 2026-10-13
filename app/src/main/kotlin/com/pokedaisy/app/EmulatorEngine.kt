@@ -32,7 +32,11 @@ import kotlin.math.roundToInt
  * apart and a frame was shown twice or skipped every few seconds, and the audio
  * buffer handed frames out in bursts. Its audio is resampled to match (MgbaCore.pkSetAudioRate),
  * nudged by how full the device's buffer is (dynamic rate control), so it never
- * blocks the loop. With no usable vsync (the view not drawing, an odd refresh
+ * blocks the loop. The buffer also keeps the pacing honest (GitHub #80): a refresh
+ * the loop missed costs a frame of audio, so running low runs the next frame at once
+ * ([vsyncPace]) and running high waits for a fresh refresh - never silence written in
+ * (that was the stutter). Underruns that keep coming send the run back to the timer
+ * ([AudioTroubleWatch]). With no usable vsync (the view not drawing, an odd refresh
  * rate) or at any other speed, it falls back to a timer and blocking audio writes.
  *
  * Savestate/loadstate/suspend are always performed on this thread, between
@@ -380,7 +384,7 @@ class EmulatorEngine(
         onSlotChanged?.invoke(n)
     }
 
-    /** Refresh ticks from the game's GL thread, at most a few banked ([onVsync]). */
+    /** Refresh ticks from the game's GL thread, at most two frames' worth banked ([onVsync]). */
     private val vsyncTicks = java.util.concurrent.Semaphore(0)
     @Volatile private var lastVsyncNanos = 0L
     /** The game screen's refresh period, averaged over recent ticks; 0 = not known yet. */
@@ -425,10 +429,12 @@ class EmulatorEngine(
             val p = vsyncPeriodNanos
             vsyncPeriodNanos = if (p == 0.0) d.toDouble() else p + (d - p) * 0.05
         }
-        // At most one frame's worth of refreshes banked: after a hiccup the game drops a frame's time
-        // rather than racing through several frames back to back (4 were banked: a visible rush).
+        // At 1x two frames' worth of refreshes banked: one was too few - refreshes arriving unevenly (two close
+        // together, then a gap) were dropped, each a game frame never run and its audio missing (GitHub #80).
+        // More let the game race after a hiccup (4 were: a visible rush); the audio fill decides now (vsyncPace).
+        // Fast-forward keeps one: its groups run on the tick.
         val n = pacedPerFrame
-        if (vsyncTicks.availablePermits() < maxOf(1, n)) vsyncTicks.release()
+        if (vsyncTicks.availablePermits() < (if (n == 0) 1 else 2 * n)) vsyncTicks.release()
         if (n == 0) return 0L
         return if (++ticksSinceFrame >= n) (vsyncPeriodNanos * 0.6).toLong() else 0L
     }
@@ -529,12 +535,25 @@ class EmulatorEngine(
         var framesWritten = 0L
         var underruns = track?.underrunCount ?: 0
         var vsyncMode = false
+        // Audio queued after this frame's write (vsync pacing only): picks how the next frame is paced. Null on a
+        // frame that wrote none (the game's audio paused for a STEADY clip, say): it paces on the tick alone - a
+        // stale "low" once ran SMART's 1x menus at up to 3x while the clip played.
+        var queuedAfter: Int? = null
+        var lastQueued = -1
+        var catchUpRun = 0
+        // Underruns while vsync paces, counted once it has settled; too many and this run goes back to the timer.
+        val trouble = AudioTroubleWatch()
+        var vsyncFallback = false
+        var vsyncSettledAt = 0L
+        // For the fps log line: audio a full buffer cut off, frames run at once / held back.
+        var fpsDropped = 0
+        var fpsCatchUps = 0
+        var fpsHolds = 0
         // Fast-forward at a whole number of game frames per refresh (2x / 3x / 4x on 60 Hz): the group of frames
         // for this refresh, run back to back on its tick, the last one drawn. Timer-paced frames with EXPAND's
         // window drawn every 12 ms gave the 60 Hz screen steps of 3, 3, 5 game frames: a judder RetroArch hasn't.
         var ffPerTick = 0
         var ffGroup = 0
-        val silence = ShortArray(bufferFrames * 2)
         var rewindApplied = -1   // pkInit dropped any buffer: set it again for this core
         var wideApplied = WideScreen.OFF   // pkInit starts with WIDE off
         var wideFaultReported = false
@@ -661,7 +680,7 @@ class EmulatorEngine(
                 val spedUp = speed > 1f && clip == null && mode != FfMusicMode.OFF && !awaitingClip
                 val wantPaused = rewinding || battleInput.holdFrame || !((speed == 1f && clip == null) || spedUp)
                 // Refreshes per frame when the display paces 1x; 0 = the timer and blocking audio.
-                val perFrame = if (speed == 1f && track != null && bufferFrames > 0) vsyncsPerFrame() else 0
+                val perFrame = if (speed == 1f && track != null && bufferFrames > 0 && !vsyncFallback) vsyncsPerFrame() else 0
                 pacedPerFrame = perFrame
                 val ffPer = ffFramesPerRefresh(speed, vsyncsPerFrame())
                 if (ffPer != ffPerTick) {
@@ -673,6 +692,8 @@ class EmulatorEngine(
                     vsyncMode = perFrame > 0
                     if (vsyncMode) {
                         vsyncTicks.drainPermits()   // start on the next refresh, not a banked one
+                        vsyncSettledAt = System.nanoTime() + VSYNC_SETTLE_NANOS
+                        catchUpRun = 0
                         // Blocking writes left the buffer about full.
                         framesWritten = (track!!.playbackHeadPosition.toLong() and 0xFFFFFFFFL) + bufferFrames
                     } else {
@@ -686,8 +707,10 @@ class EmulatorEngine(
                     else runCatching { track?.play() }
                     // flush() empties the buffer and puts the play head back at 0.
                     framesWritten = 0L
+                    vsyncSettledAt = System.nanoTime() + VSYNC_SETTLE_NANOS
                 }
 
+                queuedAfter = null
                 val n = MgbaCore.pkReadAudio(scratch)
                 // In FF, the game's sounds for the companion's automated battle presses stay silent but the last.
                 if (n > 0 && speed > 1f && battleInput.muteGame) java.util.Arrays.fill(scratch, 0, n, 0.toShort())
@@ -698,13 +721,17 @@ class EmulatorEngine(
                         var queued = framesWritten.toInt() - played
                         val nowUnderruns = track.underrunCount
                         if (queued < 0 || nowUnderruns != underruns) queued = 0   // ran dry: the guess was off
-                        underruns = nowUnderruns
-                        if (queued < bufferFrames / 8) {
-                            // Top up with silence to half full, so a late frame never runs it dry.
-                            val pad = (bufferFrames / 2 - queued) * 2
-                            val w = track.write(silence, 0, pad, AudioTrack.WRITE_NON_BLOCKING)
-                            queued += maxOf(w, 0) / 2
+                        if (nowUnderruns != underruns && System.nanoTime() >= vsyncSettledAt &&
+                            trouble.record(System.nanoTime())
+                        ) {
+                            // The device keeps running dry with this screen's pacing: the timer and blocking
+                            // writes for the rest of this run, as before vsync pacing (1.1.x).
+                            vsyncFallback = true
+                            Log.w("pokedaisy", "audio: underruns keep coming under vsync pacing; timer pacing for this run")
                         }
+                        underruns = nowUnderruns
+                        // No silence written in: it was the stutter (30-40 ms of it each time the buffer ran low). A
+                        // low buffer runs the next frame at once instead (vsyncPace below).
                         framesWritten = played.toLong() + queued
                         // Samples per emulated second so that a frame's worth lasts one frame of the
                         // display's, nudged towards a half-full buffer (dynamic rate control).
@@ -714,6 +741,9 @@ class EmulatorEngine(
                         MgbaCore.pkSetAudioRate(sampleRate * GBA_FPS / frameHz * drc)
                         val w = track.write(scratch, 0, n, AudioTrack.WRITE_NON_BLOCKING)
                         if (w > 0) framesWritten += w / 2
+                        if (w in 0 until n) fpsDropped += (n - w) / 2   // a full buffer cut it short
+                        queuedAfter = queued + maxOf(w, 0) / 2
+                        lastQueued = queuedAfter
                     } else if (speed == 1f) {
                         track.write(scratch, 0, n)   // blocking → real-time pacing at 1x
                     } else {
@@ -747,9 +777,16 @@ class EmulatorEngine(
                     // Pacing, for a logcat read: the screen's refresh and refreshes per frame (0 = the timer), the GL
                     // thread's late draws since the last line, the frames' work (avg / worst ms) and audio underruns.
                     val late = lateFramesSource?.invoke() ?: -1L
-                    Log.i("pokedaisy", "fps=%.1f (%s) refresh=%.2fHz paced=%d ffPerTick=%d late=%d work=%.1f/%.1fms underruns=%d".format(
+                    // Then vsync pacing's audio guard: frames run at once (catchup) / held to a fresh refresh (hold),
+                    // audio frames a full buffer cut off (dropped), how full the buffer is, and whether it gave up.
+                    Log.i("pokedaisy", ("fps=%.1f (%s) refresh=%.2fHz paced=%d ffPerTick=%d late=%d work=%.1f/%.1fms underruns=%d " +
+                        "catchup=%d hold=%d dropped=%d queued=%d/%d%s").format(
                         fps, speedTag(speed), refreshHz, pacedPerFrame, ffPerTick, if (late < 0 || fpsLate < 0) -1 else late - fpsLate,
-                        fpsWork / fpsFrames / 1e6, fpsMaxWork / 1e6, audioUnderruns))
+                        fpsWork / fpsFrames / 1e6, fpsMaxWork / 1e6, audioUnderruns,
+                        fpsCatchUps, fpsHolds, fpsDropped, lastQueued, bufferFrames, if (vsyncFallback) " fallback" else ""))
+                    fpsCatchUps = 0
+                    fpsHolds = 0
+                    fpsDropped = 0
                     fpsLate = late
                     fpsWork = 0L
                     fpsMaxWork = 0L
@@ -761,8 +798,23 @@ class EmulatorEngine(
                 if (vsyncMode) {
                     // Wait for the game screen's next refresh(es); if they stop coming (the view
                     // went away) the wait times out and the timer takes over from the next frame.
+                    // The audio left in the buffer can override that (GitHub #80): low = a refresh was missed,
+                    // run the next frame now (at most two in a row: a device that never fills can't make the
+                    // game race); high = ahead, drop the banked refreshes and wait for a fresh one.
+                    val pace = queuedAfter?.let { vsyncPace(it, bufferFrames) } ?: VsyncPace.ON_TICK
                     val wait = (vsyncPeriodNanos * perFrame * 3).toLong()
-                    runCatching { vsyncTicks.tryAcquire(perFrame, wait, java.util.concurrent.TimeUnit.NANOSECONDS) }
+                    if (pace == VsyncPace.CATCH_UP && catchUpRun < MAX_CATCH_UP) {
+                        catchUpRun++
+                        fpsCatchUps++
+                        vsyncTicks.tryAcquire(perFrame)   // take the refreshes it stands for, if they came
+                    } else {
+                        catchUpRun = 0
+                        if (pace == VsyncPace.HOLD) {
+                            fpsHolds++
+                            vsyncTicks.drainPermits()
+                        }
+                        runCatching { vsyncTicks.tryAcquire(perFrame, wait, java.util.concurrent.TimeUnit.NANOSECONDS) }
+                    }
                     next = System.nanoTime()
                     prevSpeed = speed
                     continue
@@ -980,6 +1032,14 @@ class EmulatorEngine(
             .setTransferMode(AudioTrack.MODE_STREAM)
             .setPerformanceMode(AudioTrack.PERFORMANCE_MODE_LOW_LATENCY)
             .build()
+            .also { t ->
+                // A low-latency track can start with less of its buffer in use than was asked for: vsync pacing
+                // keeps it about half full, so give it all of it (and say what it got, for a logcat read: #80).
+                val asked = t.bufferSizeInFrames
+                runCatching { t.setBufferSizeInFrames(t.bufferCapacityInFrames) }
+                Log.i("pokedaisy", "audio: %d Hz, buffer %d frames (was %d, capacity %d)".format(
+                    sampleRate, t.bufferSizeInFrames, asked, t.bufferCapacityInFrames))
+            }
     }
 
     private companion object {
@@ -990,6 +1050,10 @@ class EmulatorEngine(
         const val GBA_FPS = 16777216.0 / 280896.0
         /** Dynamic rate control's most the audio is stretched or squeezed (RetroArch's default). */
         const val DRC_MAX = 0.005
+        /** Vsync pacing: frames run at once in a row at most, when the audio buffer runs low ([vsyncPace]). */
+        const val MAX_CATCH_UP = 2
+        /** Underruns this soon after vsync pacing (re)starts or the audio resumes don't count ([AudioTroubleWatch]). */
+        const val VSYNC_SETTLE_NANOS = 2_000_000_000L
         /** Speed steps, by the index saved per ROM. Index 0 (1×) is the normal, audio-on state; SPEED CYCLE
          * goes through the first [CYCLE_STEPS], GAME SPEED adds the slow ones (muted, like SLOWMO HOLD) -
          * appended, so the indexes saved before keep their meaning. */
@@ -1013,4 +1077,32 @@ internal fun ffFramesPerRefresh(speed: Float, refreshesPerFrame: Int): Int {
     val n = speed / refreshesPerFrame
     val r = n.roundToInt()
     return if (r >= 1 && kotlin.math.abs(n - r) < 0.01f) r else 0
+}
+
+/** How vsync pacing runs the next 1x frame, by the audio the device still holds ([vsyncPace]). */
+internal enum class VsyncPace { CATCH_UP, ON_TICK, HOLD }
+
+/**
+ * Vsync pacing's audio guard (GitHub #80): with [queued] audio frames left of a [bufferFrames] buffer after this
+ * frame's write, the next frame runs at once when it's under 3/8 (a refresh went missing: its frame never ran),
+ * waits for a fresh refresh when it's over 7/10 (ahead: one more frame's write would overflow and be cut), else
+ * waits for the next refresh as usual. Dynamic rate control keeps it near half full in between.
+ */
+internal fun vsyncPace(queued: Int, bufferFrames: Int): VsyncPace = when {
+    bufferFrames <= 0 -> VsyncPace.ON_TICK
+    queued < bufferFrames * 3 / 8 -> VsyncPace.CATCH_UP
+    queued > bufferFrames * 7 / 10 -> VsyncPace.HOLD
+    else -> VsyncPace.ON_TICK
+}
+
+/** [max] underruns within [windowNanos] under vsync pacing: [record] says it's time to go back to the timer. */
+internal class AudioTroubleWatch(private val max: Int = 4, private val windowNanos: Long = 10_000_000_000L) {
+    private val times = ArrayDeque<Long>()
+
+    /** One underrun at [now] (System.nanoTime); true once [max] fell within [windowNanos]. */
+    fun record(now: Long): Boolean {
+        times.addLast(now)
+        while (now - times.first() > windowNanos) times.removeFirst()
+        return times.size >= max
+    }
 }
