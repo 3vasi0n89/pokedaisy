@@ -47,14 +47,12 @@ What works:
   muted at any speed ≠ 1× (proper resampling is Phase 4). Frame pacing is exact
   (measured 90/120/180/240 fps for the cycle steps).
 - **Bottom screen**: the Compose companion UI (Party / Map / Items,
-  battle panel, mon detail) in `companion/` (it started as the FireRed QoL
-  project's standalone Android companion), shown on the Thor's Screen-2
+  battle panel, mon detail) in `companion/` (it started as a standalone
+  Android companion app), shown on the Thor's Screen-2
   via a `DualScreenPresentation`. Its old UDP transport is replaced by
   `InProcessReader` → `MgbaCore.pkReadBytes` (bus reads on the emulator thread,
   ~1×/sec, via `EmulatorEngine.onSample`). Game auto-detect from the ROM header;
-  `firered-qol` / `emerald-qol` use the `gQolTelemetry` struct (found by scanning
-  IWRAM/EWRAM for the `QOLT` magic — no hardcoded address), vanilla FireRed and
-  Unbound use native-RAM reads.
+  vanilla FireRed and Unbound use native-RAM reads.
 
 Bottom screen confirmed rendering on the Thor's Screen-2; two early crashes
 fixed (a `ConcurrentHashMap` null-value NPE on missing sprites, and a Compose
@@ -64,13 +62,10 @@ popup is now an in-composition overlay). 90 s interaction soak = 0 crashes.
 
 ## Status: Phase 4 (polish) — in progress
 
-- **Dynamic mon/item icons (done, verified):** the v2 `gQolTelemetry` struct
-  (`QOL_TELEMETRY_VERSION 2`, 460 bytes) exports the ROM addresses of
-  `gMonIconTable` / `gMonIconPaletteTable` / `gMonIconPaletteIndices` /
-  `gItemIconTable`. `DecompIconSource` decodes party + bag sprites straight
-  from the running ROM (`Gfx.kt` has the shared 4bpp / LZ77 decoders), falling
-  back to the bundled PNGs. **Rebuild + re-apply both QoL ROMs** —
-  `firered-qol` sha1 `221d3aca…`, `emerald-qol` sha1 `f96fa970…`.
+- **Dynamic mon/item icons (done, verified):** `DecompIconSource` decodes party +
+  bag sprites straight from the running ROM through `gMonIconTable` /
+  `gMonIconPaletteTable` / `gMonIconPaletteIndices` / `gItemIconTable` (`Gfx.kt`
+  has the shared 4bpp / LZ77 decoders), falling back to the bundled PNGs.
 
 - **ROM library (done, verified):** `LibraryActivity` is the launcher — pick a
   ROM from `files/roms/`, import one via the system file picker, tap to play,
@@ -98,9 +93,8 @@ popup is now an in-composition overlay). 90 s interaction soak = 0 crashes.
   values `Poller.kt` already uses for live hack detection (both confirmed to
   equal a plain file hash). Covered today: Unbound, Gaia, Radical Red,
   Odyssey, Heart & Soul, Lazarus, R.O.W.E., Emerald Rogue (Amethyst isn't
-  catalogued on SteamGridDB yet). Vanilla retail FireRed/LeafGreen/Emerald and
-  this project's own firered-qol/emerald-qol (rebuilt with a different hash
-  every time) aren't in this table on purpose and fall back to the
+  catalogued on SteamGridDB yet). Vanilla retail FireRed/LeafGreen/Emerald
+  aren't in this table on purpose and fall back to the
   placeholder + manual picker below.
 
   **Two earlier approaches were tried and reverted before landing here** —
@@ -143,8 +137,8 @@ popup is now an in-composition overlay). 90 s interaction soak = 0 crashes.
   ROM and restored on next launch.
 - **Emerald support (done):** `NATIVE_EMERALD` config for vanilla Emerald
   (party / battle / bag / coords via native RAM) + a Hoenn map-section table
-  (`MapSecDataEmerald.kt`) and Hoenn region map, so both `emerald-qol` and
-  vanilla Emerald show real Hoenn location names and the map.
+  (`MapSecDataEmerald.kt`) and Hoenn region map, so vanilla Emerald
+  shows real Hoenn location names and the map.
 - **Bottom-screen savestate panel (done):** a "States" tab on the companion —
   a grid of the 10 slots with thumbnails; tap to load, "Save here" to save.
 - **On-screen controls (done):** a translucent D-pad + A/B + Start/Select + L/R
@@ -170,8 +164,7 @@ popup is now an in-composition overlay). 90 s interaction soak = 0 crashes.
   resistances / immunities bottom-left, the four moves (type, power, PP, and
   per-foe multipliers in battle) on the right. Square battle-style buttons
   with pixel icons: up/down cycle the party (wrapping), a U-turn arrow goes
-  back; the party's icons sit between them and jump on tap. No EXP bar — the
-  telemetry doesn't export experience. It's one window split by rules
+  back; the party's icons sit between them and jump on tap. It's one window split by rules
   rather than separate cards.
 - **Pixel-art pass (done, `ui-preview` only):** every corner in the app is a
   whole-GBA-pixel staircase (`PixelShapes.kt`) instead of a smooth arc; the
@@ -191,10 +184,8 @@ popup is now an in-composition overlay). 90 s interaction soak = 0 crashes.
   fill the whole tab). Move buttons: bigger text, PP bottom-right. Screenshot
   tools now use the Thor's real bottom screen, 1240x1080 landscape.
 - **EXP (done for FireRed/Emerald, fixture-tested, not yet on the Thor):** the
-  summary shows an EXP bar ("NEXT n" to the next level). The QoL struct has no
-  EXP, so it's read from the party's own RAM struct (decrypted Growth
-  substruct) and only used when that slot's species and level match the
-  struct's; thresholds come from the game's growth-rate tables
+  summary shows an EXP bar ("NEXT n" to the next level). It's read from the
+  party's own RAM struct (decrypted Growth substruct); thresholds come from the game's growth-rate tables
   (`data/ExpTables.kt`, generated by `scripts/gen_exp_tables.py`).
 - **Move advice (the original games so far):** PARTY > a Pokémon's summary >
   LEARN lists its next level-up moves and the TMs / HMs in the bag it can learn,
@@ -209,7 +200,7 @@ popup is now an in-composition overlay). 90 s interaction soak = 0 crashes.
   a light top band and dark side bands, shadowed labels; the "busy" dots are a
   rocking Poké Ball. INFO and SUGGESTIONS link to each other bottom-left.
 - **No bundled sprites (done):** every game now decodes party/bag icons
-  straight from the running ROM (QoL ROMs via the v2 struct, retail FR/Emerald
+  straight from the running ROM (retail FR/Emerald
   via fixed addresses from a vanilla decomp build, Unbound via its own reader).
   The ~3 MB `assets/pokemon` + `assets/items` PNG set was removed.
 - **No bundled FireRed / Emerald art (done):** their party-menu slot, Poké
@@ -229,8 +220,7 @@ Not done yet: Hoenn mapsec table, touch overlay.
 ## Supported ROMs
 
 The Library (`files/roms/`) can hold any of these; the app auto-detects which
-one is running (SHA1 of a live core-memory read for the ROM hacks below, the
-`"QOLT"` magic for the two custom QoL patches, the GBA header's game code (and
+one is running (SHA1 of a live core-memory read for the ROM hacks below, the GBA header's game code (and
 revision byte) for plain vanilla FireRed/Emerald/LeafGreen/Ruby/Sapphire — see
 `Poller.kt`'s `detect()`) and switches
 species/item/map tables and RAM addresses accordingly (`ActiveTables.kt`).
@@ -241,8 +231,6 @@ working · — = not attempted.
 
 | ROM                                       | Base                                                                                                       | Party/Lvl/HP          | Battle                                                                                                                                                                                                                                                                                                                                                                                          | Bag/Items                                 | Map/Location                                                       | Sprites                                                                                                                                                                                                                                                                                                                                                  | DEX                                                                      | Notes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ----------------------------------------- | ---------------------------------------------------------------------------------------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **FireRed QoL** (sister ROM hack)         | custom `pokefirered` patch                                                                                 | ✅                    | ✅                                                                                                                                                                                                                                                                                                                                                                                              | ✅                                        | ✅                                                                 | ✅                                                                                                                                                                                                                                                                                                                                                       | — not yet (QoL struct path)                                              | Exports its own `gQolTelemetry` v2 struct — the richest path (also drives touch battle control).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| **Emerald QoL** (sister ROM hack)         | custom `pokeemerald` patch                                                                                 | ✅                    | ✅                                                                                                                                                                                                                                                                                                                                                                                              | ✅                                        | ✅                                                                 | ✅                                                                                                                                                                                                                                                                                                                                                       | — not yet (QoL struct path)                                              | Same struct, ported to Emerald.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
 | **Vanilla FireRed** (rev 0/1)             | retail                                                                                                     | ✅                    | ✅                                                                                                                                                                                                                                                                                                                                                                                              | ✅                                        | ✅                                                                 | ✅                                                                                                                                                                                                                                                                                                                                                       | ✅ rev 1 (rev 0: no ROM on file to check)                                | Native RAM, addresses from a byte-verified decomp build.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | **Vanilla Emerald**                       | retail                                                                                                     | ✅                    | ✅                                                                                                                                                                                                                                                                                                                                                                                              | ✅                                        | ✅                                                                 | ✅                                                                                                                                                                                                                                                                                                                                                       | ✅                                                                       | Native RAM, addresses from a vanilla `pokeemerald` ELF (sha1-matched to retail).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | **Vanilla LeafGreen** (rev 0/1)           | retail (BPGE)                                                                                              | ✅                    | ⚠️ FireRed's battle addresses (identical in the map), not battle-tested                                                                                                                                                                                                                                                                                                                         | ✅                                        | ✅ (Kanto)                                                         | ✅ mon + item icons                                                                                                                                                                                                                                                                                                                                      | ✅                                                                       | `NATIVE_LEAFGREEN_REV0/1`. pret/pokefirered @ c75f352 `leafgreen`/`leafgreen_rev1` build byte-identical to retail (sha1 `574fa542…`/`7862c67b…`); every RAM global and the battle-controller code sit at FireRed's own addresses for the same revision, only ROM data moves (icons, dex tables, LeafGreen's own dex text). Shown with the FireRed look.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
@@ -258,7 +246,7 @@ working · — = not attempted.
 | **Pokémon SoulGold** v1.1.4, v1.2 | newer `pokeemerald-expansion` (BPEE, 32 MB, gcc), no source available | ✅ (its own plaintext 96-byte struct Pokemon) | ✅ battle mons (0x98-byte BattlePokemon), touch controls - headless scripted wild battle (`soulgold_battle`); trainer battles not checked | ✅ 8 pockets, names + descriptions | ✅ its own Johto map, rebuilt from the ROM (smol art, u16 cursor grid at offset (1, 1)) | ✅ mon + item icons (smol item tiles) | ✅ Johto (702) + National, matched to the game's own POKéDEX | Everything from headless captures of the user's save - see `NATIVE_SOULGOLD`. ROM tables from `gen_expansion_tables.py soulgold`; the bag's night sky is rebuilt from the ROM by `RomArt` (smol tiles + tilemap, `SG_BAG_STARS_*`). STEADY FF music via `M4aSongs`' newer-expansion signature. v1.2 (`NATIVE_SOULGOLD_V1_2`) is a rebuild: v1.1.4's addresses matched into it (literal pools / masked byte runs), checked on the same save headlessly (`soulgold_v12`, `soulgold_v12_battle`); it shares v1.1.4's tables but for TM75 (`soulGoldV12`). A second build also released as v1.2 (sha1 `5d6a0362…`, `NATIVE_SOULGOLD_V1_2B`) keeps every RAM address and battle handler of the first and moves only ROM data (0x98 / 0xA4 bytes); same tables, checked on the same save (`soulgold_v12b`, `soulgold_v12b_battle`). A third v1.2 build (sha1 `2be7c99a…`, `NATIVE_SOULGOLD_V1_2C`) keeps the same RAM and battle handlers too; its ROM data moved 0x18C-0x198 bytes, the wild / map tables 0x2DF30 (new data before them), same tables (`soulgold_v12c`, `soulgold_v12c_battle`). |
 | **Pokémon R.O.W.E.** 2.1.9.1 Experimental | Emerald-based (BPEE, 32 MB), BelialClover's own pokeemerald fork (no expansion), no source for v2.x | ✅ its bit-packed 0x4C-byte struct (`ROWE_PARTY_MON`) | ✅ scripted wild battle captured headless (`rowe_battle`); touch controls, 2-column party grid | ✅ 10 pockets | ✅ its three region maps (Hoenn / Kanto / Sevii, `RW_*`) | ✅ mon + item icons | ⚠️ National (1019), flags matched to the save, not to the game's screen (no POKéDEX on its menu yet) | The ROM's own symbol table (0x08FB0670) names most globals. Tables: `scripts/gen_rowe_tables.py`. No CARD / GUIDE: its system flags were renumbered. |
 | **Emerald Rogue** v2.2.1-EX               | Emerald-based (BPEE), no source available                                                                  | ✅ (see caveat below) | — not attempted                                                                                                                                                                                                                                                                                                                                                                                 | ❌ not found                              | — not attempted                                                    | ❌ (inherits vanilla Emerald's icon addresses, unverified)                                                                                                                                                                                                                                                                                               | ✅ National (1025) + its MODERN list (400): a 2-bit state per species id in SaveBlock1, matched to its own dex | Species by National Dex too (shares `SpeciesNamesNationalDex.kt`). **Address-stability cautionary tale**: two live-memory scans each found a pair of stable-looking party candidates; the first pick (matching vanilla's exact `SaveBlock1+0x238` struct offset _and_ confirmed by an IWRAM pointer) shipped and immediately decoded garbage in real play — a 3rd, later capture showed that address had silently drifted (a relocatable scratch buffer, not a real global), while the address that looked "less confirmed" had stayed byte-identical all along. Fixed by switching to the one proven stable across 3+ independent captures. Bag hunting (both the Lazarus-style XOR-key pattern search and a raw cross-capture byte-stability scan) didn't converge on a confident candidate.                                                                                                                                                                                                                                                                                                                                                                           |
-| **Emerald Seaglass** v3.0                 | Emerald-based (BPEE, 16 MB), expansion-style recompile, no source available                                | ✅                    | ✅ battle mons, types, moves, touch controls - headless scripted wild battle (`emerald_seaglass_battle`); its own move / species-type tables (`gen_expansion_tables.py seaglass`) | ✅ id/qty/pocket + real names             | ✅ its own Hoenn art (`SGL_REGION_GFX`, rebuilt from the ROM) on Emerald's tilemap and grid | ✅ mon + item icons (expansion keeps them inside `gSpeciesInfo`/`gItemsInfo` entries — `IconTables` got stride/mask fields for that; decoded offline and checked visually; TMs have no icon, expansion draws those per move type)                                                                                                                        | ✅ Hoenn + National (430)                                                | First hack added **fully headless** — no device: `scripts/capture_fixture_headless.sh emerald_seaglass`, then 4 extra captures with varied boot timing (so a different RNG seed and save-block offset each) to prove every address stable across 5 captures (see `NATIVE_EMERALD_SEAGLASS`). Exactly 16 MB, so `Poller.detect()` got a new hash check for 16 MB BPEE ROMs (unknown hashes still fall through to vanilla/QoL Emerald). Species by National Dex; items from the ROM's own table (`ItemNamesSeaglass.kt`, 827 entries). Detection hash not yet confirmed on-device.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| **Emerald Seaglass** v3.0                 | Emerald-based (BPEE, 16 MB), expansion-style recompile, no source available                                | ✅                    | ✅ battle mons, types, moves, touch controls - headless scripted wild battle (`emerald_seaglass_battle`); its own move / species-type tables (`gen_expansion_tables.py seaglass`) | ✅ id/qty/pocket + real names             | ✅ its own Hoenn art (`SGL_REGION_GFX`, rebuilt from the ROM) on Emerald's tilemap and grid | ✅ mon + item icons (expansion keeps them inside `gSpeciesInfo`/`gItemsInfo` entries — `IconTables` got stride/mask fields for that; decoded offline and checked visually; TMs have no icon, expansion draws those per move type)                                                                                                                        | ✅ Hoenn + National (430)                                                | First hack added **fully headless** — no device: `scripts/capture_fixture_headless.sh emerald_seaglass`, then 4 extra captures with varied boot timing (so a different RNG seed and save-block offset each) to prove every address stable across 5 captures (see `NATIVE_EMERALD_SEAGLASS`). Exactly 16 MB, so `Poller.detect()` got a new hash check for 16 MB BPEE ROMs (unknown hashes still fall through to vanilla Emerald). Species by National Dex; items from the ROM's own table (`ItemNamesSeaglass.kt`, 827 entries). Detection hash not yet confirmed on-device.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | **Celia's Stupid Romhack** v1.1.4         | FireRed-based (BPRE rev 0), full `pokefirered` recompile, no source available                              | ✅                    | ⚠️ addresses from ROM literal-pool analysis only (no battle reachable headlessly). **Types ✅**: 34 types (joke Brock/Weird/Dad/Choco/…), a 34×34 chart (32-bit uq4_12 matrix — every vanilla chart-reading code site was rewritten, so it's not vanilla's triplet list; includes a joke 5× and 0.2×), species types, and move type/power from a 16-byte move record (`TypeChartCelia.kt` etc.) | ✅ id/qty/pocket + real names             | ✅ (vanilla Kanto mapsec ids)                                      | ✅ mon + item icons (checked by decoding + visually)                                                                                                                                                                                                                                                                                                     | ✅ one dex (150)                                                         | Custom dex order (1 = VICTINI, 3 = CHARMANDER), renumbered moves (1189), joke renames — own species/item/move-name tables (`*Celia.kt`). **Stale-table trap**: the ROM also holds an unreferenced vanilla-ordered species table that decoded the starter as VENUSAUR; the game's own party screen (`mgba_dump`'s new `shot` command) showed CHARMANDER, and a literal-pool reference count (48 vs 0) picked the live table. Encryption key moved to SaveBlock2+0xB18.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | **Too Many Types 2** v1.5.2               | Emerald-based (BPEE, 32 MB), newer `pokeemerald-expansion` recompile, no source available                  | ✅                    | ✅ battle mons (expansion's 0x60 bytes, PP at +0x26), foe party, touch controls - headless scripted wild battle (`tmt2_battle`). **Types ✅**: all 82 type ids (60 joke types), the 82×82 chart, species types and move type/power extracted from the ROM (`TypeChartTmt2.kt` etc.)                                                                                                                                                              | ✅ id/qty/pocket + real names (7 pockets) | ✅ (vanilla Hoenn mapsec ids)                                      | ✅ mon + item icons (item palettes are raw, not LZ77)                                                                                                                                                                                                                                                                                                    | ✅ Hoenn + National (1052)                                               | Newer expansion packs `species:11\|teraType:5` (and moves/PP) into the BoxPokemon fields — `NativeConfig` gained `speciesMask`/`moveMask`/`ppMask`. National Dex order only to 905, forms after, so own species/item/move-name tables (`*Tmt2.kt`). Pocket order read from each item's own `gItemsInfo` pocket field.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | **Pokémon Glazed** 9.2.0                  | Emerald-based (BPEE, 32 MB), an in-place binary edit of retail Emerald, no source                          | ✅                    | ✅ wild battle captured headless (`glazed_battle`); retail's RAM, layout and battle handlers                                                                                                                                                                                                                                                                                                   | ✅ (retail's 5 pockets)                   | ✅ its own Tunod / Johto map, rebuilt from the ROM (`GZ_REGION_*`) | ✅ mon + item icons (retail's tables, its own art)                                                                                                                                                                                                                                                                                                       | ✅ retail's tables rewritten in place (its own 1..386, Tunod as "HOENN") | Retail Emerald's RAM and code; its own names in retail's 412 species / 355 move / 377 item slots, FAIRY as type 9, a repointed type chart: `scripts/gen_glazed_tables.py`. |
@@ -427,7 +415,7 @@ stats, abilities (+ hidden where the game has them), egg groups, gender, catch r
 flags come from the save in RAM (checked the way each game's own
 `GetSetPokedexFlag` does, anti-cheat copies included); everything else is read
 from the running ROM (`companion/data/Pokedex.kt`, `ui/PokedexScreen.kt`). Only
-games with a `PokedexTables` config get the tab — the QoL builds don't (yet):
+games with a `PokedexTables` config get the tab:
 
 | ROM                             | Dexes                                                       | Where the flags are                              | Checked against the game's own POKéDEX                                         |
 | ------------------------------- | ----------------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------ |
@@ -516,20 +504,19 @@ pointer's offset, optionally an id range and a second table):
   (0x28 records, description at +0x14, no itemId; 824 items in v1.5, 821 before).
 
 `scripts/port_retail.py` writes each port's `itemDescs` (its detected item
-table); the other generators print theirs. The QoL builds run on the struct
-path with no config and their gItems moves every rebuild, so the Poller finds
-it by shape (`RomItemText.findVanillaItems`: item ids 1, 2, 3... in consecutive
-records) once per ROM; a config whose vanilla table doesn't check out
-(`matchesRom`) falls back to the same scan. Yellow keeps our own hand-written
+table); the other generators print theirs. A config whose vanilla table
+doesn't check out (`matchesRom`) falls back to a scan by shape
+(`RomItemText.findVanillaItems`: item ids 1, 2, 3... in consecutive records),
+once per ROM. Yellow keeps our own hand-written
 text (Gen 1 items have none). Text decodes with `Gen3Text` (Japanese for
 `romLanguage` 'J', each language's POKéBLOCK glyphs, placeholders dropped),
 line breaks collapsed to spaces.
 
 Checked against the bundled tables they replaced, every id, every ROM on the
-dev machine (2026-10-09): identical for Emerald (+ QoL), the five other-language
+dev machine (2026-10-09): identical for Emerald, the five other-language
 Emeralds, all 31 other-language FireRed / LeafGreen / Ruby / Sapphire ports, Heart
 and Soul, Lazarus, SoulGold, Rogue, Seaglass, Glazed, Imperium, Quetzal and
-R.O.W.E. The rest changed for the better: FireRed / LeafGreen (+ QoL) TMs show
+R.O.W.E. The rest changed for the better: FireRed / LeafGreen TMs show
 the move's text the game shows (the decomp's `description_english` for TMs is
 unused); Ruby / Sapphire their own wording (they borrowed Emerald's); Unbound,
 Gaia, Odyssey and Amethyst their own (they borrowed vanilla FireRed's); Radical
@@ -632,7 +619,7 @@ guessing:
    tractable end of this: they're plain Gen 3-encoded text, findable by
    anchoring on 1-2 known names at known indices (e.g. "Bulbasaur"@1,
    "Ivysaur"@2) and walking the fixed-stride array from there — see
-   the FireRed QoL project's `tools/telemetry-viewer/scripts/gen_unbound_data.py`'s
+   the private ROM-hack project's `tools/telemetry-viewer/scripts/gen_unbound_data.py`'s
    `find_fixed_name_table`/`walk_name_table`/`gen_items`, reused as-is for
    Amethyst's species/item tables (`SpeciesNamesAmethyst.kt`/
    `ItemNamesAmethyst.kt`). Don't assume one anchor covers the whole range,
@@ -653,7 +640,7 @@ guessing:
    Amethyst's `GetItemIconGfxPtr` needed the _rev 0_ address specifically
    (rev 1's didn't decode to anything real when tried directly), which
    wasn't on file, so it was obtained by building the pinned pokefirered
-   commit **completely unpatched** in the project's own `firered-qol-build`
+   commit **completely unpatched** in a pokefirered build
    Docker image (stash/move aside any patch files first) and reading
    `nm`'s symbol table — confirmed byte-identical to real retail rev 0 via
    sha1 first, so the address is exact, not guessed. However a candidate
@@ -731,9 +718,9 @@ To try it without a frontend:
 
 ```bash
 adb shell am start -n com.pokedaisy.app/.LaunchActivity \
-  -a android.intent.action.VIEW -d "file:///storage/emulated/0/ROMs/gba/firered-qol.gba"
+  -a android.intent.action.VIEW -d "file:///storage/emulated/0/ROMs/gba/firered.gba"
 adb shell am start -n com.pokedaisy.app/.LaunchActivity \
-  --es rom /storage/emulated/0/ROMs/gba/firered-qol.gba
+  --es rom /storage/emulated/0/ROMs/gba/firered.gba
 ```
 
 ## Hotkeys
@@ -854,7 +841,7 @@ When it ships, drop the flag and put its README lines back (PC boxes, TRADE, edi
 - **Icons** (`RomMonIcons`): read from the player's ROM *file* with the companion's own decoder
   (`decodeMonIcon`, shared with `DecompIconSource`) and the icon tables the companion already has: retail
   FireRed rev 0 / 1 and Emerald by whole-file SHA-1, the other retail games by game code + revision
-  (`TelemetrySampler.otherRetailConfig`), each checked against the file first. QoL builds and hacks get names only.
+  (`TelemetrySampler.otherRetailConfig`), each checked against the file first. Hacks get names only.
 - **TRADE** (PC BOXES > TRADE, `Gen3Trade`, `TradeScreen`): two saves' boxes side by side; a slot on each side is a
   swap or a send. The rules are the games' (pret's `trade.c` / `link.c`): FireRed / LeafGreen link with R/S/E only
   with `FLAG_SYS_CAN_LINK_WITH_RS`; before its National Dex (`IsNationalPokedexEnabled`: magic, var and flag) a
@@ -973,7 +960,9 @@ only keeps a 256x256 ring of tiles in VRAM (`field_camera.c`), so the rest would
   and pulled in on the title).
 - **AUTO ZOOM IN** (SETTINGS, under ASPECT, only while ASPECT is EXPAND; `Prefs.expandZoomOnText`, ON by default;
   `WideCamera.zoomOnText`): OFF keeps the chosen zoom through conversations, signs, the START menu and menu screens (`PK_WIDE_SCENE_MENU`, a menu screen's own scene value so the option can leave it alone -
-  its margins are the menu's back layer); a battle's start, a battle and the title still pull in.
+  its margins are the menu's back layer); a battle's start, a battle and the title still pull in - and so does a menu
+  screen opened from a battle (POKéMON / BAG: `gMain.inBattle` stays set, so pk_wide.c reports it as the battle,
+  `PK_WIDE_SCENE_OFF`, not `_MENU` - the party screen used to zoom out mid-battle and the battle zoom back in after it).
 - **Leaving a building holds the zoom** (`textUp`, `POPUP_ROWS` / `POPUP_COLS`): the game locks the controls for the
   walk out of the door while the map-name popup is up (even Pallet Town's after the player's house), which read as a
   text box for ~80 frames - a pull-in and a zoom back out at every door. The popup's corner of BG0 (the top-left 14 x
@@ -998,10 +987,10 @@ only keeps a 256x256 ring of tiles in VRAM (`field_camera.c`), so the rest would
 - **Games**: every retail FireRed, LeafGreen, Emerald, Ruby and Sapphire the user owns (English, Japanese, Spanish,
   German, French, Italian; every revision): `app/src/main/cpp/pk_wide_games.h`, one row of addresses per ROM by CRC32, generated by
   `scripts/gen_wide_tables.py <roms dirs>` from the English references (FireRed rev 1, Emerald: from the decomp ELFs,
-  QoL builds, mapped onto retail through the literal pools - only FireRed's `VMap` / `gSaveBlock1Ptr` differ; Ruby
+  mapped onto retail through the literal pools - only FireRed's `VMap` / `gSaveBlock1Ptr` differ; Ruby
   rev 1: pret/pokeruby's `ruby_rev1` ELF, byte-identical to retail) through
   each ROM's literal pools (`port_retail.py`'s `map_literal`). Retail only, by the SHA-1s the app lists (GameTitles,
-  RetailPortsGen): hacks and the QoL builds share the game codes but move addresses. `gMapGroups` gets one pool vote,
+  RetailPortsGen): hacks share the game codes but move addresses. `gMapGroups` gets one pool vote,
   so it's also checked by the shapes of the maps it leads to. Each engine's layout (metatiles, attributes, border) is
   `pk_wide.c`'s `FAMILIES`. Ruby / Sapphire are Emerald's layout with their own quirks: `gSaveBlock1` is static (no
   pointer), `gSpriteCoordOffsetY` isn't next to X, `gMain.inBattle` is at +0x43D, and a `struct Subsprite` is 8 bytes
@@ -1064,6 +1053,13 @@ only keeps a 256x256 ring of tiles in VRAM (`field_camera.c`), so the rest would
   and for Recharged Yellow, whose lock is inlined, the byte that's 1 under a scripted message and 0 through the test walk) with BG0 showing a text box / menu or lines drawn apart (a
   transition) - a warp's fade or the map-name popup don't. The step comes back 0.5 s after. NPCs only exist ~2 tiles
   past the game's own view, so far out they pop in as you near them.
+- **Unbound lags at its map borders by itself**: walking near a connection it drops a frame every step, and 3-4 at
+  the crossing (headless: sFieldCameraOffset not moving for a frame while LEFT is held, on mGBA with no app around it;
+  in the middle of a city one every ~80 frames). The app's pacing stays at 60 fps through it (`fps=` lines, late 0),
+  with EXPAND on or off - it's the game's own map loading, as on hardware or RetroArch's mGBA core.
+- **An undefined cell is exactly 0x3FF** (`blockIn`): the game's MapGridGetMetatileIdAt compares the whole u16 with
+  MAPGRID_UNDEFINED, so a map's own metatile 0x3FF with collision / elevation bits (Unbound's treetop corners, 0x33FF) is
+  drawn, not the border. Masked first, those cells came out as Unbound's border (water squares over the trees).
 - **Connected maps, zoomed out** (`readConnections`, `blockIn`, `foreignFor`): the game copies 7 metatiles of each
   neighbour into VMap and draws them with the current map's tilesets; past that, a neighbour may have tilesets of its
   own (FireRed's Route 18 is Celadon's, Fuchsia City its own), so off the real frame each connected map - its VMap strip
@@ -1082,7 +1078,12 @@ only keeps a 256x256 ring of tiles in VRAM (`field_camera.c`), so the rest would
   (`SaveBlock1.objectEventTemplates`: home tiles, a boulder where Strength left it) that isn't hidden by its flag or
   already spawned is drawn from the ROM's graphics (`gObjectEventGraphicsInfoPointers`, its movement type's first
   facing), where SpawnObjectEvent would put it, in its palette slot if loaded (fades, tints) else the ROM's palette, behind
-  every real sprite. NPCs come back at their home tile when you walk up, so that's where they're drawn.
+  every real sprite. An object the game has removed is drawn where it was last seen live, facing the way it faced
+  (`rememberObjects` / `seenFind`): the game removes one once both its tile and its home are ~2 tiles past its own view
+  and spawns it again at its home, so drawn from its template a wandering NPC jumped home the moment it went (zoomed
+  out, in plain sight). It still jumps home when the game spawns it again, as in the game; the memory is per map and
+  goes with a warp (the map no longer current or beside it) or a reset. A template whose object is still live - the
+  map you just crossed from keeps its objects until they leave the view - isn't drawn either (it was a double at home).
   Never on the real frame (the game shows what's there), and only with an NPC palette from the ROM's table - Lazarus's
   lamp lights are templates too (palette tag 0x8001, shown by the game as blended glows), which drew over the real
   glows. A ROM palette is tinted as the game tinted its loaded ones (`measureTint`: palette RAM vs the ROM, per channel,
@@ -1092,6 +1093,12 @@ only keeps a 256x256 ring of tiles in VRAM (`field_camera.c`), so the rest would
   table runs on past an empty entry (0x1200s after 0x1100s); `romPalette` caches 64 tags. Each hack's SaveBlock1 is its
   own (`SB1_OFFSETS`; Recharged Yellow keeps its flags before its templates: `SB1_FLAGS_AT`); `mgba_dump`'s `wideghosts`
   lists them and the connected maps they come from, `NO PALETTE` where neither source has one.
+  A template's flag is read the way the game's FlagGet reads it: past SaveBlock1's own array the engine reads on into
+  the block (Odyssey's and Glazed's high flags live there), but CFRU's GetFlagPointer (Unbound, Radical Red, Amethyst,
+  Sword and Shield) keeps 0x900-0x18FF in its own bank (`EXPANDED_FLAGS`, 0x0203B174) and 0x1900-0x3FFF on one byte
+  (0x020370B8) - read from the save block, Unbound's hidden NPCs (a police officer beside a Pokémon Center) showed in
+  the margins and vanished as you walked up. Special flags (0x4000 on) count as hidden. To look at a reported spot,
+  pull the app's `states/<crc>/resume` and `mgba_dump`'s `loadstate` it, then `wideghosts` / `wideshot`.
   A template outside its own map isn't drawn (Too Many Types 2 parks cutscene trucks at y -1). The graphics tables of the
   gcc builds run into other data past their end, so each has its length (`OBJ_GFX_COUNT`): Rogue 0x269, Heart and Soul
   0x224, Too Many Types 2 0x10D, Recharged Yellow 0x159 (its code: ids to 0x158, vars from 0x15A, Pokémon from 0x200);
@@ -1285,15 +1292,14 @@ Add a component there when a new library or asset ships in the APK.
 ```bash
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell mkdir -p /sdcard/Android/data/com.pokedaisy.app/files/roms
-adb push firered-qol.gba /sdcard/Android/data/com.pokedaisy.app/files/roms/
+adb push firered.gba /sdcard/Android/data/com.pokedaisy.app/files/roms/
 ```
 
 Launch the app; it boots the first `.gba` it finds in that folder. Swap ROMs by
 pushing a different file (only one at a time for now). SRAM persists to
 `files/saves/<rom>.sav`.
 
-**Phase 0 is done when** `firered-qol`, `emerald-qol`, vanilla FireRed, vanilla
-Emerald, and Unbound each boot, play at full speed, and have correct sound.
+**Phase 0 is done when** vanilla FireRed, vanilla Emerald, and Unbound each boot, play at full speed, and have correct sound.
 
 ## Layout
 

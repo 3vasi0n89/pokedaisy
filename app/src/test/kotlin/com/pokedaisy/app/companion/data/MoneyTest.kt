@@ -47,25 +47,4 @@ class MoneyTest {
             assertEquals(key, 3100L, money(key, cfg))
         }
     }
-
-    @Test
-    fun `QoL ROMs - found through the struct's map`() {
-        val reader = FixtureMemoryReader.load("emerald_qol")
-        val t = decodeTelemetry(reader.readCoreMemory(reader.findMagic("QOLT".toByteArray(Charsets.US_ASCII)), TELEMETRY_SIZE))
-        assertEquals(185092L, findStructMoney(reader, GameKind.EMERALD, t.mapGroup, t.mapNum)?.second)
-        // Another map: no candidate matches, so no money rather than a guess.
-        assertNull(findStructMoney(reader, GameKind.EMERALD, t.mapGroup, t.mapNum + 1))
-    }
-
-    @Test
-    fun `FireRed QoL - its own save block pointers, not retail's`() {
-        // This capture's struct is a refresh behind its save (map 3.56 vs the
-        // save's 3.16 - the struct refreshes about once a second), so match
-        // the save's map, as the app does a refresh later.
-        val reader = FixtureMemoryReader.load("firered_qol")
-        val (cfg, money) = findStructMoney(reader, GameKind.FIRERED, 3, 16)!!
-        assertEquals(224300L, money)
-        assertEquals(0x03005018L, cfg.saveBlock1Ptr)
-        assertNull(findStructMoney(reader, GameKind.FIRERED, 3, 56))
-    }
 }

@@ -441,9 +441,8 @@ fun buildSnapshotView(t: Telemetry): SnapshotView {
 }
 
 /**
- * SPECIES_EGG (412) in FireRed/Emerald's own species numbering - what the QoL
- * ROMs export for an egg (MON_DATA_SPECIES_OR_EGG, like the party menu's icon)
- * and what the native reads map an egg to. Most hacks renumber species, so
+ * SPECIES_EGG (412) in FireRed/Emerald's own species numbering - what the native
+ * reads map an egg to (MON_DATA_SPECIES_OR_EGG, like the party menu's icon). Most hacks renumber species, so
  * this only means "egg" for the games checked to keep it: the retail pair and
  * the CFRU hacks (each ROM's icon table has the egg at 412).
  */

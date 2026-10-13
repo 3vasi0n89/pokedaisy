@@ -306,13 +306,13 @@ enum class Smoothing(val label: String) {
 
 /**
  * What fast-forward sounds like, in the order SETTINGS lists them. [label] is
- * what the rows show; [alpha] marks a mode that isn't finished yet.
+ * what the rows show.
  */
-enum class FfMusicMode(val label: String, val alpha: Boolean = false) {
+enum class FfMusicMode(val label: String) {
     /** The song at its normal tempo: a clean clip rendered from the ROM
      * (FfMusicRenderer), looped while the game races; silent until it's ready (SPED-UP only for a song
      * that can't get a clip). */
-    STEADY(tk("STEADY"), alpha = true),
+    STEADY(tk("STEADY")),
 
     /** The game's own audio, sped up with it (pitch and tempo). */
     SPED_UP(tk("SPED-UP")),

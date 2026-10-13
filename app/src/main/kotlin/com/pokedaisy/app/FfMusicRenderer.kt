@@ -55,7 +55,7 @@ interface SongRenderer {
  * [request]ed as the game starts playing them (at any speed, so a clip is
  * usually ready before fast-forward needs it), ahead of a one-time pass over
  * the ROM's whole music list in the background - FireRed / LeafGreen /
- * Emerald-sized ROMs (retail and the QoL builds) their map + battle list
+ * Emerald-sized ROMs their map + battle list
  * ([MapMusicFireRed] / [MapMusicEmerald]), any other ROM every song its table
  * plays on the BGM player - so a song is rarely heard sped up before its clip
  * exists. A requested song pre-empts the background pass mid-recording. Clips are keyed by [FfMusicKey] read back from the render core - the

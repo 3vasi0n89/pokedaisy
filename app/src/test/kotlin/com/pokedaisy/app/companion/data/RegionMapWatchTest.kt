@@ -17,7 +17,7 @@ class RegionMapWatchTest {
 
     @Test fun fireRedFamilyWatchesSRegionMap() {
         for (name in listOf(
-            "Pokemon - FireRed Version (USA, Europe) (Rev 1).gba", "firered-qol.gba",
+            "Pokemon - FireRed Version (USA, Europe) (Rev 1).gba",
             "Pokemon - LeafGreen Version (USA, Europe) (Rev 1).gba",
             "Pokémon Unbound (v2.1.1.1).gba", "Pokémon Odyssey (English) (v4.1.1).gba",
             "Pokemon - Gaia (v3.2).gba", "Pokemon - Radical Red (v4.1).gba", "Pokemon Amethyst (v1.3.0).gba",
@@ -37,7 +37,7 @@ class RegionMapWatchTest {
     }
 
     @Test fun emeraldWatchesTownFlyAndPokenavMaps() {
-        for (path in listOf(RomFileReader.EMERALD_PATH, rom("emerald-qol.gba"))) {
+        for (path in listOf(RomFileReader.EMERALD_PATH)) {
             assertEquals(
                 path,
                 listOf(

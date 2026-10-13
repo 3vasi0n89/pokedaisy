@@ -4,7 +4,7 @@ package com.pokedaisy.app.companion.data
  * Replays a captured real-device EWRAM+IWRAM snapshot (see
  * scripts/capture_fixture.sh, which writes app/src/test/resources/fixtures/<key>/
  * {ewram,iwram}.bin via PokeDaisyActivity's dumpFixtureIfPending()) as a
- * [MemoryReader] - so decodeTelemetry/readNativeTelemetry can be exercised
+ * [MemoryReader] - so readNativeTelemetry can be exercised
  * against real device state with no device or emulator needed.
  *
  * Deliberately whole-region (full 256 KiB EWRAM + 32 KiB IWRAM), not a capture
@@ -36,26 +36,6 @@ class FixtureMemoryReader private constructor(
         addr >= EWRAM_BASE && addr + size <= EWRAM_BASE + ewram.size -> EWRAM_BASE to ewram
         addr >= IWRAM_BASE && addr + size <= IWRAM_BASE + iwram.size -> IWRAM_BASE to iwram
         else -> null
-    }
-
-    /** Mirrors MgbaCore.pkFindMagic: scans IWRAM then EWRAM for a byte
-     * sequence, returning its absolute address, or -1 if not found. Used to
-     * locate gQolTelemetry's "QOLT" magic the same way the app does, instead
-     * of hardcoding a capture-time address that could drift on a rebuild. */
-    fun findMagic(magic: ByteArray): Long {
-        for ((base, buf) in listOf(IWRAM_BASE to iwram, EWRAM_BASE to ewram)) {
-            var i = 0
-            outer@ while (i <= buf.size - magic.size) {
-                for (j in magic.indices) {
-                    if (buf[i + j] != magic[j]) {
-                        i++
-                        continue@outer
-                    }
-                }
-                return base + i
-            }
-        }
-        return -1
     }
 
     companion object {

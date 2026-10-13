@@ -13,11 +13,11 @@ enum class DarkModeSetting(val label: String) { OFF("OFF"), ON("ON"), AUTO("AUTO
  * Dark mode, for both screens at once: the OPTION windows ([com.pokedaisy.app.companion.ui.OptionColors]),
  * the app's backdrops and the bags' palettes switch to their dark versions. Game art (party slots, the
  * map, the trainer card, battle buttons) stays the game's; only what's behind it is dimmed. Compose state
- * in a process-wide object like [QolColors], so a pick on either screen redraws both.
+ * in a process-wide object like [AppColors], so a pick on either screen redraws both.
  */
 object DarkMode {
     var setting by mutableStateOf(DarkModeSetting.OFF)
-    /** The device is in its dark theme (AUTO follows it); set by the activities and QolTheme. */
+    /** The device is in its dark theme (AUTO follows it); set by the activities and AppTheme. */
     var systemDark by mutableStateOf(false)
 
     /** Screenshot tests / ui-preview: forced on or off, whatever the setting. */

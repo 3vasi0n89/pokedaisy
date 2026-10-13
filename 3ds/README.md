@@ -72,8 +72,8 @@ unknown. Target the **New 3DS / New 3DS XL / New 2DS XL** first; the original
   FireRed rev 1 and Emerald only so far: on FireRed rev 0 and LeafGreen MAP
   works, POKéDEX says it's not available yet, and GUIDE has its pages and
   HERE's people / items. The FOE TEAM's addresses are known for FireRed /
-  LeafGreen rev 1 and Emerald (as in the app); the icons for all five. ROM hacks, other languages, Ruby / Sapphire, Game Boy
-  and the QoL builds' telemetry struct aren't ported yet; they show "not
+  LeafGreen rev 1 and Emerald (as in the app); the icons for all five. ROM hacks, other languages, Ruby / Sapphire and Game Boy
+  aren't ported yet; they show "not
   supported".
 
 ## Controls

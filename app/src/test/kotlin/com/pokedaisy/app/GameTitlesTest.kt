@@ -28,8 +28,8 @@ class GameTitlesTest {
         assertEquals("Pokemon Emerald Imperium", GameTitles.tidy("Pokemon Emerald Imperium (World) (v1.3.1)"))
         assertEquals("Pokemon Radical Red", GameTitles.tidy("1636 - Pokemon Radical Red"))
         assertEquals("Pokemon Fire Red", GameTitles.tidy("Pokemon_Fire_Red [!]"))
-        assertEquals("FireRed QoL", GameTitles.tidy("FireRed QoL"))
-        assertEquals("firered-qol", GameTitles.tidy("firered-qol"))
+        assertEquals("FireRed Hack", GameTitles.tidy("FireRed Hack"))
+        assertEquals("firered-hack", GameTitles.tidy("firered-hack"))
         // Nothing left: the name as it was.
         assertEquals("(Rev 1)", GameTitles.tidy("(Rev 1)"))
     }

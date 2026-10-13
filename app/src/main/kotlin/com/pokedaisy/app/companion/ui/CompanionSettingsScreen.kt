@@ -338,8 +338,11 @@ private fun setTabs(s: CompanionSettings, tabs: List<String>, changed: (List<Str
 }
 
 /** WIDE on a game it doesn't know yet (it shows as ORIGINAL there). */
-private fun wideBadge(s: CompanionSettings, aspect: GameAspect): String? =
-    if (aspect == GameAspect.WIDE && !s.wideSupported) tk("NOT YET") else null
+private fun wideBadge(s: CompanionSettings, aspect: GameAspect): String? = when {
+    aspect != GameAspect.WIDE -> null
+    !s.wideSupported -> tk("NOT YET")
+    else -> tk("BETA")   // still not perfect (the user's call)
+}
 
 /** A pick-one list for a multi-choice setting; [options] are display labels. */
 private class Selector(
@@ -379,15 +382,10 @@ private fun homeRows(
             val modes = FfMode.entries
             select(Selector(tk("FF MODE"), modes.map { it.label }, s.ffMode.label) { l -> s.setFfMode(modes.first { it.label == l }) })
         },
-        // STEADY / SPED-UP / OFF (FfMusicMode's order), unfinished ones tagged ALPHA.
-        SettingRow(tk("FF MUSIC"), s.ffMusicMode.label, alphaBadge(s.ffMusicMode)) {
+        // STEADY / SPED-UP / OFF (FfMusicMode's order).
+        SettingRow(tk("FF MUSIC"), s.ffMusicMode.label) {
             val modes = FfMusicMode.entries
-            select(
-                Selector(
-                    tk("FF MUSIC"), modes.map { it.label }, s.ffMusicMode.label,
-                    badge = { l -> alphaBadge(modes.first { it.label == l }) },
-                ) { l -> s.setFfMusicMode(modes.first { it.label == l }) },
-            )
+            select(Selector(tk("FF MUSIC"), modes.map { it.label }, s.ffMusicMode.label) { l -> s.setFfMusicMode(modes.first { it.label == l }) })
         },
         // Keeps the last ~20 s; the REWIND HOLD hotkey plays them backwards.
         SettingRow(tk("REWIND"), onOff(s.rewind)) { s.setRewind(!s.rewind); changed() },
@@ -429,7 +427,7 @@ private fun homeRows(
             })
         },
         // The game at the GBA's 3:2, stretched to fill the top screen, or WIDE (the overworld drawn past
-        // its edges); WIDE is tagged NOT YET on a game it doesn't know (which shows it as ORIGINAL).
+        // its edges); WIDE is tagged BETA, or NOT YET on a game it doesn't know (which shows it as ORIGINAL).
         SettingRow(tk("ASPECT"), aspectLabel(s.gameAspect), wideBadge(s, s.gameAspect)) {
             val aspects = GameAspect.entries
             select(
@@ -526,7 +524,6 @@ private fun shaderRows(s: CompanionSettings, changed: () -> Unit): List<SettingR
     )
 }
 
-private fun alphaBadge(mode: FfMusicMode) = if (mode.alpha) tk("ALPHA") else null
 
 private fun rateLabel(v: Float) = if (v <= 0f) tk("INFINITE") else speedLabel(v)
 

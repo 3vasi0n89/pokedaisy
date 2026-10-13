@@ -39,8 +39,7 @@ class BattleInputController(
 
     /**
      * Where the party menu keeps its cursor and the party, for [switchTo]:
-     * FireRed / Emerald (retail and the QoL builds share the addresses) and
-     * Lazarus. [partyMenu] is gPartyMenu (`slotId` at +9), [party] gPlayerParty.
+     * FireRed / Emerald and the hacks [PokeDaisyActivity] lists (Lazarus...). [partyMenu] is gPartyMenu (`slotId` at +9), [party] gPlayerParty.
      * [grid]: the slots sit in two columns (0 2 4 | 1 3 5, Lazarus), where
      * DOWN stays in its column - else one list that DOWN walks through.
      */

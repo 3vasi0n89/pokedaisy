@@ -121,7 +121,7 @@ enum class GuideId {
     ULTRA_VIOLET, SWORD_SHIELD,
 }
 
-/** [live]'s guide on the native path; else by [game] (the QoL builds have no live tables). */
+/** [live]'s guide; else by [game] (a config whose tables didn't check out has no live tables). */
 fun guideId(game: GameKind?, live: GuideTables?): GuideId? = live?.guide ?: when (game) {
     GameKind.FIRERED -> GuideId.FIRERED
     GameKind.EMERALD -> GuideId.EMERALD

@@ -47,7 +47,7 @@ import com.pokedaisy.app.companion.data.gameText
 import com.pokedaisy.app.companion.data.localText
 import com.pokedaisy.app.companion.data.romGameCode
 import com.pokedaisy.app.companion.data.romLanguage
-import com.pokedaisy.app.companion.ui.theme.QolColors
+import com.pokedaisy.app.companion.ui.theme.AppColors
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
@@ -584,7 +584,7 @@ private fun slotTextMetrics(density: Density, fp: Int) = with(density) {
 
 @Composable
 private fun StatusChip(status: String, u: Int, m: GbaTextMetrics, modifier: Modifier) {
-    val color = if (status == "FNT") Color(0xFF6B6B6B) else QolColors.statusColor(status)
+    val color = if (status == "FNT") Color(0xFF6B6B6B) else AppColors.statusColor(status)
     val dp = with(LocalDensity.current) { u.toDp() }
     Box(
         modifier

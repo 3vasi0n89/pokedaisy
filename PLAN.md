@@ -8,13 +8,12 @@ shortcuts.
 
 Lives in ``. Package / `applicationId` `com.pokedaisy.app`.
 
-**Target ROMs**: our `firered-qol.gba` and `emerald-qol` (both export the
-`gQolTelemetry` struct), plus **vanilla FireRed**, **vanilla Emerald**, and
-**Unbound** via the native-RAM readers — and arbitrary future GBA ROMs/hacks.
+**Target ROMs**: **vanilla FireRed**, **vanilla Emerald**, and **Unbound** via the
+native-RAM readers — and arbitrary future GBA ROMs/hacks.
 
 ## Why this instead of what we have
 
-Today: a patched ROM runs in **RetroArch** on the Thor's top screen, and
+Today: the game runs in **RetroArch** on the Thor's top screen, and
 `tools/android-companion` reads game state from it over UDP (`127.0.0.1:55355`,
 RetroArch's Network Control Interface) and draws Party/Map/Items/Battle on the bottom
 screen.
@@ -87,8 +86,8 @@ JNI wrappers: crib from mGBA's own `src/platform/android/` in the mgba tree.
 `DisplayManager.getDisplays(DISPLAY_CATEGORY_PRESENTATION)`) hosts a Compose tree that
 is the current `tools/android-companion` UI with the transport swapped.
 
-Reused **near-verbatim** from `tools/android-companion/` (source currently in package
-`com.fireredqol.companion`; all of it repackaged under `com.pokedaisy.*` on the way in):
+Reused **near-verbatim** from `tools/android-companion/` (all of it repackaged under
+`com.pokedaisy.*` on the way in):
 
 | File(s)                                                                                                                                                                                                                        | Change                                                                                              |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------- |
@@ -110,15 +109,13 @@ output contract: a `GameState` snapshot per tick.
   `0x02000000`, IWRAM `0x03000000`) with one copy, then slice in Kotlin; or
   `core->busRead8/16/32` for scattered reads. No UDP short-reads, no datagram
   mis-pairing — delete `retroarch.go`-style drain/retry logic.
-- Source auto-detect is unchanged: probe the resolved address for the `"QOLT"` magic →
-  `gQolTelemetry` struct (`firered-qol` / `emerald-qol`); else native-RAM readers
+- Source auto-detect is unchanged: native-RAM readers
   (`cfgFireRedRev0` / `cfgFireRedRev1` / `cfgEmerald` / `cfgUnbound` tables already in
   `android-companion`) for **vanilla FireRed / vanilla Emerald / Unbound**.
 - Game detect from ROM header `0x080000AC` (`BPRE`/`BPEE`) + rev byte `0x080000BC`
   (FireRed rev0 vs rev1) + size/magic for Unbound — same logic as
   `tools/telemetry-viewer`.
-- Throttle the full refresh to ~1 Hz (companion display, not a HUD) — same reason as
-  the ROM-side `QolTelemetry_Update()` skip-counter.
+- Throttle the full refresh to ~1 Hz (companion display, not a HUD).
 
 ### Input & configurable shortcuts
 
@@ -134,8 +131,8 @@ output contract: a `GameState` snapshot per tick.
 ### ROM & save management
 
 - SAF picker or drop into `Android/data/com.pokedaisy.app/files/roms/`.
-  Every target is just a `.gba` file — `firered-qol` / `emerald-qol` carry their QoL
-  patch baked in; vanilla FireRed / Emerald / Unbound need nothing special.
+  Every target is just a `.gba` file — vanilla FireRed / Emerald / Unbound need nothing
+  special.
 - Per-game `.srm` next to the ROM; `mCore` loads/saves it. Same 128 KB flash format
   emulators and cart dumpers use — bring saves in and out freely.
 - Savestates in `files/states/<rom-hash>/ss0..ss9` + a `slot.json` index.
@@ -158,17 +155,16 @@ output contract: a `GameState` snapshot per tick.
 
 **Phase 0 — spike (de-risks everything).** NDK-build `libmgba` arm64; minimal
 `EmulatorActivity` that loads a ROM, runs `mCoreThread`, blits `getPixelBuffer` to a
-`GLSurfaceView`, maps the Thor's buttons, plays audio. **Done when** `firered-qol`,
-`emerald-qol`, vanilla FireRed, vanilla Emerald, and Unbound all boot and play at full
-speed with sound on the Thor.
+`GLSurfaceView`, maps the Thor's buttons, plays audio. **Done when** vanilla
+FireRed, vanilla Emerald, and Unbound all boot and play at full speed with sound on the Thor.
 
 > **Phase 0 COMPLETE (2026-09-08).** mGBA `0.10.5` vendored as a submodule; NDK build of
 > the bare core links clean (`app/src/main/cpp/CMakeLists.txt`); JNI bridge + GLES2 blit
 >
 > - audio-paced emu thread + input mapping done
 >   (`app/src/main/kotlin/com/pokedaisy/app/`). Core runs on a plain thread, not
->   `mCoreThread`. **Verified on the Thor (device `<adb-serial>`):** all five target ROMs
->   (`firered-qol`, `emerald-qol`, vanilla FireRed, vanilla Emerald, Unbound — the last a
+>   `mCoreThread`. **Verified on the Thor (device `<adb-serial>`):** all three target ROMs
+>   (vanilla FireRed, vanilla Emerald, Unbound — the last a
 >   32 MiB ROM) boot, render with correct colour/aspect, take gamepad input, and hold a
 >   steady **59.4–60.3 fps** (`Log.i("pokedaisy","fps=…")`). Audio device active; sound
 >   pacing gates the loop cleanly. No crashes. Next: Phase 1 (savestates).
@@ -215,7 +211,7 @@ delete the UDP/datagram-retry code; wire game + source auto-detect. Party / Map 
 Items / Battle panel all live from in-process reads.
 
 > **Phase 3 done (2026-09-08); data + presentation verified on the Thor, UI render is
-> eyes-on-device pending.** Whole `com/fireredqol/companion/` tree copied to
+> eyes-on-device pending.** Whole companion source tree copied to
 > `com/pokedaisy/app/companion/`, repackaged; `RetroArchClient` +
 > `MainActivity` + `SettingsDialog` + `TelemetryViewModel` dropped. New: `MemoryReader`
 > interface + `InProcessReader` (→ `MgbaCore.pkReadBytes`, a `busRead32` loop in the
@@ -223,7 +219,6 @@ Items / Battle panel all live from in-process reads.
 > emu-thread); `TelemetryStore` (`StateFlow<SnapshotView>`); `CompanionScreen`
 > composable; `DualScreenPresentation` (Presentation + hand-rolled ViewTree
 > lifecycle/savedstate/viewmodel owners for Compose). JNI adds `pkReadBytes`,
-> `pkFindMagic` (scans IWRAM then EWRAM for `QOLT` — no hardcoded telemetry address),
 > `pkRomCode`, `pkRomSize`. `EmulatorEngine.onSample` fires ~1×/sec between frames →
 > `TelemetryStore.refresh()`. `PokeDaisyActivity` uses `DisplayManager` +
 > `DisplayListener` to show/dismiss the Presentation on the
@@ -231,10 +226,10 @@ Items / Battle panel all live from in-process reads.
 > save file isn't writable (adb-pushed imports). **Verified:** Thor exposes Screen-2 as
 > display 4 with `FLAG_PRESENTATION`; `companion presentation shown on display 4`
 > logged; with the user's real `.srm` imported, `telemetry game=FIRERED connected=true
-party=6 (18,7)` — struct found + decoded in-process, no UDP, no crash, 60fps held.
+party=6 (18,7)` — read + decoded in-process, no UDP, no crash, 60fps held.
 > Both Thor displays are `FLAG_SECURE` so `adb screencap` can't grab Screen-2 — the
-> companion UI _rendering_ needs a look on the physical device. Only the FireRed-struct
-> path was exercised; Emerald/Unbound/vanilla-FireRed paths are coded but untested.
+> companion UI _rendering_ needs a look on the physical device. Only the FireRed
+> path was exercised; Emerald/Unbound paths are coded but untested.
 > `regionMapSectionId` read as 0 (player in an unnamed interior) → "Unknown area" — real
 > data, resolves on named routes.
 >
@@ -253,16 +248,12 @@ config, launcher icon. FF audio resampling instead of mute. Cheats (`mCheatDevic
 wanted.
 
 > **Phase 4 started (2026-09-08).** Dynamic mon/item icons DONE + device-verified:
-> `gQolTelemetry` v2 (460 B) exports the icon-table ROM addresses; `DecompIconSource` +
-> `Gfx.kt` decode party/bag sprites live from the ROM with a bundled-PNG fallback. Both
-> QoL ROMs rebuilt (`firered-qol` sha1 `221d3aca…`, `emerald-qol` sha1 `f96fa970…` —
-> **re-apply them**). `TelemetrySampler.detect()` now waits ~6 s for the `QOLT` magic
-> before falling back to native RAM (was mis-detecting QoL ROMs as native at boot).
-> Verified on Thor: all 6 `firered-qol` party icons decode from `gMonIconTable`.
+> `DecompIconSource` + `Gfx.kt` decode party/bag sprites live from the ROM with a
+> bundled-PNG fallback. Verified on Thor: all 6 party icons decode from `gMonIconTable`.
 >
 > **ROM library DONE + verified (2026-09-08):** `LibraryActivity` (Compose) is the new
 > launcher — lists `files/roms/*.gba`, SAF import, tap to play, remembers last played;
-> hold BACK in-game returns to it. `emerald-qol` v2 confirmed on device in passing.
+> hold BACK in-game returns to it.
 >
 > **In-app Settings DONE + verified (2026-09-08):** `SettingsActivity` from the Library
 > — fast-forward cap stepper (0=unlimited…10×, `Prefs.ffMaxSpeed`) and per-action hotkey
@@ -273,26 +264,23 @@ wanted.
 > white-screened the emulator on boot; backed out cleanly. Revisit only with
 > `mCoreThread`/`onThread=true` or a coarse snapshot interval.
 >
-> Still to do: retail icon addresses so the PNG bundle can actually be deleted; live
+> Still to do: icon addresses for every game so the PNG bundle can actually be deleted; live
 > region-map compositing; everything else below.
 
 Also folded into Phase 4 (added after Phase 3 review):
 
 - **Dynamic assets — drop the ~3.1 MB bundled PNGs, read sprites/map from the running
-  game** (extends the `UnboundIconSource` pattern to FireRed/Emerald decomp + retail):
-  - ROM side: `patches-firered/0009` + `patches-emerald/0001` add pointer fields to
-    `gQolTelemetry` — `gMonIconTable`, `gMonIconPaletteTable`, `gMonIconPaletteIndices`,
-    `gItemIconTable`, and the region-map gfx/tilemap/palette symbols — bump
-    `TELEMETRY_SIZE`, rebuild both ROMs, update the decoders (`Telemetry.kt`,
-    `telemetry.go`, and the STATIC_ASSERT).
+  game** (extends the `UnboundIconSource` pattern to retail FireRed/Emerald):
   - App side: a `DecompIconSource` mirroring `UnboundIconSource` — mon icons are
     uncompressed 32×32 4bpp in the decomp (simpler than Unbound's LZ77), item icons are
     LZ77 `{tiles,pal}` (reuse the existing decoder), region map = LZ77 tiles + per-region
     LZ77 tilemap composited to 240×160 (the "done offline" routine from
-    `docs/telemetry.md`, run live). Retail FireRed / vanilla Emerald / Unbound (no
-    struct) keep fixed ROM addresses in per-game config, like `NativeReader`.
+    `docs/telemetry.md`, run live). Retail FireRed / vanilla Emerald / Unbound keep
+    fixed ROM addresses (`gMonIconTable`, `gMonIconPaletteTable`, `gMonIconPaletteIndices`,
+    `gItemIconTable`, the region-map gfx/tilemap/palette) in per-game config, like
+    `NativeReader`.
   - Keeps only the pixel font bundled (~90 KB — not extractable as a usable file).
-  - Payoff: every ROM (incl. QoL rebuilds and future hacks with custom sprites)
+  - Payoff: every ROM (incl. future hacks with custom sprites)
     illustrates itself with no regeneration step.
 - **Region-map fallback**: nicer "indoors / unnamed area" state than "Unknown area (N)".
 
@@ -305,10 +293,8 @@ from source). We can reach the same _result_ through the mechanism PokeDaisy alr
 has instead: read the live battle-menu state out of RAM and **inject synthetic
 button presses** into the emulated core (`GbaInput.setTouchBits`, already wired for the
 existing D-pad/A/B touch overlay) to drive the real menu, exactly as if the user had
-pressed the buttons themselves. No ROM patch is required for this to work in principle
-— it's the same category of thing telemetry reads and the touch overlay already do —
-though Tier A below adds a small telemetry export anyway because it's next to free for
-the two ROMs we already build, and removes all guesswork there.
+pressed the buttons themselves. No ROM patch is required for this to work — it's the
+same category of thing telemetry reads and the touch overlay already do.
 
 Traced this session in `build/pokefirered/src/battle_controller_player.c` (identical
 shape in pokeemerald): `HandleInputChooseAction` reads/writes `gActionSelectionCursor
@@ -324,31 +310,28 @@ read the live cursor position at all, only whether the expected menu is open rig
 (see the state field below) — this removes the biggest source of fragility from a
 naive "read cursor, compute delta" approach.
 
-- **Tier A — `firered-qol` / `emerald-qol` (ship first).** Add to `gQolTelemetry`
-  (bump `QOL_TELEMETRY_VERSION` 2→3, append fields per the existing convention, update
-  the `STATIC_ASSERT`/`structSize` in both `patches-firered/0009-*` and
-  `patches-emerald/0001-*`): `u8 battleActiveBattler` (raw `gActiveBattler`, needed to
-  index `battleMons[]` back to whichever side is actually choosing — matters in doubles)
-  and `u8 battleInputState` (0 = not applicable, 1 = busy/other, 2 = action-select,
-  3 = move-select). Compute `battleInputState` by comparing
-  `gBattlerControllerFuncs[gActiveBattler]` against `&HandleInputChooseAction` /
-  `&HandleInputChooseMove` (drop `static` off `HandleInputChooseAction` — same pattern
-  already used for `sItemIconTable` in the v2 icon-table export). **Critical:** compute
-  this at the very top of `QolTelemetry_Update()` in `src/qol_telemetry.c`, _before_ the
-  existing `if (++sSkipCounter < 60) return;` early-out — that throttle exists for the
-  expensive per-mon `GetMonData()` decrypt loop and is fine to keep for the rest of the
-  struct, but a menu-state field gated to ~1 Hz would make the touch UI feel laggy and
-  risks acting on stale state; this one comparison is two pointer reads, cheap enough to
-  run unconditionally every real frame like `frameCounter` already does.
-  - Host side: `Telemetry.kt` decodes the two new fields; a new fast poll path in
-    `EmulatorEngine`'s per-frame loop (not the existing ~1 Hz `onSample`) reads just
-    those bytes via `MgbaCore.pkReadBytes` at a fixed offset and exposes them as their
-    own `StateFlow`, independent of the throttled full-struct `TelemetryStore.refresh()`
-    — the touch UI's enabled/disabled state needs to track the real menu, not a
-    second-old snapshot.
+- **Tier A — vanilla FireRed rev0/rev1 + vanilla Emerald (no ROM patch).** Read the whole
+  `gBattlerControllerFuncs[MAX_BATTLERS_COUNT]` array (a handful of 4-byte function
+  pointers) from native RAM and scan it host-side against that build's own
+  `HandleInputChooseAction`/`HandleInputChooseMove` addresses: the slot holding one of them
+  is the battler choosing (`battleActiveBattler`, which matters in doubles), and which one
+  it holds gives `battleInputState` (0 = not applicable, 1 = busy/other, 2 = action-select,
+  3 = move-select). Those two functions are the "Player" controller's own
+  (`battle_controller_player.c`), never assigned to an AI/link opponent's slot, so the scan
+  is unambiguous. Three addresses needed per game: `gBattlerControllerFuncs` array base,
+  `HandleInputChooseAction`, `HandleInputChooseMove`. **Don't index the array with
+  `gActiveBattler`**: it's `battle_main.c`'s own per-frame controller-dispatch loop variable
+  (`for (gActiveBattler = 0; gActiveBattler < gBattlersCount; gActiveBattler++)
+  gBattlerControllerFuncs[gActiveBattler]();`), so between frames it equals
+  `gBattlersCount`, one past the last valid battler. See [[gactivebattler-loop-var-gotcha]].
+  - Host side: a new fast poll path in `EmulatorEngine`'s per-frame loop (not the
+    existing ~1 Hz `onSample`) reads just that array via `MgbaCore.pkReadBytes` and
+    exposes `(battleActiveBattler, battleInputState)` as its own `StateFlow`, independent
+    of the throttled `TelemetryStore.refresh()` — the touch UI's enabled/disabled
+    state needs to track the real menu, not a second-old snapshot.
   - New `BattleInputSequencer` (Kotlin): given a target action index (0-3) or move index
     (0-3, only for slots with PP > 0 / within `gNumberOfMovesToChoose` — both already
-    derivable from the existing `battleMons[]` export), emits the normalize-then-walk
+    derivable from the existing `battleMons[]` read), emits the normalize-then-walk
     button script above as a small FIFO of `(bits, holdFrames, releaseFrames)` steps.
     Drained **one step per real emulated frame** from `EmulatorEngine`'s existing
     `while (running) { MgbaCore.pkSetKeys(input.mask); ... }` loop
@@ -369,53 +352,15 @@ naive "read cursor, compute delta" approach.
     existing touch D-pad overlay or physical input once inside).
   - Verify with the headless-mGBA harness first (script a real fight, screenshot around
     the injected sequence, confirm PP/HP/move landed as intended), then on-device against
-    the user's real `firered-qol`/`emerald-qol` saves.
+    the user's real FireRed / Emerald saves.
   - **Non-goals for v1**: driving Bag-item selection, Party-switch mon selection, and
     doubles' target-select screen — all reachable by opening them via the state machine
     above and finishing with existing touch/physical input. Matches Goldoire's headline
     feature ("select between options and moves"), not full touch coverage of every
     battle screen.
 
-  > **Tier A COMPLETE, on-device confirmed working (2026-09-17).** Shipped as described
-  > above — `battleActiveBattler`/`battleInputState` in `gQolTelemetry` v3 (464 bytes),
-  > `EmulatorEngine`'s fast ~15 Hz poll path, `BattleInputController` (the sequencer +
-  > the "wait for MOVE_SELECT before continuing" state machine, merged into one class),
-  > `BattlePanel` tap targets. User confirmed it works on a real fight.
-  >
-  > **Real bug hit and fixed post-ship: `gBattlerControllerFuncs[gActiveBattler]` is
-  > wrong — `gActiveBattler` is not "which battler is choosing".** It's
-  > `battle_main.c`'s own per-frame controller-dispatch loop variable:
-  > `for (gActiveBattler = 0; gActiveBattler < gBattlersCount; gActiveBattler++)
-gBattlerControllerFuncs[gActiveBattler]();`. By the time `QolTelemetry_Update()` runs
-  > (from `AgbMain()`, after that loop has already dispatched every battler for the
-  > frame), `gActiveBattler == gBattlersCount` — one past the last valid battler, not any
-  > particular slot. Reading `gBattlerControllerFuncs[gActiveBattler]` there is reading
-  > garbage, which is exactly why the first build shipped with `battleInputState` stuck
-  > at BUSY forever (confirmed by the user: "I don't get battle controls").
-  > **Fix**: scan `gBattlerControllerFuncs[i]` for every `i` in `[0, gBattlersCount)`
-  > directly and match against `HandleInputChooseAction`/`HandleInputChooseMove` — those
-  > two functions are the "Player" controller's own (`battle_controller_player.c`), never
-  > assigned to an AI/link opponent's slot, so the scan is unambiguous and doesn't need
-  > `gActiveBattler` at all. **This changes what Tier B/C need**: no `gActiveBattler`
-  > address required — just the `gBattlerControllerFuncs` array's base address plus the
-  > two function addresses, then scan host-side the same way. See
-  > [[gactivebattler-loop-var-gotcha]].
-
-- **Tier B — vanilla FireRed rev0/rev1 + vanilla Emerald (no ROM patch).** Same
-  `BattleInputController` completely unchanged (game-agnostic) — only the memory-read
-  side differs: instead of one fixed struct offset, read the whole
-  `gBattlerControllerFuncs[MAX_BATTLERS_COUNT]` array (a handful of 4-byte function
-  pointers) from native RAM and scan host-side against that build's own
-  `HandleInputChooseAction`/`HandleInputChooseMove` addresses — same scan the ROM-side
-  fix above does, just done in Kotlin instead of C since there's no telemetry export to
-  compute it for us. Three addresses needed per game (not four — no `gActiveBattler`):
-  `gBattlerControllerFuncs` array base, `HandleInputChooseAction`, `HandleInputChooseMove`.
-  _(Superseded 2026-09-17: originally scoped around `gActiveBattler` +
-  `gBattlerControllerFuncs[gActiveBattler]`, same bug as Tier A's first ship — corrected
-  above before implementation started, so no rework needed here.)_
-
-  > **Tier B implemented 2026-09-18, not yet device-verified.** Addresses sourced by
-  > building genuinely vanilla (unpatched) ROMs in the `firered-qol-build` Docker image
+  > **Tier A implemented 2026-09-18, not yet device-verified.** Addresses sourced by
+  > building genuinely vanilla (unpatched) ROMs in a pokefirered build Docker image
   > and reading `arm-none-eabi-nm` on the resulting `.elf` — **the linker `.map` file
   > turned out to NOT list `static` symbols at all** in this toolchain (contrary to the
   > original assumption above), so `nm` was the only way to find `HandleInputChooseAction`,
@@ -436,16 +381,15 @@ gBattlerControllerFuncs[gActiveBattler]();`. By the time `QolTelemetry_Update()`
   > - Emerald: `gBattlerControllerFuncs` `0x03005d60`, `HandleInputChooseAction`
   >   `0x08057588`, `HandleInputChooseMove` `0x08057bfc`.
   > - `NativeConfig` gained the three fields + `hasBattleInputAddrs`; new
-  >   `readNativeBattleInputFast()` in `NativeReader.kt` does the exact same
-  >   `gBattlerControllerFuncs[]` scan as the ROM-side fix (reads all
+  >   `readNativeBattleInputFast()` in `NativeReader.kt` does the
+  >   `gBattlerControllerFuncs[]` scan above (reads all
   >   `MAX_BATTLERS_COUNT` slots, matches by address, gated on `gMain`'s existing
   >   inBattle bit) — shared, not duplicated, by both `readNativeTelemetry` (the ~1 Hz
   >   snapshot) and `TelemetrySampler.sampleBattleInputFast` (the fast poll
-  >   `BattleInputController` needs). `BattlePanel`/`BattleInputController` needed zero
-  >   changes — both were already written against the `(battler, state)` pair
-  >   game-agnostically. **`NATIVE_UNBOUND` explicitly zeroes these three fields**
+  >   `BattleInputController` needs). `BattlePanel`/`BattleInputController` are written
+  >   against the `(battler, state)` pair, game-agnostically. **`NATIVE_UNBOUND` explicitly zeroes these three fields**
   >   (rather than silently inheriting rev0's, which are almost certainly wrong code
-  >   addresses for CFRU's different binary) so Tier C stays honestly unimplemented.
+  >   addresses for CFRU's different binary) so Tier B stays honestly unimplemented.
   > - Compiles clean, `assembleDebug` succeeds.
   >
   > **Real bug hit and fixed on first on-device try (2026-09-18): the hardcoded function
@@ -467,13 +411,13 @@ gBattlerControllerFuncs[gActiveBattler]();`. By the time `QolTelemetry_Update()`
   > convention either side follows, and doesn't require re-deriving every address by hand.
   > Not yet re-verified on-device after the fix.
 
-- **Tier C — Unbound.** Same five addresses needed (the three from Tier B plus
-  `CompleteWhenChoseItem`/`WaitForMonSelection` added for the Bag/Party BACK button —
-  see the Tier A status note below), but Unbound is closed-source — no `.map`/`nm`
+- **Tier B — Unbound.** Same five addresses needed (the three from Tier A plus
+  `CompleteWhenChoseItem`/`WaitForMonSelection` added for the Bag/Party BACK button),
+  but Unbound is closed-source — no `.map`/`nm`
   output to read them from. _(Superseded — see the implemented note below; this turned
   out not to need a disassembler pass or a live probe at all.)_
 
-  > **Tier C implemented 2026-09-18, not yet device-verified.** The user has the actual
+  > **Tier B implemented 2026-09-18, not yet device-verified.** The user has the actual
   > pinned v2.1.1.1 ROM locally (sha1 `b4776b82…`, matches `unbound-telemetry`'s pin) —
   > rather than reasoning about it or live-probing, compared raw ROM bytes directly
   > against a freshly-built genuinely-vanilla `make firered` (rev 0, sha1 `41cb23d8…`):
@@ -492,9 +436,9 @@ gBattlerControllerFuncs[gActiveBattler]();`. By the time `QolTelemetry_Update()`
   > (`unbound-telemetry`) to keep so many stock rev-0 RAM addresses — it's an ASM-hook
   > patch on the retail binary, not a full rebuild-with-insertions, so untouched regions
   > never move. Static-analysis-verified, not yet confirmed in an actual Unbound battle —
-  > Tiers A and B both shipped with equally careful reasoning and still had a real bug
-  > each only caught by actual play (see [[gactivebattler-loop-var-gotcha]],
-  > [[arm-thumb-bit-nm-gotcha]]), so treat this the same way until tested.
+  > Tier A shipped with equally careful reasoning and still had a real bug only caught
+  > by actual play (see [[arm-thumb-bit-nm-gotcha]]), so treat this the same way until
+  > tested.
 
 ## Open questions / risks (need the Thor to answer)
 
@@ -519,5 +463,3 @@ gBattlerControllerFuncs[gActiveBattler]();`. By the time `QolTelemetry_Update()`
 - `tools/android-companion`: its UI + data tables become PokeDaisy's bottom screen.
   Keep the directory as the source of the generated Kotlin tables (or move generation
   under `` and retire it — decide at Phase 3).
-- ROM patches (`patches-firered/`, `patches-emerald/`): unchanged. PokeDaisy runs
-  the built ROMs; it doesn't build them.

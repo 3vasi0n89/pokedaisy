@@ -23,14 +23,6 @@ class TrainerCardTest {
         assertEquals(CardStyle.KANTO, c.style)
     }
 
-    @Test fun `FireRed QoL - through the save blocks the struct path found`() {
-        val reader = FixtureMemoryReader.load("firered_qol")
-        val (cfg, _) = findStructMoney(reader, GameKind.FIRERED, 3, 16)!!
-        val c = readTrainerCard(reader, cfg)!!
-        assertEquals(49151, c.trainerId)
-        assertEquals(69, c.dexCaught)
-    }
-
     @Test fun `Emerald - the save's card`() {
         val c = card("emerald_vanilla", NATIVE_EMERALD_RETAIL)
         assertEquals("LIDOR", c.nameText)

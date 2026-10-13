@@ -51,7 +51,7 @@ import com.pokedaisy.app.companion.data.withMovesVs
 import com.pokedaisy.app.companion.i18n.tk
 import com.pokedaisy.app.companion.i18n.tr
 import com.pokedaisy.app.companion.ui.theme.LocalGameFont
-import com.pokedaisy.app.companion.ui.theme.QolColors
+import com.pokedaisy.app.companion.ui.theme.AppColors
 import com.pokedaisy.app.companion.ui.theme.pixelFontFamily
 
 /**
@@ -228,7 +228,7 @@ private fun PlayerStripHp(player: List<MonView>, m: GbaTextMetrics, small: GbaTe
 @Composable
 private fun UprightHpBar(hp: Int, maxHp: Int, u: androidx.compose.ui.unit.Dp, modifier: Modifier) {
     val frac = if (maxHp > 0) (hp.toFloat() / maxHp).coerceIn(0f, 1f) else 0f
-    val color = QolColors.hpColor(hp, maxHp)
+    val color = AppColors.hpColor(hp, maxHp)
     Box(modifier.drawBehind {
         val px = u.toPx()
         drawPixelRoundRect(OptionColors.frameDark, radius = 2 * px, step = px)
@@ -383,7 +383,7 @@ internal fun BattlerCard(
                     ThreatPill(mon, threats)
                 }
             }
-            SummaryBar(tr("HP"), "${mon.hp}/${mon.maxHp}", mon.hp, mon.maxHp, QolColors.hpColor(mon.hp, mon.maxHp), small)
+            SummaryBar(tr("HP"), "${mon.hp}/${mon.maxHp}", mon.hp, mon.maxHp, AppColors.hpColor(mon.hp, mon.maxHp), small)
         }
     }
 }
@@ -428,7 +428,7 @@ internal fun BattleMoveRow(
     shortVerdict: Boolean = false,
 ) {
     val u = m.u
-    val edge = mv?.let { QolColors.typeColors[it.type] } ?: OptionColors.muted
+    val edge = mv?.let { AppColors.typeColors[it.type] } ?: OptionColors.muted
     // Out of PP: still listed, but faded - it can't be picked.
     Box(
         modifier
@@ -500,7 +500,7 @@ internal fun VerdictPill(text: String, color: Color) {
     }
 }
 
-/** Darker than [QolColors.multiplierColor]'s bar colors, so white text reads on them. */
+/** Darker than [AppColors.multiplierColor]'s bar colors, so white text reads on them. */
 private fun verdictColor(pct: Int): Color = when {
     pct == 0 -> Color(0xFF585048)
     pct > 100 -> Color(0xFF389830)

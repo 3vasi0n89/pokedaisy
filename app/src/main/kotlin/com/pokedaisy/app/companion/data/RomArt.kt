@@ -16,7 +16,7 @@ import java.util.zip.Deflater
  * menus, region maps, ...) - is rebuilt from the player's own ROM instead of
  * being bundled. The first time
  * a ROM is played, [prefetch] scans it once for each [RomBlob] (found by
- * fingerprint, so retail, QoL builds and hacks that kept the art all work),
+ * fingerprint, so retail and hacks that kept the art all work),
  * composes the same PNGs the app used to ship under the same paths
  * (`partyfr/slot_normal.png`, `regionmap/kanto.png`, ...) and keeps them in
  * [DIR] under filesDir for every later launch, whichever game is running.

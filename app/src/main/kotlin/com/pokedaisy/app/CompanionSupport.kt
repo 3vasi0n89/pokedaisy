@@ -9,9 +9,8 @@ import java.io.File
  * [TelemetrySampler]'s detect() makes live, made from the file at import so
  * the library can warn before adding a ROM the companion will only show a
  * "not supported" notice for. Retail LeafGreen / Ruby / Sapphire (the
- * revisions detect() has addresses for), and FireRed/Emerald-based ROMs up to 16 MB (retail,
- * the QoL builds, small hacks) are read as FireRed/Emerald; bigger ones only
- * when their SHA1 is a hack detect() knows. An archive is judged by the ROM
+ * revisions detect() has addresses for), retail FireRed / Emerald by their SHA1, and
+ * a hack only when its SHA1 is one detect() knows. An archive is judged by the ROM
  * inside it ([RomArchive]). Blocking (hashes up to 32 MB) - never on the UI thread.
  * The website's ROM check (`website/src/lib/compat.js`) is the same rules in JavaScript, over
  * the tables `SiteDataExportTest` exports: change this, change that.
@@ -45,7 +44,7 @@ object CompanionSupport {
         // A hack under a game code of its own (Ultra Violet's PUVV): only the build detect() knows.
         if (code in TelemetrySampler.HACK_GAME_CODES) return RomIdentity.sha1(rom) in TelemetrySampler.SUPPORTED_HACK_SHA1S
         if (code != "BPRE" && code != "BPEE") return false
-        if (size <= 0x1000000L) return true
-        return RomIdentity.sha1(rom) in TelemetrySampler.SUPPORTED_HACK_SHA1S
+        val sha1 = RomIdentity.sha1(rom)
+        return (size <= 0x1000000L && sha1 in TelemetrySampler.RETAIL_SHA1S) || sha1 in TelemetrySampler.SUPPORTED_HACK_SHA1S
     }
 }

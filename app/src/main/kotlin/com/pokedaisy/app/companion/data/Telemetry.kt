@@ -1,35 +1,8 @@
 package com.pokedaisy.app.companion.data
 
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
-
-// Mirrors struct QolTelemetryData in build/pokefirered/include/qol_telemetry.h
-// exactly - field order and sizes must match byte-for-byte since the ROM
-// struct is __attribute__((packed)) and this reads it as a flat, sequential
-// little-endian byte stream. See tools/telemetry-viewer/telemetry.go for the
-// Go equivalent of this same layout.
+// One sample of the running game, as every reader (NativeReader, Gen1Reader) builds it.
 const val PARTY_SIZE = 6
 const val NUM_MOVES = 4
-// v1-v3 ROMs only ever exported the single "Items" bag pocket, 42 slots of a
-// 4-byte {itemId, quantity} entry (no pocket tag - LEGACY_ITEM_ENTRY_SIZE
-// below reads it as one anyway, defaulted to POCKET_ITEMS).
-const val LEGACY_BAG_ITEM_COUNT = 42
-const val LEGACY_ITEM_ENTRY_SIZE = 4
-// v4: items[] covers every bag pocket, flattened - see QOL_BAG_TOTAL_SLOTS in
-// qol_telemetry.h - and each 5-byte entry is tagged with which pocket it came
-// from. This RESIZES items[] (not just an appended trailing block like v2/v3
-// were), which is why decoding branches on `version`, not just `structSize`.
-const val BAG_TOTAL_SLOTS = 186
-const val ITEM_ENTRY_SIZE = 5
-// v2 struct: +16 bytes of icon-table ROM pointers appended after items[].
-// v3 struct: +4 bytes of battleActiveBattler/battleInputState after that.
-// v4 struct: items[] grown as above (LEGACY_BAG_ITEM_COUNT*4 -> BAG_TOTAL_SLOTS*5),
-// icon-table + battle-input blocks unchanged, just shifted later.
-const val TELEMETRY_SIZE_V1 = 444
-const val TELEMETRY_SIZE_V2 = 460
-const val TELEMETRY_SIZE_V3 = 464
-const val TELEMETRY_SIZE_V4 = 1226
-const val TELEMETRY_SIZE = TELEMETRY_SIZE_V4
 
 const val BATTLE_POS_PLAYER_LEFT = 0
 const val BATTLE_POS_OPPONENT_LEFT = 1
@@ -38,7 +11,7 @@ const val BATTLE_POS_OPPONENT_RIGHT = 3
 
 const val TYPE_NONE = 255
 
-// battleInputState values - mirrors QOL_BATTLE_INPUT_* in qol_telemetry.h.
+// battleInputState values: which battle menu waits for input (readNativeBattleInputFast).
 const val BATTLE_INPUT_NONE = 0
 const val BATTLE_INPUT_BUSY = 1
 const val BATTLE_INPUT_ACTION_SELECT = 2
@@ -47,10 +20,9 @@ const val BATTLE_INPUT_BAG_OPEN = 4
 const val BATTLE_INPUT_PARTY_OPEN = 5
 const val BATTLE_INPUT_TARGET_SELECT = 6
 
-// Item.pocket values - stable, game-independent ids matching QOL_POCKET_* in
-// qol_telemetry.h. NOT the same as either game's own engine POCKET_*
-// constants, which number the same pockets differently between FireRed and
-// Emerald.
+// Item.pocket values - stable, game-independent ids. NOT the same as either
+// game's own engine POCKET_* constants, which number the same pockets
+// differently between FireRed and Emerald.
 const val POCKET_ITEMS = 0
 const val POCKET_POKE_BALLS = 1
 const val POCKET_TM_HM = 2
@@ -67,8 +39,7 @@ data class Mon(
     val pp: IntArray,
     // The party menu's gender symbol (GENDER_SYMBOL_*), when known.
     val genderSymbol: Int = GENDER_SYMBOL_UNKNOWN,
-    // Total experience points (the Growth substruct), when read from the
-    // decrypted RAM struct - not part of the QoL telemetry struct itself.
+    // Total experience points (the Growth substruct), from the decrypted RAM struct.
     val exp: Long? = null,
     // The mon's personality value (its RAM struct's first word): which mon
     // the battle POKéMON pane switches to. 0 = unknown.
@@ -82,9 +53,7 @@ data class Mon(
     val heldItem: Int = 0,
 )
 
-// QOL_GENDER_* in the ROM's qol_telemetry.h: what FireRed's party menu shows
-// next to the level. UNKNOWN = a ROM from before this byte existed (it was
-// padding, always 0) or a source that can't tell.
+// What FireRed's party menu shows next to the level. UNKNOWN = a source that can't tell.
 const val GENDER_SYMBOL_UNKNOWN = 0
 const val GENDER_SYMBOL_MALE = 1
 const val GENDER_SYMBOL_FEMALE = 2
@@ -100,7 +69,7 @@ data class BattleMon(
     val status1: Long,
     val moves: IntArray,
     val pp: IntArray,
-    /** gBattleMons' own fields (native reads; 0 / null where the source has none, e.g. the QoL struct). */
+    /** gBattleMons' own fields (0 / null where the source has none). */
     val ability: Int = 0,
     val item: Int = 0,
     /** Attack, Defense, Speed, Sp. Atk, Sp. Def - in battle, before stages. */
@@ -127,9 +96,8 @@ data class Telemetry(
     val itemCount: Int,
     val items: List<Item>,
     val icons: IconTables = IconTables(),
-    // v3: which battler is choosing and what menu is up right now, for
-    // driving synthetic button presses (bottom-screen touch battle control).
-    // BATTLE_INPUT_NONE/battler 0 on a pre-v3 ROM.
+    // Which battler is choosing and what menu is up right now, for driving
+    // synthetic button presses (bottom-screen touch battle control).
     val battleActiveBattler: Int = 0,
     val battleInputState: Int = BATTLE_INPUT_NONE,
     /** Native reads of games with a [NativeConfig.pokedex] only. */
@@ -158,7 +126,7 @@ data class Telemetry(
     val trainerCard: TrainerCardInfo? = null,
 )
 
-/** v2 struct: ROM addresses of the icon-graphics tables (0 if pre-v2 ROM). */
+/** ROM addresses of the icon-graphics tables (0 = unknown). */
 data class IconTables(
     val monIconTable: Long = 0,
     val monIconPaletteTable: Long = 0,
@@ -200,126 +168,3 @@ data class IconTables(
 }
 
 class TelemetryDecodeException(message: String) : Exception(message)
-
-fun decodeTelemetry(raw: ByteArray): Telemetry {
-    if (raw.size < TELEMETRY_SIZE_V1) {
-        throw TelemetryDecodeException("short read: got ${raw.size} bytes, want $TELEMETRY_SIZE_V1+")
-    }
-    val buf = ByteBuffer.wrap(raw, 0, minOf(raw.size, TELEMETRY_SIZE)).order(ByteOrder.LITTLE_ENDIAN)
-
-    val magic = ByteArray(4)
-    buf.get(magic)
-    val magicStr = String(magic, Charsets.US_ASCII)
-    if (magicStr != "QOLT") {
-        throw TelemetryDecodeException("bad magic \"$magicStr\" - wrong address, or the ROM isn't the QoL telemetry build")
-    }
-
-    val version = buf.short.toInt() and 0xFFFF
-    val structSize = buf.short.toInt() and 0xFFFF
-    // v4 resized items[] itself (not just an appended trailing block, unlike
-    // v2/v3), so which tier applies has to come from `version`, not just a
-    // structSize magnitude comparison - a v3 ROM and a v4 ROM can't be told
-    // apart by size alone once icon-table/battle-input bytes are involved.
-    val isV4 = version >= 4
-    val minSize = when {
-        isV4 -> TELEMETRY_SIZE_V4
-        else -> TELEMETRY_SIZE_V1
-    }
-    if (structSize < minSize) {
-        throw TelemetryDecodeException("struct size mismatch: ROM reports $structSize bytes (version $version), app expects at least $minSize (rebuild the ROM/app together)")
-    }
-    // v4 always carries both (it's a strict extension of v3) - checked above.
-    val hasIcons = isV4 || structSize >= TELEMETRY_SIZE_V2
-    val hasBattleInput = isV4 || structSize >= TELEMETRY_SIZE_V3
-    val frameCounter = buf.int.toLong() and 0xFFFFFFFFL
-
-    val inBattle = buf.get().toInt() != 0
-    val isDoubleBattle = buf.get().toInt() != 0
-    val mapGroup = buf.get().toInt() and 0xFF
-    val mapNum = buf.get().toInt() and 0xFF
-    val regionMapSectionId = buf.get().toInt() and 0xFF
-    val x = buf.short.toInt() and 0xFFFF
-    val y = buf.short.toInt() and 0xFFFF
-    val facingDirection = buf.get().toInt() and 0xFF
-
-    val partyCount = buf.get().toInt() and 0xFF
-    buf.get() // reserved1
-
-    val party = (0 until PARTY_SIZE).map { readMon(buf) }
-    val battleMons = (0 until 4).map { readBattleMon(buf) }
-
-    val itemCount = buf.short.toInt() and 0xFFFF
-    buf.short // reserved2
-    val items = if (isV4) {
-        (0 until BAG_TOTAL_SLOTS).map {
-            Item(buf.short.toInt() and 0xFFFF, buf.short.toInt() and 0xFFFF, buf.get().toInt() and 0xFF)
-        }
-    } else {
-        // Pre-v4 ROMs only ever exported the "Items" pocket - tag every entry
-        // with that pocket so callers don't need a separate pre/post-v4 path.
-        (0 until LEGACY_BAG_ITEM_COUNT).map {
-            Item(buf.short.toInt() and 0xFFFF, buf.short.toInt() and 0xFFFF, POCKET_ITEMS)
-        }
-    }
-
-    val icons = if (hasIcons) {
-        fun u32() = buf.int.toLong() and 0xFFFFFFFFL
-        IconTables(u32(), u32(), u32(), u32())
-    } else {
-        IconTables()
-    }
-
-    var battleActiveBattler = 0
-    var battleInputState = BATTLE_INPUT_NONE
-    if (hasBattleInput) {
-        battleActiveBattler = buf.get().toInt() and 0xFF
-        battleInputState = buf.get().toInt() and 0xFF
-        buf.short // reserved3
-    }
-
-    return Telemetry(
-        frameCounter = frameCounter,
-        inBattle = inBattle,
-        isDoubleBattle = isDoubleBattle,
-        mapGroup = mapGroup,
-        mapNum = mapNum,
-        regionMapSectionId = regionMapSectionId,
-        x = x,
-        y = y,
-        facingDirection = facingDirection,
-        partyCount = partyCount,
-        party = party,
-        battleMons = battleMons,
-        itemCount = itemCount,
-        items = items,
-        icons = icons,
-        battleActiveBattler = battleActiveBattler,
-        battleInputState = battleInputState,
-    )
-}
-
-private fun readMon(buf: ByteBuffer): Mon {
-    val species = buf.short.toInt() and 0xFFFF
-    val level = buf.get().toInt() and 0xFF
-    val genderSymbol = buf.get().toInt() and 0xFF // was padding before QOL_GENDER_*
-    val hp = buf.short.toInt() and 0xFFFF
-    val maxHp = buf.short.toInt() and 0xFFFF
-    val status = buf.int.toLong() and 0xFFFFFFFFL
-    val moves = IntArray(NUM_MOVES) { buf.short.toInt() and 0xFFFF }
-    val pp = IntArray(NUM_MOVES) { buf.get().toInt() and 0xFF }
-    return Mon(species, level, hp, maxHp, status, moves, pp, genderSymbol)
-}
-
-private fun readBattleMon(buf: ByteBuffer): BattleMon {
-    val species = buf.short.toInt() and 0xFFFF
-    val level = buf.get().toInt() and 0xFF
-    val type1 = buf.get().toInt() and 0xFF
-    val hp = buf.short.toInt() and 0xFFFF
-    val maxHp = buf.short.toInt() and 0xFFFF
-    val status1 = buf.int.toLong() and 0xFFFFFFFFL
-    val type2 = buf.get().toInt() and 0xFF
-    buf.get() // padding
-    val moves = IntArray(NUM_MOVES) { buf.short.toInt() and 0xFFFF }
-    val pp = IntArray(NUM_MOVES) { buf.get().toInt() and 0xFF }
-    return BattleMon(species, level, type1, type2, hp, maxHp, status1, moves, pp)
-}

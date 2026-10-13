@@ -56,7 +56,7 @@ import com.pokedaisy.app.companion.ui.GuideScreen
 import com.pokedaisy.app.companion.ui.GuideSource
 import com.pokedaisy.app.companion.ui.GuideUiState
 import com.pokedaisy.app.companion.ui.GameBackdrop
-import com.pokedaisy.app.companion.ui.theme.QolTheme
+import com.pokedaisy.app.companion.ui.theme.AppTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import java.io.File
@@ -287,7 +287,7 @@ fun docsShots(all: List<Shot>, bw: Int, bh: Int, bd: Float, tw: Int, th: Int, td
         Shot("companion-map", bw, bh, bd, docsCompanion("MAP")),
         Shot("companion-guide", bw, bh, bd, {
             val content: @Composable () -> Unit = {
-                QolTheme {
+                AppTheme {
                     // The companion's own backdrop colour with no game art (as the other companion shots have it).
                     Box(Modifier.fillMaxSize().background(Color(0xFF2C7868))) {
                         GameBackdrop(com.pokedaisy.app.companion.data.activeGame)

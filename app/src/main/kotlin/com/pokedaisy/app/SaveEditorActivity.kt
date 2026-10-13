@@ -38,7 +38,7 @@ import com.pokedaisy.app.companion.ui.PcBoxesState
 import com.pokedaisy.app.companion.ui.TradeScreen
 import com.pokedaisy.app.companion.ui.TradeState
 import com.pokedaisy.app.companion.ui.rememberGbaTextMetrics
-import com.pokedaisy.app.companion.ui.theme.QolTheme
+import com.pokedaisy.app.companion.ui.theme.AppTheme
 import java.io.File
 
 /**
@@ -77,7 +77,7 @@ class SaveEditorActivity : ComponentActivity() {
         if (path == null || !FeatureFlags.saveEditor(this)) { finish(); return }
         rom = File(path)
         gameName = GameTitles.label(this, prefs, rom)
-        setContent { QolTheme { Root() } }
+        setContent { AppTheme { Root() } }
         load()
     }
 

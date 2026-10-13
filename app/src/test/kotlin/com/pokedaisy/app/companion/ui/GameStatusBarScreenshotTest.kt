@@ -47,7 +47,7 @@ class GameStatusBarScreenshotTest {
 
     @Test
     fun fireRed() = paparazzi.snapshot {
-        Stage { GameStatusBar("firered-qol", "Pallet Town", 224300, "14:05", battery = BatteryStatus(82, false)) }
+        Stage { GameStatusBar("FireRed", "Pallet Town", 224300, "14:05", battery = BatteryStatus(82, false)) }
     }
 
     @Test

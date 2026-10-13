@@ -69,7 +69,6 @@ import Pixel from './Pixel.astro';
     supported: (v) => v.version
       ? `The companion knows this exact version of ${v.title}. Party, battles, map and more on the second screen.`
       : `The companion reads ${v.title}. Party, battles, map and more on the second screen.`,
-    likely: (v) => `It's a ${v.base} ROM, but not a dump we know: a FireRed / Emerald QoL build is fully supported, while a small ROM hack is read as ${v.base} and may show wrong or missing info.`,
     'unknown-hack': (v) => `A ${v.base}-based ROM hack we don't know yet. It still plays, but the companion screen only says "not supported". Ask for it below!`,
     'in-progress': (v) => `${v.title} ${v.version} plays in PokeDaisy, but its companion is still being built. It's coming!`,
     'retail-hack': (v) => `A ROM hack built on ${v.base}. Only the original game is supported so far.`,
@@ -82,7 +81,6 @@ import Pixel from './Pixel.astro';
   };
   const STAMPS: Record<string, [string, string]> = {
     supported: ['SUPPORTED', 'f-pillGreen'],
-    likely: ['PROBABLY WORKS', 'f-pillYellow'],
     unsupported: ['NOT YET', 'f-pillRed'],
   };
 
@@ -163,7 +161,7 @@ import Pixel from './Pixel.astro';
         if (r.size) row('SIZE', `${(r.size / 1048576).toFixed(r.size % 1048576 ? 1 : 0)} MB`);
         if (r.sha1) row('SHA-1', r.sha1, true);
         message.textContent = MESSAGES[v.status === 'unsupported' ? v.reason : v.status](v, r);
-        if (r.sha1 && (v.status === 'likely' || ['unknown-hack', 'retail-hack', 'revision', 'other-game', 'gb'].includes(v.reason))) {
+        if (r.sha1 && (['unknown-hack', 'retail-hack', 'revision', 'other-game', 'gb'].includes(v.reason))) {
           actions.append(requestLink(r), formLink(r));
         }
       } catch (e) {

@@ -4,8 +4,8 @@ into each ROM and writes app/src/main/cpp/pk_wide_games.h, a table keyed by the 
 
     scripts/gen_wide_tables.py <roms dir> [<more roms dirs>...]
 
-Every retail .gba under the dirs (by SHA-1: the app's GameTitles / RetailPortsGen list - hacks and the QoL
-builds share the codes but aren't taken) whose game code is FireRed / LeafGreen (BPR / BPG), Emerald (BPE) or Ruby / Sapphire (AXV / AXP) gets
+Every retail .gba under the dirs (by SHA-1: the app's GameTitles / RetailPortsGen list - hacks share the
+codes but aren't taken) whose game code is FireRed / LeafGreen (BPR / BPG), Emerald (BPE) or Ruby / Sapphire (AXV / AXP) gets
 the English reference's addresses (FireRed rev 1, Emerald, Ruby rev 1: checked frame by frame headless) mapped
 through the literal pools of the code that loads them (port_retail.py's map_literal: the word at the
 same place in the other ROM's code). A ROM with an address no pool maps is left out and reported.
@@ -33,7 +33,7 @@ SLOTS = ["VMAP", "MAP_HEADER", "MAP_GROUPS", "SAVE_BLOCK1_PTR", "CAMERA_OFFSET",
          "COORD_OFFSET", "COORD_OFFSET_Y", "SPRITE_ORDER", "GMAIN", "CONTROLS_LOCKED", "OBJ_GFX_INFO", "OBJ_PALETTES", "OBJ_FACING",
          "SPRITE_PAL_TAGS", "ELEVATION_PRIO", "MAP_GROUPS_XOR", "NORMAL_BG3", "METATILE_SIZE", "METATILE_MASK", "PRIMARY_OVERRIDE", "PAN_OFF",
          "OBJ_GFX_TABLES", "OBJ_GFX_TABLE_MAX", "OBJ_GFX_VAR_FROM", "OBJ_GFX_FF_VAR", "SB1_OFFSETS", "SB1_POS", "LAYOUT_VERSIONED",
-         "OBJ_GFX_COUNT", "TEMPLATE_KIND_AT", "SB1_FLAGS_AT", "TRANSITION_PTR", "QUEST_LOG"]
+         "OBJ_GFX_COUNT", "TEMPLATE_KIND_AT", "SB1_FLAGS_AT", "TRANSITION_PTR", "QUEST_LOG", "EXPANDED_FLAGS"]
 
 # The references: what was mapped onto retail from the decomp ELFs and checked headless (pk_wide.c's
 # history), plus ScriptContext_SetupScript for the checks' scripted warps and battles.
@@ -43,7 +43,7 @@ REFERENCES = {
         CAMERA_OFFSET=0x03000E90, OBJECT_EVENTS=0x02036E38, SPRITES=0x0202063C, COORD_OFFSET=0x02021BC8,
         COORD_OFFSET_Y=0x02021BCA, SPRITE_ORDER=0x02021800, GMAIN=0x030030F0,
         CONTROLS_LOCKED=0x03000F9C,   # sScriptContext2Enabled, from ScriptContext2_IsEnabled's literal
-        # The far-off objects' tables (the decomp ELF's statics, mapped from the QoL build through the pools).
+        # The far-off objects' tables (the decomp ELF's statics, mapped from its patched build through the pools).
         OBJ_GFX_INFO=0x0839FE20, OBJ_PALETTES=0x083A51C8, OBJ_FACING=0x0839FDCD, SPRITE_PAL_TAGS=0x03000DE8,
         ELEVATION_PRIO=0x083A70EC,
         # battle_transition.c's sTransitionData (the decomp ELF's static, checked in retail rev 1 headless: set from
@@ -56,7 +56,7 @@ REFERENCES = {
         VMAP=0x03005DC0, MAP_HEADER=0x02037318, MAP_GROUPS=0x08486578, SAVE_BLOCK1_PTR=0x03005D8C,
         CAMERA_OFFSET=0x03000E20, OBJECT_EVENTS=0x02037350, SPRITES=0x02020630, COORD_OFFSET=0x02021BBC,
         COORD_OFFSET_Y=0x02021BBE, SPRITE_ORDER=0x020217F4, GMAIN=0x030022C0,
-        # sLockFieldControls and the far-off objects' tables: the decomp ELF's (a QoL build: its ROM data mapped onto
+        # sLockFieldControls and the far-off objects' tables: the decomp ELF's (a patched build: its ROM data mapped onto
         # retail through the literal pools - the code and RAM are retail's).
         CONTROLS_LOCKED=0x03000F2C, OBJ_GFX_INFO=0x08505620, OBJ_PALETTES=0x0850BBC8, OBJ_FACING=0x085055CD,
         SPRITE_PAL_TAGS=0x03000CF0, ELEVATION_PRIO=0x0850E634)),
@@ -77,12 +77,15 @@ OPTIONAL = {"CONTROLS_LOCKED", "OBJ_GFX_INFO", "OBJ_PALETTES", "OBJ_FACING", "SP
 # The slots that aren't addresses, as retail has them.
 CONSTANTS = dict(MAP_GROUPS_XOR=0, NORMAL_BG3=0x3014, METATILE_SIZE=16, METATILE_MASK=0x3FF, PRIMARY_OVERRIDE=0, PAN_OFF=8,
                  OBJ_GFX_TABLES=0, OBJ_GFX_TABLE_MAX=0, OBJ_GFX_VAR_FROM=240, OBJ_GFX_FF_VAR=0, SB1_OFFSETS=0, SB1_POS=0, LAYOUT_VERSIONED=0,
-                 OBJ_GFX_COUNT=0, TEMPLATE_KIND_AT=0, SB1_FLAGS_AT=0)
+                 OBJ_GFX_COUNT=0, TEMPLATE_KIND_AT=0, SB1_FLAGS_AT=0, EXPANDED_FLAGS=0)
+# CFRU's flags 0x900-0x18FF (its GetFlagPointer, hooked over FireRed's: the same in Unbound, Radical Red, Amethyst and
+# Sword and Shield). The map objects they hide were drawn past the edges from SaveBlock1's bytes after the flags.
+CFRU_FLAGS = dict(EXPANDED_FLAGS=0x0203B174)
 # CFRU's graphics lookup (its GetEventObjectGraphicsInfo, in place of FireRed's): Unbound looks in tables 1-2 (a table of
 # tables at 0x08A69530), takes table 0's 240+ as they are and table 0xFF's from vars 0x4080+; Radical Red in every
 # table (0x091468CC), table 0's 240+ from FireRed's vars, table 0xFF's from vars past SaveBlock1's (not drawn).
 CFRU_UNBOUND = dict(OBJ_GFX_INFO=0x088110E0, OBJ_GFX_TABLES=0x08A69530, OBJ_GFX_TABLE_MAX=2, OBJ_GFX_VAR_FROM=256,
-                    OBJ_GFX_FF_VAR=0x4080)
+                    OBJ_GFX_FF_VAR=0x4080, **CFRU_FLAGS)
 
 # ROM hacks, by SHA-1. One with `pending` (why) is mapped and checked, but its row is under PK_WIDE_PENDING (only
 # verify_wide.py's build defines it): its middle isn't exact yet, so the app doesn't offer WIDE for it. A CFRU hack keeps FireRed rev 0's RAM and most of its code, so its addresses are mapped
@@ -107,7 +110,7 @@ HACKS = [
          save="unbound_fr", a=dict(MAP_GROUPS=0x08B70498, MAP_GROUPS_XOR=0x00B749DE, NORMAL_BG3=0, **CFRU_UNBOUND)),
     dict(name="Radical Red v4.1", sha1="964f951a0fdaf209e4ea1344883ef0d557bb3a80", family="FR", mapped=True,
          save="radical_red", a=dict(MAP_GROUPS=0x083526A8, OBJ_GFX_INFO=0x08EB1000, OBJ_GFX_TABLES=0x091468CC,
-                                    OBJ_GFX_TABLE_MAX=0xFE)),
+                                    OBJ_GFX_TABLE_MAX=0xFE, **CFRU_FLAGS)),
     # Binary FireRed hacks: FireRed rev 0's RAM and code, mapped through the literal pools; gMapGroups is the app's
     # GuideTables value (one pool vote), the graphics lookup as each hack's GetObjectEventGraphicsInfo has it.
     dict(name="Odyssey v4.1.1", sha1="8745ddbdbfadf6abaf66de4e9055923b62eb4668", family="FR", mapped=True,
@@ -115,16 +118,16 @@ HACKS = [
     dict(name="Gaia v3.2", sha1="d5b1e77975fcda831e0e9a7b527906bf3f40ecd0", family="FR", mapped=True,
          save="gaia", a=dict(MAP_GROUPS=0x083528DC, OBJ_GFX_INFO=0x089D6CD0)),
     dict(name="Amethyst v1.3.0", sha1="00e70c0384a5f1698588034201fd5b849d3542e2", family="FR", mapped=True,
-         save="amethyst", a=dict(MAP_GROUPS=0x083526A8, **cfru(0x0839FDB0, 0x089B03D8))),
+         save="amethyst", a=dict(MAP_GROUPS=0x083526A8, **cfru(0x0839FDB0, 0x089B03D8), **CFRU_FLAGS)),
     dict(name="Amethyst v1.4.1", sha1="91291aade04b4b111cd03ae7b6e2ff460e1edd8a", family="FR", mapped=True,
-         save="amethyst_v141", a=dict(MAP_GROUPS=0x083526A8, **cfru(0x0839FDB0, 0x089F2598))),
+         save="amethyst_v141", a=dict(MAP_GROUPS=0x083526A8, **cfru(0x0839FDB0, 0x089F2598), **CFRU_FLAGS)),
     dict(name="Orange Islands", sha1="8bac897de515f88e6ce92d0712ce2c018a394b37", family="FR", mapped=True,
          pending="the top tile row differs once the walk turns north (half the walk frames)",
          save="orange_islands", a=dict(MAP_GROUPS=0x083526A8, **cfru(0x08801C80, 0x081A2000, 0x4080))),
     dict(name="Celia's Stupid Romhack v1.1.4", sha1="3cbd5a2e72ce60cfae1e0c28d83e01f855c51537", family="FR",
          mapped=True, save="celia", a=dict(MAP_GROUPS=0x089DCD7C)),
     *[dict(name=f"Sword and Shield Ultimate Plus{v}", sha1=sha, family="FR", mapped=True, save=save,
-           a=dict(MAP_GROUPS=0x087B1010, **cfru(0x08EB1000, 0x094BBFCC)))
+           a=dict(MAP_GROUPS=0x087B1010, **cfru(0x08EB1000, 0x094BBFCC), **CFRU_FLAGS))
       for v, sha, save in [("", "afe4c8e0f9c7186860fcea5f25d8318f5d7929b9", "sword_shield_up"),
                            (" (casual)", "daa2f89934d2c0447d5271dabeba86bfba04e1fd", "sword_shield_up_casual"),
                            (" (performance)", "4858cc3d7b335bb5eed553861d7a4a17bad9ce2c", "sword_shield_up_performance"),
@@ -276,8 +279,8 @@ KOTLIN = os.path.join(ROOT, "app", "src", "main", "kotlin", "com", "pokedaisy", 
 
 def retail_sha1s():
     """The retail releases the app knows by SHA-1: GameTitles' hand-written ones (above its hacks) and
-    the generated other-language ports (RETAIL_PORT_TITLES). Hacks and the QoL builds share the game
-    codes, but WIDE is checked on retail only."""
+    the generated other-language ports (RETAIL_PORT_TITLES). Hacks share the game codes, but WIDE is
+    checked on retail only."""
     hand = open(os.path.join(KOTLIN, "GameTitles.kt")).read()
     hand = hand[hand.index("private val HAND"):hand.index("// Hacks")]
     ports = open(os.path.join(KOTLIN, "companion", "data", "RetailPortsGen.kt")).read()

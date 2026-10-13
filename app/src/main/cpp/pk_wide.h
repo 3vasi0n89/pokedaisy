@@ -74,6 +74,8 @@ enum {
                                // end (pk_wide_scene says BATTLE_START before anything shows); 0 = unknown
     PK_WIDE_QUEST_LOG,         // FireRed's gQuestLogState: 2 / 3 while "Previously on your quest" replays the field
                                // (pk_wide_scene says OFF: the camera stays at 1x through it); 0 = unknown / none
+    PK_WIDE_EXPANDED_FLAGS,    // CFRU's gExpandedFlags: its GetFlagPointer keeps flags 0x900-0x18FF there, not in SaveBlock1
+                               // (an object hidden by one was drawn past the edges); 0 = the engine's flags only
     PK_WIDE_ADDRS,
     PK_WIDE_PRIMARY_METATILES = PK_WIDE_ADDRS,   // 640 FireRed, 512 Emerald
     PK_WIDE_ATTR_OFFSET,       // struct Tileset's metatileAttributes: 0x14 FireRed, 0x10 Emerald

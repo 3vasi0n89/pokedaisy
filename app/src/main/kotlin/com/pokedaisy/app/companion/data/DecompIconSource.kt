@@ -4,10 +4,9 @@ import android.graphics.Bitmap
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Party / bag icons pulled straight out of the running FireRed/Emerald QoL ROM,
- * so nothing has to be bundled. Uses the icon-table addresses the v2
- * `gQolTelemetry` struct now exports ([IconTables]) — set [tables] once per
- * poll. Sibling of [UnboundIconSource]; the difference is the decomp layout:
+ * Party / bag icons pulled straight out of the running FireRed/Emerald ROM,
+ * so nothing has to be bundled. Uses the icon-table addresses its config
+ * knows ([IconTables]) — set [tables] once per poll. Sibling of [UnboundIconSource]; the difference is the decomp layout:
  *
  *  - mon icons: `gMonIconTable[species]` -> 1024 bytes of **uncompressed** 4bpp
  *    tiles (32x64, two frames — crop to the first). Palette is a separate

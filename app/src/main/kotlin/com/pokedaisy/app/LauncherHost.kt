@@ -12,7 +12,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.viewinterop.AndroidView
-import com.pokedaisy.app.companion.ui.theme.QolTheme
+import com.pokedaisy.app.companion.ui.theme.AppTheme
 import java.io.File
 
 /**
@@ -31,7 +31,7 @@ class LauncherSecondScreen(private val activity: ComponentActivity, private val 
         dismiss()
         presentation = runCatching {
             DualScreenPresentation(activity, display) { ctx ->
-                ComposeView(ctx).apply { setContent { QolTheme { content() } } }
+                ComposeView(ctx).apply { setContent { AppTheme { content() } } }
             }.also { it.show() }
         }.onFailure { Log.w("pokedaisy", "launcher presentation failed", it) }.getOrNull()
         return presentation != null

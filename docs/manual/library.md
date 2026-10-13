@@ -130,6 +130,8 @@ The D-pad moves a cursor through it: up and down a row, left and right along `RE
 - **B** opens the game's menu (the same entries as a long press). Whatever an entry opens, like `INFO`, B takes you back to the menu.
 - **Y** opens Settings.
 
+With the touch screen, a tap on a game opens it straight away, and a long press opens its menu.
+
 Prefer the library without the cursor and legend? Turn off `DUAL-SCREEN LAUNCHER` in Settings, in the `LIBRARY` group.
 
 ## Game info

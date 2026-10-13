@@ -57,7 +57,7 @@ import com.pokedaisy.app.companion.data.BATTLE_INPUT_PARTY_OPEN
 import com.pokedaisy.app.companion.data.BATTLE_INPUT_TARGET_SELECT
 import com.pokedaisy.app.companion.data.MonView
 import com.pokedaisy.app.companion.data.MoveView
-import com.pokedaisy.app.companion.ui.theme.QolColors
+import com.pokedaisy.app.companion.ui.theme.AppColors
 import com.pokedaisy.app.companion.ui.theme.pixelFontFamily
 
 /**
@@ -189,10 +189,10 @@ fun BattleControlsScreen(
                     // nothing for the user to tap, just a status so the screen
                     // doesn't look stuck.
                     BATTLE_INPUT_TARGET_SELECT -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(tr("Confirming target…"), color = QolColors.muted, fontSize = 22.sp)
+                        Text(tr("Confirming target…"), color = AppColors.muted, fontSize = 22.sp)
                     }
                     else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(tr("Waiting for your turn…"), color = QolColors.muted, fontSize = 22.sp)
+                        Text(tr("Waiting for your turn…"), color = AppColors.muted, fontSize = 22.sp)
                     }
                 }
             }
@@ -434,7 +434,7 @@ private fun BackOnlyButton(battleInput: BattleInput?, busy: Boolean) {
     CompanionBackHandler(enabled = battleInput != null && !busy) { battleInput?.back() }
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         PlatinumButton(
-            fill = QolColors.slotFillDark, frame = QolColors.slotFrame,
+            fill = AppColors.slotFillDark, frame = AppColors.slotFrame,
             modifier = Modifier.fillMaxWidth(0.5f).height(52.dp),
             enabled = battleInput != null && !busy,
             pressesGame = true, onClick = { battleInput?.back() },
@@ -459,9 +459,9 @@ private fun MoveCard(
     // Gen 4 move-selector sheet. Reuses the same type palette TypeBadge does
     // elsewhere in the app, so a move's color here matches its badge color
     // everywhere else.
-    val frame = mv?.let { QolColors.typeColors[it.type] } ?: QolColors.slotFrame
+    val frame = mv?.let { AppColors.typeColors[it.type] } ?: AppColors.slotFrame
     PlatinumButton(
-        fill = if (mv == null) QolColors.slotFillDark else MoveCardFill,
+        fill = if (mv == null) AppColors.slotFillDark else MoveCardFill,
         frame = frame,
         modifier = modifier,
         enabled = enabled,
@@ -470,7 +470,7 @@ private fun MoveCard(
         pressesGame = true, onClick = { battleInput?.selectMove(moveIndex) },
     ) {
         if (mv == null) {
-            Text("—", color = QolColors.muted, fontSize = 32.sp)
+            Text("—", color = AppColors.muted, fontSize = 32.sp)
         } else {
             // Name on its own line (the game's own casing, full width), the
             // type under it, then power + per-foe multipliers bottom-left and
@@ -486,26 +486,26 @@ private fun MoveCard(
                 // Name and PP, then type, power and the multipliers.
                 Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxWidth()) {
                     // A long name (METAL CLAW) steps its size down to fit beside PP rather than being cut.
-                    FittedText(mv.name, QolColors.text, tight, maxSize = 32, minSize = 20, modifier = Modifier.weight(1f).padding(end = 10.dp))
-                    Text(tr("PP {0}", mv.pp), color = QolColors.text, fontSize = 20.sp, style = tight, maxLines = 1)
+                    FittedText(mv.name, AppColors.text, tight, maxSize = 32, minSize = 20, modifier = Modifier.weight(1f).padding(end = 10.dp))
+                    Text(tr("PP {0}", mv.pp), color = AppColors.text, fontSize = 20.sp, style = tight, maxLines = 1)
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     TypeBadge(mv.type, fontSize = 16.sp)
-                    Text(tr("PWR {0}", powerLabel(mv.power)), color = QolColors.muted, fontSize = 22.sp, style = tight, maxLines = 1)
+                    Text(tr("PWR {0}", powerLabel(mv.power)), color = AppColors.muted, fontSize = 22.sp, style = tight, maxLines = 1)
                     if (showHints) mv.vs.forEach { v -> MultiplierChip(v.label, v.pct, fontSize = 16.sp) }
                 }
             } else Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    mv.name, color = QolColors.text, fontSize = 32.sp, style = tight,
+                    mv.name, color = AppColors.text, fontSize = 32.sp, style = tight,
                     maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
                 TypeBadge(mv.type, fontSize = 16.sp)
                 Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.weight(1f)) {
-                        Text(tr("PWR {0}", powerLabel(mv.power)), color = QolColors.muted, fontSize = 24.sp, style = tight)
+                        Text(tr("PWR {0}", powerLabel(mv.power)), color = AppColors.muted, fontSize = 24.sp, style = tight)
                         if (showHints) mv.vs.forEach { v -> MultiplierChip(v.label, v.pct, fontSize = 16.sp) }
                     }
-                    Text(tr("PP {0}", mv.pp), color = QolColors.text, fontSize = 28.sp, style = tight)
+                    Text(tr("PP {0}", mv.pp), color = AppColors.text, fontSize = 28.sp, style = tight)
                 }
             }
         }

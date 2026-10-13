@@ -53,6 +53,7 @@ One command per line:
 | `peek32 ADDR` | Print a word to stdout |
 | `poke8p PTR OFF VAL` / `peek8p PTR OFF` | Write / print the byte at `*(u32 *)PTR + OFF` — save-block fields (Emerald moves its save blocks on every load), e.g. `poke8p 0x030057D8 0x2951 0` clears a caught flag in TMT2 |
 | `call ADDR [ARG0 .. ARG3]` | Run Thumb function ADDR with r0-r3 = the args (0 when left out) to its return, CPU state restored after (the app's `pk_call`), and print what it returned in r0 — e.g. `call 0x081dd164 297` starts FireRed's MUS_VS_TRAINER, `call 0x080413D4 0x02024284 13 0 0` is retail FireRed rev 1's ExecuteTableBasedItemEffect (a Potion on the lead). Interrupts stay masked, so nothing that waits on one returns (TrySavingData: save through the START menu instead) |
+| `loadstate FILE` | Load an mGBA savestate (the app's `states/<crc>/resume` or a slot, pulled off the device) without its save data - to look at the exact spot a player reported, e.g. with `wideon` + `wideghosts` / `wideshot`. Only against the same ROM build |
 | `memcopy SRC DST LEN` | Copy LEN bytes of RAM - e.g. a one-Pokémon save's lead into the empty party slots (then `poke8` the party count) |
 | `memsnap ADDR LEN` / `memrestore` | Copy LEN bytes (up to 256) and write them back later - how FieldItems' dry run on Emerald (an item's effect called on a party Pokémon, its 100 bytes put back) was checked |
 | `park ADDR` | Park the main loop on a Thumb `b .` at ADDR once the VBlank IRQ is fully on (the app's `pkRenderPark`) |

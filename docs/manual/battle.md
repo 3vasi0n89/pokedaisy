@@ -30,7 +30,7 @@ What each button does:
 - `RUN` runs away, and clears the "got away" message for you too.
 
 > [!NOTE]
-> The touch buttons work in FireRed and Emerald (and their QoL builds) and a growing list of hacks, in single battles. In other games, and in double battles, use your controls as usual: `INFO` and `SUGGESTIONS` still work. The [Supported games](supported-games.md) page lists what each game has.
+> The touch buttons work in FireRed and Emerald and a growing list of hacks, in single battles. In other games, and in double battles, use your controls as usual: `INFO` and `SUGGESTIONS` still work. The [Supported games](supported-games.md) page lists what each game has.
 
 ## Moves and their verdicts
 

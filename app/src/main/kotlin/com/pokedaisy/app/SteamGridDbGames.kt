@@ -21,8 +21,8 @@ import com.pokedaisy.app.companion.data.RETAIL_PORT_CODE_TITLES
  * side. A ROM whose SHA1 isn't here (a hack not yet in SteamGridDB's
  * database or an unrecognized big hack) gets no automatic cover - the
  * placeholder, CHANGE COVER's search and the manual "Set Cover" picker cover
- * it. Retail FireRed/Emerald and this project's own firered-qol/emerald-qol
- * (rebuilt with a new hash every time) are matched by game code in [forRom].
+ * it. Retail FireRed/Emerald and small hacks of them are matched by game code
+ * in [forRom].
  */
 object SteamGridDbGames {
     data class Game(val id: Int, val displayName: String)
@@ -59,9 +59,8 @@ object SteamGridDbGames {
 
     /**
      * A known hack by exact hash; otherwise a 16 MB-or-smaller FireRed/Emerald
-     * ROM by its header's game code - retail, this project's QoL builds (a new
-     * hash every rebuild) and small hacks get the base game's art, the same
-     * way the companion reads them as FireRed/Emerald.
+     * ROM by its header's game code - retail and small hacks get the base
+     * game's art.
      */
     fun forRom(rom: java.io.File): Game? {
         RomIdentity.sha1(rom)?.let { BY_SHA1[it] }?.let { return it }

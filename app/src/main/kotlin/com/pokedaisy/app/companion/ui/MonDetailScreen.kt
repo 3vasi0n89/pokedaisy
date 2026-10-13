@@ -53,7 +53,7 @@ import com.pokedaisy.app.companion.data.GENDER_SYMBOL_MALE
 import com.pokedaisy.app.companion.data.MonView
 import com.pokedaisy.app.companion.data.MoveView
 import com.pokedaisy.app.companion.data.TypeMatchup
-import com.pokedaisy.app.companion.ui.theme.QolColors
+import com.pokedaisy.app.companion.ui.theme.AppColors
 
 /**
  * A party member's summary, filling the PARTY tab (opened by tapping a slot):
@@ -389,7 +389,7 @@ internal fun InfoSection(mon: MonView, m: GbaTextMetrics, small: GbaTextMetrics,
             // Own row, side by side: the block keeps one height for single and dual types.
             if (!typesBesideIcon) Types(mon)
             if (!mon.isEgg) {
-                SummaryBar(tr("HP"), "${mon.hp}/${mon.maxHp}", mon.hp, mon.maxHp, QolColors.hpColor(mon.hp, mon.maxHp), small)
+                SummaryBar(tr("HP"), "${mon.hp}/${mon.maxHp}", mon.hp, mon.maxHp, AppColors.hpColor(mon.hp, mon.maxHp), small)
                 // Progress through the current level; the text is what's left to the next.
                 mon.exp?.let { xp ->
                     val span = (xp.nextLevel - xp.levelStart).coerceAtLeast(1)
@@ -517,7 +517,7 @@ private fun MovesSection(mon: MonView, m: GbaTextMetrics, small: GbaTextMetrics,
 @Composable
 private fun MoveRow(mv: MoveView?, m: GbaTextMetrics, small: GbaTextMetrics, modifier: Modifier = Modifier, forget: Boolean = false) {
     val u = m.u
-    val edge = mv?.let { QolColors.typeColors[it.type] } ?: OptionColors.muted
+    val edge = mv?.let { AppColors.typeColors[it.type] } ?: OptionColors.muted
     Box(
         modifier
             .drawBehind {

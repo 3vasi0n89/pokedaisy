@@ -109,8 +109,8 @@ import com.pokedaisy.app.companion.ui.drawLayeredBox
 import com.pokedaisy.app.companion.ui.inPx
 import com.pokedaisy.app.companion.ui.rememberGbaTextMetrics
 import com.pokedaisy.app.companion.ui.theme.APP_THEMES
-import com.pokedaisy.app.companion.ui.theme.QolColors
-import com.pokedaisy.app.companion.ui.theme.QolTheme
+import com.pokedaisy.app.companion.ui.theme.AppColors
+import com.pokedaisy.app.companion.ui.theme.AppTheme
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -220,7 +220,7 @@ class SettingsActivity : ComponentActivity() {
             screen = Screen.HELP
         }
         setContent {
-            QolTheme {
+            AppTheme {
                 androidx.compose.runtime.CompositionLocalProvider(com.pokedaisy.app.companion.ui.LocalOverlayStack provides overlays) { Root() }
             }
         }
@@ -541,13 +541,10 @@ class SettingsActivity : ComponentActivity() {
                 val modes = FfMode.entries
                 selector = Selector(tk("FF MODE"), modes.map { it.label }, prefs.ffMode.label) { l -> prefs.ffMode = modes.first { it.label == l } }
             },
-            // STEADY / SPED-UP / OFF (FfMusicMode's order), unfinished ones tagged ALPHA.
-            SettingRow(tk("FF MUSIC"), prefs.ffMusicMode.label, badge = tk("ALPHA").takeIf { prefs.ffMusicMode.alpha }) {
+            // STEADY / SPED-UP / OFF (FfMusicMode's order).
+            SettingRow(tk("FF MUSIC"), prefs.ffMusicMode.label) {
                 val modes = FfMusicMode.entries
-                selector = Selector(
-                    tk("FF MUSIC"), modes.map { it.label }, prefs.ffMusicMode.label,
-                    badge = { l -> tk("ALPHA").takeIf { modes.first { it.label == l }.alpha } },
-                ) { l -> prefs.ffMusicMode = modes.first { it.label == l } }
+                selector = Selector(tk("FF MUSIC"), modes.map { it.label }, prefs.ffMusicMode.label) { l -> prefs.ffMusicMode = modes.first { it.label == l } }
             },
             // Keeps the last ~20 s; the REWIND HOLD hotkey plays them backwards.
             SettingRow(tk("REWIND"), if (prefs.rewind) tk("ON") else tk("OFF")) { prefs.rewind = !prefs.rewind; revision++ },
@@ -569,8 +566,9 @@ class SettingsActivity : ComponentActivity() {
                     prefs.statusBar = i > 0
                 }
             },
-            // The game at 3:2, stretched to fill the screen, or WIDE (more of the map); picked by preview.
-            SettingRow(tk("ASPECT"), aspectLabel(prefs.gameAspect)) { aspectPicker = true },
+            // The game at 3:2, stretched to fill the screen, or WIDE (more of the map, BETA); picked by preview.
+            SettingRow(tk("ASPECT"), aspectLabel(prefs.gameAspect),
+                       badge = tk("BETA").takeIf { prefs.gameAspect == com.pokedaisy.app.companion.GameAspect.WIDE }) { aspectPicker = true },
             // EXPAND only: whether a conversation, sign, menu or picture over the field pulls the zoom in (battles always do).
             SettingRow(tk("AUTO ZOOM IN"), onOff(prefs.expandZoomOnText),
                        subtitle = "1x on dialogue, signs, menus") {
@@ -608,7 +606,7 @@ class SettingsActivity : ComponentActivity() {
                 selector = Selector(tk("THEME"), themeLabels, themeLabels[themeIdx]) {
                     val spec = APP_THEMES[themeLabels.indexOf(it)]
                     prefs.appTheme = spec.id
-                    QolColors.applyTheme(spec)
+                    AppColors.applyTheme(spec)
                 }
             },
             groupTitle(tk("LIBRARY")),

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -98,8 +99,12 @@ private fun AspectChoice(
     ) {
         ScreenPreview(aspect, statusBar, shot, Modifier.fillMaxWidth().aspectRatio(screenAspect))
         Spacer(Modifier.height(u * 4))
-        if (selected) GbaText(tr(aspectLabel(aspect)), OptionColors.value, OptionColors.valueShadow, m)
-        else GbaText(tr(aspectLabel(aspect)), OptionColors.label, OptionColors.labelShadow, m)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (selected) GbaText(tr(aspectLabel(aspect)), OptionColors.value, OptionColors.valueShadow, m)
+            else GbaText(tr(aspectLabel(aspect)), OptionColors.label, OptionColors.labelShadow, m)
+            // EXPAND is still not perfect (the user's call): BETA beside its name, as the settings rows have it.
+            if (aspect == GameAspect.WIDE) OptionBadge(tk("BETA"), m, Modifier.padding(start = u * 6))
+        }
         GbaText(
             when (aspect) {
                 GameAspect.ORIGINAL -> tr("The GBA's 3:2, bars at the sides")

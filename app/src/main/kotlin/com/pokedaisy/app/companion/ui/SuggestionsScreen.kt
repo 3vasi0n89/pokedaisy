@@ -29,7 +29,7 @@ import com.pokedaisy.app.companion.data.TYPE_NONE
 import com.pokedaisy.app.companion.data.formatMultiplier
 import com.pokedaisy.app.companion.data.typeMultiplierPct
 import com.pokedaisy.app.companion.data.activeTypeIdByName
-import com.pokedaisy.app.companion.ui.theme.QolColors
+import com.pokedaisy.app.companion.ui.theme.AppColors
 
 /**
  * "Who should I use, and with what move?" - ranks the player's whole living
@@ -129,7 +129,7 @@ private fun FoeLine(foe: MonView, state: String, m: GbaTextMetrics, small: GbaTe
         }
         Spacer(Modifier.width(u * 6))
         Box(Modifier.weight(1f)) {
-            SummaryBar(tr("HP"), "${foe.hp}/${foe.maxHp}", foe.hp, foe.maxHp, QolColors.hpColor(foe.hp, foe.maxHp), small)
+            SummaryBar(tr("HP"), "${foe.hp}/${foe.maxHp}", foe.hp, foe.maxHp, AppColors.hpColor(foe.hp, foe.maxHp), small)
         }
     }
 }

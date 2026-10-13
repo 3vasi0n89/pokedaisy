@@ -8,7 +8,7 @@ package com.pokedaisy.app.companion.data
  *
  * Found by code, not address: `m4aSongNumStart` is the same agbcc-compiled
  * library code in every decomp-built game and binary hack (FireRed, LeafGreen,
- * Ruby, Sapphire, Emerald, the QoL builds, CFRU hacks, ...), and its literal
+ * Ruby, Sapphire, Emerald, CFRU hacks, ...), and its literal
  * pool holds `gSongTable`. Emerald Rogue builds it with modern gcc - same
  * logic, other instruction order - which [SIGNATURES]' second entry matches
  * (literal offsets and the `bl` wildcarded). Newer pokeemerald-expansion

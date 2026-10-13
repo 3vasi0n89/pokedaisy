@@ -1,7 +1,7 @@
 package com.pokedaisy.app.companion.data
 
 /**
- * Emerald's guide (retail and the QoL build). Every fact here was checked
+ * Emerald's guide. Every fact here was checked
  * against the pokeemerald decomp (the pinned commit build.sh uses) - its map
  * scripts (data/maps/…/scripts.inc) for where things are given and what a
  * gate checks, and src/ for the rules (badge -> HM in party_menu.c, the

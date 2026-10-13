@@ -23,7 +23,7 @@ class RubySapphireGuideTest {
     @Test fun `each version gets its own guide`() {
         assertEquals(GuideId.RUBY, guideId(GameKind.EMERALD, GUIDE_TABLES_RUBY))
         assertEquals(GuideId.SAPPHIRE, guideId(GameKind.EMERALD, NATIVE_SAPPHIRE.guideTables))
-        assertEquals(GuideId.EMERALD, guideId(GameKind.EMERALD, null)) // the QoL build
+        assertEquals(GuideId.EMERALD, guideId(GameKind.EMERALD, null)) // no live tables
         assertEquals(GuideId.LEAFGREEN, guideId(GameKind.FIRERED, GUIDE_TABLES_LEAFGREEN_REV1))
         val ruby = gameGuide(GuideId.RUBY)!!
         val sapphire = gameGuide(GuideId.SAPPHIRE)!!

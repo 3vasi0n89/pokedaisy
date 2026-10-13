@@ -13,8 +13,8 @@ import java.io.File
  * in the list row's second line and INFO. A ROM is named by its whole-file SHA1
  * (an archive by the ROM inside, [RomIdentity]): retail by the pret decomps'
  * `*.sha1`, hacks by the hashes [com.pokedaisy.app.companion.data.TelemetrySampler]
- * detects them with. Anything else (the QoL builds - a new hash every rebuild -
- * small hacks, other games) keeps its file name, tidied by [tidy].
+ * detects them with. Anything else (hacks it doesn't know, other games) keeps
+ * its file name, tidied by [tidy].
  *
  * Hashing is up to 32 MB per ROM, so [identify] runs off the UI thread and caches
  * each file's answer by path + size + modified time (`rom-titles.tsv`); [label]

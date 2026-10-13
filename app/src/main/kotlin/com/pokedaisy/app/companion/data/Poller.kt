@@ -7,7 +7,7 @@ import com.pokedaisy.app.MgbaCore
  * for android-companion's UDP `telemetryFlow` — no sockets, no reconnect loop.
  *
  * [sample] must run on the emulator thread (EmulatorEngine.onSample) so bus
- * reads never race a frame. Detection (ROM code/size, struct search) is cached.
+ * reads never race a frame. Detection (ROM code, size and hash) is cached.
  */
 class TelemetrySampler {
 
@@ -17,21 +17,14 @@ class TelemetrySampler {
     }
 
     private var kind: GameKind? = null
-    private var isEmeraldStruct = false
-    private var structAddr: Long = -1
     private var nativeCfg: NativeConfig? = null
     // A Game Boy game's (Gen 1) addresses instead of [nativeCfg].
     private var gen1Cfg: Gen1Config? = null
     private var lastError: String? = null
-    private var magicProbes = 0
     // Set instead of nativeCfg for a large BPRE ROM that isn't recognized as
     // Unbound (see detect()) - a different hack we have no addresses for.
     private var unsupportedHackLabel: String? = null
-    // detect() re-runs while the QOLT probe is still undecided - don't
-    // re-hash a 16 MB ROM on every retry.
-    private var smallBpeeHashChecked = false
-    private var smallBpreHashChecked = false
-    // The ROM hashed as retail FireRed / Emerald: no QoL struct to wait for.
+    // The ROM hashed as retail FireRed / Emerald.
     private var retailHash = false
     // [nativeCfg]'s RAM is known to be this ROM's: a retail hash, or another language's retail
     // path - not an unrecognised same-size hack or a BEST EFFORT match landing on a retail config.
@@ -239,67 +232,6 @@ class TelemetrySampler {
         }
     }
 
-    /**
-     * The QoL struct doesn't carry experience or IVs / EVs, but the party's own
-     * RAM struct does (encrypted substructs). The QoL ROMs keep gPlayerParty at
-     * the vanilla address (checked against FireRed/Emerald captures) - still, a
-     * rebuild can move any global, so a slot only takes the RAM values when
-     * that slot decodes (checksum) to the same species and level as the struct.
-     * In battle, gEnemyParty (at retail's address too) gives the foes' IVs:
-     * kept only while every foe it decodes is one of the struct's battlers.
-     */
-    private fun withPartyExp(reader: MemoryReader, t: Telemetry): Telemetry {
-        val (partyAddr, enemyAddr) = when (kind) {
-            GameKind.FIRERED -> NATIVE_FIRERED_REV1.playerParty to NATIVE_FIRERED_REV1.enemyParty
-            GameKind.EMERALD -> NATIVE_EMERALD.playerParty to NATIVE_EMERALD_RETAIL.enemyParty
-            else -> return t
-        }
-        val n = t.partyCount.coerceAtMost(PARTY_SIZE)
-        if (n == 0) return t
-        val raw = runCatching { reader.readCoreMemory(partyAddr, n * MON_STRUCT_SIZE) }.getOrNull() ?: return t
-        val party = t.party.mapIndexed { i, mon ->
-            val ram = if (i < n) decodePartyMon(raw, i * MON_STRUCT_SIZE) else null
-            if (ram?.exp != null && ram.species == mon.species && ram.level == mon.level) {
-                mon.copy(exp = ram.exp, personality = ram.personality, stats = ram.stats)
-            } else mon
-        }
-        val foes = if (t.inBattle) runCatching {
-            val e = reader.readCoreMemory(enemyAddr, PARTY_SIZE * MON_STRUCT_SIZE)
-            (0 until PARTY_SIZE).mapNotNull { decodePartyMon(e, it * MON_STRUCT_SIZE)?.takeIf { m -> m.exp != null } }
-        }.getOrNull().orEmpty() else emptyList()
-        val battlers = listOf(t.battleMons[BATTLE_POS_OPPONENT_LEFT], t.battleMons[BATTLE_POS_OPPONENT_RIGHT])
-            .filter { it.species != 0 }
-        val foesOk = battlers.isNotEmpty() && battlers.all { b -> foes.any { it.species == b.species && it.level == b.level } }
-        return t.copy(party = party, battleFoes = if (foesOk) foes else emptyList())
-    }
-
-    /** Money isn't in the QoL struct either - see [findStructMoney]. */
-    private fun withMoney(reader: MemoryReader, t: Telemetry): Telemetry {
-        moneyCfg?.let { return t.copy(money = readMoney(reader, it)) }
-        val (cfg, money) = findStructMoney(reader, kind, t.mapGroup, t.mapNum) ?: return t
-        moneyCfg = cfg
-        return t.copy(money = money)
-    }
-    private var moneyCfg: NativeConfig? = null
-
-    /**
-     * The map's size / type and the player's gender, for the region map's
-     * player icon - not in the QoL struct either. gMapHeader sits at the
-     * retail address in both QoL builds; it's trusted only while it names
-     * the struct's own map section. The gender comes from the save blocks
-     * [withMoney] found.
-     */
-    private fun withMapExtras(reader: MemoryReader, t: Telemetry): Telemetry {
-        val header = when (kind) {
-            GameKind.FIRERED -> NATIVE_FIRERED_REV1.mapHeader
-            GameKind.EMERALD -> NATIVE_EMERALD.mapHeader
-            else -> return t
-        }
-        val mapsec = runCatching { reader.readCoreMemory(header + 0x14, 1)[0].toInt() and 0xFF }.getOrNull()
-        val shaped = if (mapsec == t.regionMapSectionId) t.withMapShape(readMapShape(reader, header)) else t
-        return moneyCfg?.let { shaped.copy(playerGender = readPlayerGender(reader, it), trainerCard = readTrainerCard(reader, it)) } ?: shaped
-    }
-
     /** The latest snapshot, tagged with the game it came from (null while still detecting). */
     fun sample(reader: MemoryReader): SnapshotView {
         val s = sampleUntagged(reader)
@@ -363,23 +295,8 @@ class TelemetrySampler {
                 GameKind.YELLOW -> readGen1Telemetry(reader, gen1Cfg ?: GEN1_YELLOW)
                 else -> {
                     unsupportedHackLabel?.let { return SnapshotView(connected = false, error = it, unsupported = true) }
-                    val cfg = nativeCfg
-                    if (cfg != null) {
-                        readNativeTelemetry(reader, cfg)
-                    } else {
-                        if (structAddr < 0 || !magicOk(reader, structAddr)) {
-                            structAddr = MgbaCore.pkFindMagic(QOLT_MAGIC)
-                        }
-                        if (structAddr < 0) {
-                            return SnapshotView(
-                                connected = false,
-                                error = if (isEmeraldStruct || kind == GameKind.FIRERED)
-                                    "waiting for gQolTelemetry (QoL ROM) — vanilla ${romLabel()} native read not wired yet"
-                                else "no telemetry source",
-                            )
-                        }
-                        withMapExtras(reader, withMoney(reader, withPartyExp(reader, decodeTelemetry(reader.readCoreMemory(structAddr, TELEMETRY_SIZE)))))
-                    }
+                    val cfg = nativeCfg ?: return SnapshotView(connected = false, error = "no telemetry source")
+                    readNativeTelemetry(reader, cfg)
                 }
             }
             lastError = null
@@ -395,8 +312,7 @@ class TelemetrySampler {
     private var itemTextChosen = false
 
     /** Where the detected game's item descriptions are ([RomItemText]): its config's
-     * table when the ROM has it there, else (the QoL builds, whose gItems moves with
-     * every rebuild) the vanilla table found by its shape. */
+     * table when the ROM has it there, else the vanilla table found by its shape. */
     private fun itemTable(reader: MemoryReader): ItemDescTable? {
         if (kind == GameKind.YELLOW || unsupportedHackLabel != null) return null
         val cfg = if (kind == GameKind.UNBOUND) nativeCfg ?: NATIVE_UNBOUND_WITH_DEX else nativeCfg
@@ -412,9 +328,9 @@ class TelemetrySampler {
         val code = runCatching { MgbaCore.pkRomCode() }.getOrNull().orEmpty()
         val size = runCatching { MgbaCore.pkRomSize() }.getOrDefault(0L)
 
-        // LeafGreen / Ruby / Sapphire / the other Emeralds: retail only (no
-        // QoL build to probe for), read natively straight away. LeafGreen looks
-        // like FireRed, the rest like Emerald (same species / item / map-section ids).
+        // LeafGreen / Ruby / Sapphire / the other Emeralds: retail only, read
+        // natively straight away. LeafGreen looks like FireRed, the rest like
+        // Emerald (same species / item / map-section ids).
         if (code in OTHER_RETAIL_CODES) {
             val rev = runCatching { reader.readCoreMemory(0x080000BCL, 1)[0].toInt() and 0xFF }.getOrDefault(-1)
             val cfg = otherRetailConfig(code, rev)
@@ -447,11 +363,11 @@ class TelemetrySampler {
             return
         }
 
+        var smallHash: String? = null   // a ≤16 MB FireRed / Emerald ROM's, from the checks below
         // Not every BPRE hack expands past 16 MB either (Orange Islands is exactly 16 MB, like
-        // retail and the FireRed QoL build): hash once, like the small-BPEE check below. An
-        // unknown hash falls through to the QoL / retail probe unchanged.
-        if (code == "BPRE" && size <= 0x1000000L && !smallBpreHashChecked) {
-            smallBpreHashChecked = true
+        // retail): hash once, like the small-BPEE check below. An unknown hash falls through to
+        // the retail check at the end.
+        if (code == "BPRE" && size <= 0x1000000L) {
             val hash = runCatching { sha1HexChunked(reader, 0x08000000L, size) }.getOrNull()
             if (hash == ORANGE_ISLANDS_UNVERSIONED_SHA1 || hash == ORANGE_ISLANDS_V5_7_BETA_SHA1) {
                 kind = GameKind.ORANGE_ISLANDS
@@ -465,6 +381,7 @@ class TelemetrySampler {
                 return
             }
             retailHash = hash in RETAIL_SHA1S
+            smallHash = hash
         }
 
         // A big (>16 MB) BPRE ROM isn't unique to Unbound - other FireRed-based
@@ -510,15 +427,15 @@ class TelemetrySampler {
                     android.util.Log.i("pokedaisy", "unrecognized BPRE hack: full sha1=$hash size=$size")
                 }
             }
+            // A hash-matched hack's RAM is as vouched for as retail's: a config carrying the battle menus' cursors
+            // (Unbound, SoulGold) gets the one-press picks (knownCursorAddrs); an unrecognised hash never does.
+            ramVerified = hash != null && hash in SUPPORTED_HACK_SHA1S
             return
         }
 
         // Same idea for Emerald-based hacks (BPEE) - see the BPRE block above
-        // for why a hash, not a guess. Without this, ANY large BPEE ROM fell
-        // through to the vanilla-Emerald native path below unconditionally
-        // (no struct to probe for, no disambiguation at all) - silently wrong
-        // addresses for a real hack, exactly the failure mode the BPRE check
-        // was already written to avoid.
+        // for why a hash, not a guess: a large BPEE ROM read with retail
+        // Emerald's addresses would show silently wrong data for a real hack.
         if (code == "BPEE" && size > 0x1000000L) {
             val hash = runCatching { sha1HexChunked(reader, 0x08000000L, size) }.getOrNull()
             when (hash) {
@@ -548,16 +465,15 @@ class TelemetrySampler {
                     android.util.Log.i("pokedaisy", "unrecognized BPEE hack: full sha1=$hash size=$size")
                 }
             }
+            // A hash-matched hack's RAM is as vouched for as retail's: a config carrying the battle menus' cursors
+            // (Unbound, SoulGold) gets the one-press picks (knownCursorAddrs); an unrecognised hash never does.
+            ramVerified = hash != null && hash in SUPPORTED_HACK_SHA1S
             return
         }
 
         // Not every BPEE hack expands past 16 MB (Emerald Seaglass is exactly
-        // 16 MB, same as retail) - hash those too, once, before the QoL/
-        // vanilla probe below. An unknown hash here is NOT an unsupported
-        // hack: retail Emerald and emerald-qol are 16 MB as well, so fall
-        // through unchanged.
-        if (code == "BPEE" && !smallBpeeHashChecked) {
-            smallBpeeHashChecked = true
+        // 16 MB, same as retail) - hash those too, before the retail check below.
+        if (code == "BPEE") {
             val hash = runCatching { sha1HexChunked(reader, 0x08000000L, size) }.getOrNull()
             if (hash == EMERALD_SEAGLASS_V3_0_SHA1) {
                 kind = GameKind.EMERALD_SEAGLASS
@@ -568,29 +484,23 @@ class TelemetrySampler {
             if (hash == EMERALD_KAIZO_V2_0_SHA1) {
                 kind = GameKind.EMERALD
                 nativeCfg = NATIVE_EMERALD_KAIZO
+                ramVerified = true   // retail's battle code and cursors: a written cell + A checked headless on it
                 return
             }
             retailHash = hash in RETAIL_SHA1S
+            smallHash = hash
         }
 
-        // FireRed / Emerald: the QoL struct's "QOLT" magic isn't written until
-        // ~1 s of frames have run, so a -1 here early doesn't mean "no struct".
-        // Probe a few times before falling back to native-RAM reads - unless the
-        // ROM hashed as retail, which has no struct (the probes held every retail
-        // FireRed / Emerald launch, resumed states included, ~6 s on LOADING).
+        // FireRed / Emerald: retail by its hash. Any other ROM under those codes is a hack
+        // nothing here maps - NOT SUPPORTED, or BEST EFFORT's pick.
         val emerald = code == "BPEE"
-        val addr = if (retailHash) -1L else MgbaCore.pkFindMagic(QOLT_MAGIC)
-        if (addr >= 0) {
-            kind = if (emerald) GameKind.EMERALD else GameKind.FIRERED
-            isEmeraldStruct = emerald
-            structAddr = addr
+        kind = if (emerald) GameKind.EMERALD else GameKind.FIRERED
+        if (!retailHash) {
+            unsupportedRom(reader, code, size, smallHash, "unrecognized ${if (emerald) "Emerald" else "FireRed"}-based ROM hack " +
+                "($code, ${size / (1024 * 1024)} MB, sha1 ${smallHash?.take(12) ?: "unknown"}…) - no known RAM addresses for this build")
+            android.util.Log.i("pokedaisy", "unrecognized $code ROM: full sha1=$smallHash size=$size")
             return
         }
-        if (!retailHash && ++magicProbes < 6) return   // stay undecided; retry next tick
-
-        // Gave up on the struct — read native RAM.
-        isEmeraldStruct = emerald
-        kind = if (emerald) GameKind.EMERALD else GameKind.FIRERED
         val rev = runCatching { reader.readCoreMemory(0x080000BCL, 1)[0].toInt() and 0xFF }.getOrDefault(1)
         val cfg = when {
             emerald -> NATIVE_EMERALD_RETAIL
@@ -599,22 +509,16 @@ class TelemetrySampler {
             else -> NATIVE_FIRERED_REV0.copy(trainerCard = TRAINER_CARD_FIRERED)
         }
         nativeCfg = withCheckedTables(reader, cfg)
-        // An unrecognised same-size hack lands here too: only a retail hash vouches for the RAM.
-        ramVerified = retailHash
+        ramVerified = true
     }
 
-    /** An unrecognised same-size hack lands on the retail configs too: no DEX
-     * tab, and no HERE / NEXT BOSS guide pages, unless the retail tables are
-     * really where the config expects them. */
+    /** No DEX tab, and no HERE / NEXT BOSS guide pages, unless the config's
+     * tables are really where it expects them in this ROM. */
     private fun withCheckedTables(reader: MemoryReader, cfg: NativeConfig): NativeConfig {
         val checked = cfg.pokedex?.takeIf { !pokedexMatchesRom(reader, it) }?.let { cfg.copy(pokedex = null) } ?: cfg
         return checked.guideTables?.takeIf { !guideTablesMatchRom(reader, it) }
             ?.let { checked.copy(guideTables = null, enemyParty = 0) } ?: checked
     }
-
-    private fun magicOk(reader: MemoryReader, addr: Long): Boolean = runCatching {
-        String(reader.readCoreMemory(addr, 4), Charsets.US_ASCII) == "QOLT"
-    }.getOrDefault(false)
 
     /**
      * Fast, 2-byte peek at battleActiveBattler/battleInputState — unlike
@@ -624,7 +528,7 @@ class TelemetrySampler {
      * (structSize too small to have these fields at all).
      */
     /** The detected game's verified gMain and its inBattle offset (its native config), or null
-     * (not detected yet, or the QoL struct path) - for SMART FF's menu watch ([FfMenuWatch]). */
+     * (not detected yet) - for SMART FF's menu watch ([FfMenuWatch]). */
     val knownGMain: Pair<Long, Long>?
         get() = (if (kind == GameKind.UNBOUND) NATIVE_UNBOUND else nativeCfg)?.let { it.gMain to it.inBattleOff }
 
@@ -649,10 +553,11 @@ class TelemetrySampler {
     }
 
     /** The battle menus' cursors (gActionSelectionCursor, gMoveSelectionCursor), only where the RAM is
-     * known to be this ROM's ([ramVerified], never a BEST EFFORT match): a wrong address that happened
-     * to hold the cell wanted would confirm the wrong choice. */
+     * known to be this ROM's ([ramVerified]: a retail hash or a hash-matched hack, never a BEST EFFORT
+     * match): a wrong address that happened to hold the cell wanted would confirm the wrong choice. */
     val knownCursorAddrs: Pair<Long, Long>?
-        get() = nativeCfg?.takeIf { ramVerified && beMatch == null && it.actionCursor != 0L && it.moveCursor != 0L }
+        get() = (if (kind == GameKind.UNBOUND) nativeCfg ?: NATIVE_UNBOUND else nativeCfg)
+            ?.takeIf { ramVerified && beMatch == null && it.actionCursor != 0L && it.moveCursor != 0L }
             ?.let { it.actionCursor to it.moveCursor }
 
     /** The detected game's gPartyMenu + gPlayerParty when its config has them (SoulGold), or null. */
@@ -673,24 +578,10 @@ class TelemetrySampler {
         // populating nativeCfg (see the GameKind.UNBOUND branch there) -
         // sample() has its own matching special case for the same reason.
         if (kind == GameKind.UNBOUND) return readNativeBattleInputFast(reader, NATIVE_UNBOUND)
-        val cfg = nativeCfg
-        if (cfg != null) return readNativeBattleInputFast(reader, cfg) // Tier B
-        val addr = structAddr
-        if (addr < 0) return null
-        return runCatching {
-            val raw = reader.readCoreMemory(addr + BATTLE_INPUT_STATE_OFFSET, 2)
-            (raw[0].toInt() and 0xFF) to (raw[1].toInt() and 0xFF)
-        }.getOrNull()
+        return nativeCfg?.let { readNativeBattleInputFast(reader, it) }
     }
 
-    private fun romLabel() = if (isEmeraldStruct) "Emerald" else "FireRed"
-
     companion object {
-        private val QOLT_MAGIC = "QOLT".toByteArray(Charsets.US_ASCII)
-        // Fixed byte offset of battleActiveBattler within QolTelemetryData
-        // (right after the v2 icon-table block) — stable across future
-        // struct versions since new fields are always appended at the end.
-        private const val BATTLE_INPUT_STATE_OFFSET = 460L
         // Pokémon Unbound v2.1.1.1 - the only version this project's Unbound
         // support (native-RAM addresses, gen3mon decode, icon fetch, etc.) has
         // ever been built or verified against. A different Unbound version
@@ -701,7 +592,7 @@ class TelemetrySampler {
         // sha1HexChunked masks the RTC/GPIO hole (see its own comment) -
         // wasn't always true, see git history if this needs re-deriving on an
         // older checkout.
-        /** Retail games read natively with no QoL build: LeafGreen, Ruby, Sapphire. */
+        /** The other retail games, read natively: LeafGreen, Ruby, Sapphire, the other languages. */
         val OTHER_RETAIL_CODES = setOf("BPGE", "AXVE", "AXPE") + EMERALD_LOCALIZED_CODES +
             RETAIL_PORTS.keys.map { it.dropLast(1) }
 
@@ -798,7 +689,7 @@ class TelemetrySampler {
         // Pokémon Quetzal Spanish Alpha 9 v0 (BPEE, 32 MB) - host-side masked hash (GPIO bytes zero).
         const val QUETZAL_V9_0_ALPHA_ES_SHA1 = "fe346b5b0eb022e3a103f81e7dcefba6f1dc542f"
         // Pokémon Orange Islands (BPRE rev 0, 16 MB - the size of retail, so checked by hash before
-        // the QoL / retail probe): Beta 5.7, and a build with no version on it that differs from it
+        // the retail check): Beta 5.7, and a build with no version on it that differs from it
         // in 80 bytes of map text and data (a typo Beta 5.7 doesn't have - likely an earlier beta).
         // Both host-side masked hashes (GPIO bytes zero).
         const val ORANGE_ISLANDS_V5_7_BETA_SHA1 = "d2e3800e69e44c9649c3d9a15dc1cd12c1d90501"
@@ -911,31 +802,4 @@ private fun sha1HexChunked(reader: MemoryReader, baseAddr: Long, size: Long): St
         off += len
     }
     return digest.digest().joinToString("") { "%02x".format(it) }
-}
-
-/**
- * A QoL ROM's money, read from its save blocks, with the config that found
- * it. The FireRed QoL build moves gSaveBlock1Ptr/2Ptr (0x03005018 in dist's
- * build vs retail's 0x03005008) and a rebuild can move them again, so each
- * candidate must hold the struct's own map ([mapGroup]/[mapNum], i.e.
- * SaveBlock1.location) before its money is trusted.
- */
-internal fun findStructMoney(reader: MemoryReader, game: GameKind?, mapGroup: Int, mapNum: Int): Pair<NativeConfig, Long>? {
-    val candidates = when (game) {
-        GameKind.FIRERED -> listOf(
-            NATIVE_FIRERED_REV1.copy(saveBlock1Ptr = 0x03005018L, saveBlock2Ptr = 0x0300501CL),
-            NATIVE_FIRERED_REV1,
-        )
-        GameKind.EMERALD -> listOf(NATIVE_EMERALD.copy(trainerCard = TRAINER_CARD_EMERALD))
-        else -> return null
-    }
-    for (cfg in candidates) {
-        val loc = runCatching {
-            val sb1 = saveBlock1(reader, cfg)
-            if (sb1 in 0x02000000L until 0x04000000L) reader.readCoreMemory(sb1 + cfg.saveBlock1PosOff + 4, 2) else null
-        }.getOrNull() ?: continue
-        if ((loc[0].toInt() and 0xFF) != mapGroup || (loc[1].toInt() and 0xFF) != mapNum) continue
-        return cfg to (readMoney(reader, cfg) ?: continue)
-    }
-    return null
 }

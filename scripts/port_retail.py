@@ -64,7 +64,7 @@ ENGLISH = {
 
 # Addresses no config holds (the names, the scripted battle's entry, the POKéMON
 # switch's party menu), in one English ROM per family; mapped like the rest.
-# FireRed rev 1: the pinned (QoL) pokefirered build's symbols, found in the retail
+# FireRed rev 1: the pinned (patched) pokefirered build's symbols, found in the retail
 # ROM by their bytes / literal pools. Ruby rev 1: pokeruby builds it byte for byte.
 ANCHORS = {
     "FR": ("BPRE1", dict(species=0x08245F50, moves=0x08247104, items=0x083DB098, natures=0x08463EC0,

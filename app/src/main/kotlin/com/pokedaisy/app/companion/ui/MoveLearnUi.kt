@@ -36,7 +36,7 @@ import com.pokedaisy.app.companion.data.lookupMove
 import com.pokedaisy.app.companion.data.moveStats
 import com.pokedaisy.app.companion.data.typeName
 import com.pokedaisy.app.companion.i18n.tr
-import com.pokedaisy.app.companion.ui.theme.QolColors
+import com.pokedaisy.app.companion.ui.theme.AppColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -111,7 +111,7 @@ private fun LearnRow(o: LearnOption, open: Boolean, onSelect: (Int) -> Unit, sho
     val info = lookupMove(o.move)
     val type = typeName(info.type)
     val stats = moveStats(o.move)
-    val edge = QolColors.typeColors[type] ?: OptionColors.muted
+    val edge = AppColors.typeColors[type] ?: OptionColors.muted
     Column(
         Modifier
             .fillMaxWidth()

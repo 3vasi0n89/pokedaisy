@@ -73,7 +73,6 @@ internal val trSettings: Map<String, Tr> = mapOf(
     "FF MUSIC" to Tr(ja = "FF ミュージック", fr = "MUSIQUE FF", de = "FF-MUSIK", it = "MUSICA FF", es = "MÚSICA FF"),
     "STEADY" to Tr(ja = "そのまま", fr = "STABLE", de = "KONSTANT", it = "COSTANTE", es = "CONSTANTE"),
     "SPED-UP" to Tr(ja = "はやい", fr = "ACCÉLÉRÉE", de = "BESCHLEUNIGT", it = "ACCELERATA", es = "ACELERADA"),
-    "ALPHA" to Tr(ja = "アルファ", fr = "ALPHA", de = "ALPHA", it = "ALFA", es = "ALFA"),
     "BETA" to Tr(ja = "ベータ", fr = "BÊTA", de = "BETA", it = "BETA", es = "BETA"),
     "TOUCH PAD" to Tr(ja = "タッチパッド", fr = "PAD TACTILE", de = "TOUCH-PAD", it = "PAD TATTILE", es = "PAD TÁCTIL"),
     "ALWAYS" to Tr(ja = "いつも", fr = "TOUJOURS", de = "IMMER", it = "SEMPRE", es = "SIEMPRE"),

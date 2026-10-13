@@ -24,9 +24,8 @@ export async function sha1Hex(bytes) {
 }
 
 /**
- * The verdict for one ROM: `supported` (the companion knows this exact game), `likely`
- * (read as FireRed / Emerald - retail-sized but not a dump we know: a QoL build or a small
- * hack) or `unsupported`. `size` is the ROM's own size (not an archive's).
+ * The verdict for one ROM: `supported` (the companion knows this exact game) or `unsupported`.
+ * `size` is the ROM's own size (not an archive's).
  */
 export function verdict(data, { platform, code, rev, size, sha1 }) {
   if (platform === 'gb') {
@@ -54,9 +53,9 @@ export function verdict(data, { platform, code, rev, size, sha1 }) {
   // Detected by the app, but its companion isn't ready yet: the game plays, the companion doesn't read it.
   const soon = (data.inProgress ?? []).find((h) => h.sha1 === sha1);
   if (soon) return { status: 'unsupported', reason: 'in-progress', title: soon.title, version: soon.version, base };
-  if (ownCode || size > data.maxBaseSize) return { status: 'unsupported', reason: 'unknown-hack', base };
-  const title = data.titles[sha1];
-  return title ? { status: 'supported', title } : { status: 'likely', base };
+  // Retail FireRed / Emerald by their hash; any other ROM under those codes is a hack the app doesn't know.
+  const title = !ownCode && size <= data.maxBaseSize ? data.titles[sha1] : undefined;
+  return title ? { status: 'supported', title } : { status: 'unsupported', reason: 'unknown-hack', base };
 }
 
 /**

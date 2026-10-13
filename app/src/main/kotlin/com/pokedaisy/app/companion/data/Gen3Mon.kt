@@ -6,7 +6,7 @@ import java.nio.ByteOrder
 /**
  * Gen 3 raw Pokémon-structure decoding, shared by every native-RAM reader
  * (retail FireRed / Emerald, Unbound). Turns gPlayerParty / gBattleMons bytes
- * into the same Mon / BattleMon values the packed gQolTelemetry struct yields.
+ * into Mon / BattleMon values.
  * Kotlin port of tools/telemetry-viewer/gen3mon.go.
  */
 const val MON_STRUCT_SIZE = 100

@@ -32,12 +32,12 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.pokedaisy.app.companion.data.TypeMatchup
-import com.pokedaisy.app.companion.ui.theme.QolColors
+import com.pokedaisy.app.companion.ui.theme.AppColors
 import com.pokedaisy.app.companion.ui.theme.pixelFontFamily
 
 @Composable
 fun TypeBadge(type: String, modifier: Modifier = Modifier, fontSize: TextUnit = 12.sp) {
-    val color = QolColors.typeColors[type] ?: QolColors.muted
+    val color = AppColors.typeColors[type] ?: AppColors.muted
     Box(
         modifier = modifier
             .clip(PixelCornerShape(3.dp))
@@ -54,7 +54,7 @@ fun StatusBadge(status: String, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .clip(PixelRoundedShape(4.dp))
-            .background(QolColors.statusColor(status))
+            .background(AppColors.statusColor(status))
             .padding(horizontal = 5.dp, vertical = 2.dp),
     ) {
         Text(status, color = Color.White, fontSize = 10.sp, fontFamily = pixelFontFamily())
@@ -63,7 +63,7 @@ fun StatusBadge(status: String, modifier: Modifier = Modifier) {
 
 @Composable
 fun MultiplierChip(label: String, pct: Int, modifier: Modifier = Modifier, fontSize: TextUnit = 10.sp) {
-    val bg = QolColors.multiplierColor(pct)
+    val bg = AppColors.multiplierColor(pct)
     val fg = if (pct == 0) Color(0xFFF2B8BD) else Color.White
     Box(
         modifier = modifier
@@ -84,7 +84,7 @@ fun powerLabel(power: Int): String = if (power > 0) power.toString() else "—"
 fun HpBar(hp: Int, maxHp: Int, modifier: Modifier = Modifier) {
     val pct = if (maxHp == 0) 0f else (hp.toFloat() / maxHp).coerceIn(0f, 1f)
     Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
-        Text(tr("HP"), color = QolColors.hpHigh, fontSize = 10.sp, fontFamily = pixelFontFamily())
+        Text(tr("HP"), color = AppColors.hpHigh, fontSize = 10.sp, fontFamily = pixelFontFamily())
         Box(
             modifier = Modifier
                 .padding(horizontal = 4.dp)
@@ -92,16 +92,16 @@ fun HpBar(hp: Int, maxHp: Int, modifier: Modifier = Modifier) {
                 .height(8.dp)
                 .clip(PixelRoundedShape(2.dp))
                 .background(Color(0xFF2C2418))
-                .border(1.dp, QolColors.borderOuter, PixelRoundedShape(2.dp)),
+                .border(1.dp, AppColors.borderOuter, PixelRoundedShape(2.dp)),
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(pct)
-                    .background(QolColors.hpColor(hp, maxHp)),
+                    .background(AppColors.hpColor(hp, maxHp)),
             )
         }
-        Text("$hp/$maxHp", color = QolColors.muted, fontSize = 12.sp, fontFamily = pixelFontFamily())
+        Text("$hp/$maxHp", color = AppColors.muted, fontSize = 12.sp, fontFamily = pixelFontFamily())
     }
 }
 
@@ -109,7 +109,7 @@ fun HpBar(hp: Int, maxHp: Int, modifier: Modifier = Modifier) {
 @Composable
 fun MatchupChipRow(heading: String, list: List<TypeMatchup>) {
     if (list.isEmpty()) return
-    Text(heading, color = QolColors.muted, fontSize = 10.sp, fontFamily = pixelFontFamily(), modifier = Modifier.padding(top = 6.dp, bottom = 2.dp))
+    Text(heading, color = AppColors.muted, fontSize = 10.sp, fontFamily = pixelFontFamily(), modifier = Modifier.padding(top = 6.dp, bottom = 2.dp))
     androidx.compose.foundation.layout.FlowRow {
         list.forEach { m ->
             Box(modifier = Modifier.padding(end = 4.dp, bottom = 4.dp)) {
@@ -122,7 +122,7 @@ fun MatchupChipRow(heading: String, list: List<TypeMatchup>) {
 /** A type badge with its multiplier ("FIRE 2x"). */
 @Composable
 fun TypeBadgeWithLabel(m: TypeMatchup, modifier: Modifier = Modifier) {
-    val color = QolColors.typeColors[m.type] ?: QolColors.muted
+    val color = AppColors.typeColors[m.type] ?: AppColors.muted
     Box(
         modifier = modifier
             .clip(PixelCornerShape(3.dp))

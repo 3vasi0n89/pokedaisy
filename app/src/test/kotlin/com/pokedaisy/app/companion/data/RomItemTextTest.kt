@@ -10,7 +10,7 @@ import java.io.File
 
 /**
  * Item descriptions come from the player's ROM (RomItemText), not bundled text:
- * each game's table ([NativeConfig.itemDescs], or the QoL builds' found by shape)
+ * each game's table ([NativeConfig.itemDescs], or with no config gItems found by its shape)
  * read for a few known items. A game whose ROM isn't on this machine is skipped
  * (the ROMs aren't in the repo; `-DromDir=` points elsewhere). Checked once against
  * every bundled table these replaced (2026-10-09): see docs/DEVELOPMENT.md.
@@ -32,9 +32,9 @@ class RomItemTextTest {
         Case("Pokemon - Ruby Version (USA, Europe) (Rev 1).gba", GameKind.EMERALD, NATIVE_RUBY,
             mapOf(10 to "more turns are taken", 349 to "")),
         Case("Pokemon - Sapphire Version (USA, Europe) (Rev 2).gba", GameKind.EMERALD, NATIVE_SAPPHIRE, mapOf(13 to "20 points")),
-        // The QoL builds have no config: gItems is found by its shape.
-        Case("firered-qol.gba", GameKind.FIRERED, null, mapOf(13 to "20 points", 289 to "executed last")),
-        Case("emerald-qol.gba", GameKind.EMERALD, null, mapOf(13 to "20 points")),
+        // With no config (a table that isn't where its config says): gItems is found by its shape.
+        Case("Pokemon - FireRed Version (USA, Europe) (Rev 1).gba", GameKind.FIRERED, null, mapOf(13 to "20 points", 289 to "executed last")),
+        Case("Pokemon - Emerald Version (USA, Europe).gba", GameKind.EMERALD, null, mapOf(13 to "20 points")),
         Case("emerald-multilang/Pokemon - Edicion Esmeralda (Spain).gba", GameKind.EMERALD, NATIVE_EMERALD_ES,
             mapOf(13 to "Restaura 20 PS", 310 to "2.º turno")),
         Case("emerald-multilang/Pokemon - Smaragd-Edition (Germany).gba", GameKind.EMERALD, NATIVE_EMERALD_DE, mapOf(13 to "um 20 Punkte")),

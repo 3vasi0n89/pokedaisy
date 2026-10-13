@@ -238,7 +238,7 @@ fun AchievementsScreen(
             game == null -> Message(tr("LOOKING UP THIS ROM"), tr("Asking RetroAchievements which game this is..."), m, small, loading = true)
             game.id == 0 -> Message(
                 tr("NO ACHIEVEMENTS FOR THIS ROM"),
-                tr("RetroAchievements matches a ROM by its exact hash. Retail games and some popular hacks have sets; a patched or rebuilt ROM (like the QoL builds) usually doesn't."),
+                tr("RetroAchievements matches a ROM by its exact hash. Retail games and some popular hacks have sets; a patched or rebuilt ROM usually doesn't."),
                 m, small, detail = game.hash?.let { tr("HASH {0}", it.uppercase()) },
             )
             state.achievements.isEmpty() -> Message(tr("LOADING ACHIEVEMENTS"), "${game.title.orEmpty()}", m, small, loading = true)

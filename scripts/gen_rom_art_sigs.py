@@ -14,7 +14,7 @@ ROM is bundled: per blob this stores only
   pre     a 16-bit hash of the window's first 8 bytes (RomArt.pre): the scan's
           cheap per-byte filter, before it computes the full head.
 
-Retail, QoL builds and hacks that kept the art all match, wherever the linker
+Retail and hacks that kept the art all match, wherever the linker
 put it. Source: the pinned decomp builds (see CLAUDE.md) and their ELFs.
 
 Usage: scripts/gen_rom_art_sigs.py   (needs $DECOMPS/pokefirered and

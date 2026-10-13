@@ -12,7 +12,7 @@ class FfMenuWatchTest {
     @Test fun findsGMainInEveryGame() {
         // Emerald and Rogue count vblankCounter1; FireRed keeps a pointer there and counts counter2.
         assertEquals(0x030022C0L, FfMenuWatch.locate(iwram("emerald_a"), iwram("emerald_b"), 16))
-        assertEquals(0x03003100L, FfMenuWatch.locate(iwram("firered_qol_a"), iwram("firered_qol_b"), 16))
+        assertEquals(0x030030F0L, FfMenuWatch.locate(iwram("firered_a"), iwram("firered_b"), 16))
         assertEquals(0x030014B4L, FfMenuWatch.locate(iwram("rogue_a"), iwram("rogue_b"), 60))
         // Frames that don't match: nothing, rather than a guess.
         assertEquals(-1L, FfMenuWatch.locate(iwram("emerald_a"), iwram("emerald_b"), 15))

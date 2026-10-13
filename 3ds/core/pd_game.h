@@ -84,7 +84,7 @@ struct pd_config {
 
 enum pd_card_style { PD_CARD_NONE, PD_CARD_KANTO, PD_CARD_HOENN };
 
-// The bag's pockets, in a fixed order of our own (the app's QOL_POCKET_* ids).
+// The bag's pockets, in a fixed order of our own (the app's POCKET_* ids).
 enum pd_pocket {
     PD_POCKET_ITEMS,
     PD_POCKET_BALLS,

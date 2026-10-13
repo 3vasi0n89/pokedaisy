@@ -8,7 +8,7 @@ package com.pokedaisy.app.companion.data
 data class MoveStats(val effect: String, val accuracy: Int, val pp: Int, val effectChance: Int, val priority: Int)
 
 /** Whether the running game's moves are the original games' (FireRed / LeafGreen / Ruby /
- * Sapphire / Emerald, any language, and the QoL builds): only those have [MoveStats] so far. */
+ * Sapphire / Emerald, any language): only those have [MoveStats] so far. */
 val movesAreVanilla: Boolean get() = activeGame == GameKind.FIRERED || activeGame == GameKind.EMERALD
 
 /** [id]'s [MoveStats]; null where the running game's moves aren't the original games'. */

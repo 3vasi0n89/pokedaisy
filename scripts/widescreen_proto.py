@@ -28,7 +28,7 @@ import sys
 import numpy as np
 from PIL import Image
 
-# Retail addresses: the decomp ELFs' (QoL builds), mapped onto retail through the literal pools - every
+# Retail addresses: the decomp ELFs' (patched builds), mapped onto retail through the literal pools - every
 # EWRAM / IWRAM symbol here is the same in both but FireRed's VMap / gSaveBlock1Ptr (0x10 lower in retail).
 FIRERED_REV1 = dict(
     name="FireRed rev 1",

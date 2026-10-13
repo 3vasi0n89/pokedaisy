@@ -7,7 +7,7 @@ import com.pokedaisy.app.companion.data.SnapshotView
 import com.pokedaisy.app.companion.data.withMovesVs
 import com.pokedaisy.app.companion.i18n.AppLanguage
 import com.pokedaisy.app.companion.i18n.L10n
-import com.pokedaisy.app.companion.ui.theme.QolTheme
+import com.pokedaisy.app.companion.ui.theme.AppTheme
 import androidx.compose.foundation.layout.fillMaxSize
 import org.junit.After
 import org.junit.Before
@@ -65,7 +65,7 @@ class LocalizedScreenshotTest(private val lang: AppLanguage) {
         com.pokedaisy.app.companion.data.romLanguage = lang.romLetter
         try {
             paparazzi.snapshot(lang.code) {
-                QolTheme {
+                AppTheme {
                     val party = SampleCompanion.snapshot.party
                     val mu = com.pokedaisy.app.companion.data.typeMatchups(
                         com.pokedaisy.app.companion.data.typeIdOf("Rock"), com.pokedaisy.app.companion.data.typeIdOf("Ground"),
@@ -98,7 +98,7 @@ class LocalizedScreenshotTest(private val lang: AppLanguage) {
         com.pokedaisy.app.companion.data.DexDetails.levelUp(dex.tables, g, species)
         com.pokedaisy.app.companion.data.DexDetails.teachable(dex.tables, g, species)
         paparazzi.snapshot(lang.code) {
-            QolTheme {
+            AppTheme {
                 val ui = DexUiState(androidx.compose.foundation.lazy.rememberLazyListState())
                 ui.open = entry
                 ui.section = section
@@ -109,17 +109,17 @@ class LocalizedScreenshotTest(private val lang: AppLanguage) {
 
     @Test
     fun partyStats() = paparazzi.snapshot(lang.code) {
-        QolTheme { MonDetailScreen(SampleCompanion.snapshot.party, 0, {}, {}, initialShowStats = true) }
+        AppTheme { MonDetailScreen(SampleCompanion.snapshot.party, 0, {}, {}, initialShowStats = true) }
     }
 
     @Test
     fun partyMoves() = paparazzi.snapshot(lang.code) {
-        QolTheme { MonDetailScreen(SampleCompanion.snapshot.party, 0, {}, {}) }
+        AppTheme { MonDetailScreen(SampleCompanion.snapshot.party, 0, {}, {}) }
     }
 
     @Test
     fun battleInfo() = paparazzi.snapshot(lang.code) {
-        QolTheme {
+        AppTheme {
             val party = SampleCompanion.snapshot.party
             BattleInfoScreen(
                 listOf(party[0].withMovesVs(party[1])), listOf(party[1]), isDouble = false, showHints = true,
@@ -130,7 +130,7 @@ class LocalizedScreenshotTest(private val lang: AppLanguage) {
 
     @Test
     fun battleStats() = paparazzi.snapshot(lang.code) {
-        QolTheme {
+        AppTheme {
             val party = SampleCompanion.snapshot.party
             BattleStatsScreen(listOf(party[0]), listOf(party[1]), "FOE", onBack = {})
         }
@@ -162,7 +162,7 @@ class LocalizedScreenshotTest(private val lang: AppLanguage) {
     @Test fun languagePicker() = languageShot(picker = true)
 
     private fun languageShot(picker: Boolean) = paparazzi.snapshot(lang.code) {
-        QolTheme {
+        AppTheme {
             val m = rememberGbaTextMetrics()
             androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
                 OptionListWindow(m, androidx.compose.ui.Modifier.fillMaxSize()) {
@@ -185,7 +185,7 @@ class LocalizedScreenshotTest(private val lang: AppLanguage) {
 
     @Test
     fun suggestions() = paparazzi.snapshot(lang.code) {
-        QolTheme {
+        AppTheme {
             val party = SampleCompanion.snapshot.party
             SuggestionsScreen(party, foe = party[1], onBack = {}, onShowInfo = {}, active = listOf(party[0]))
         }

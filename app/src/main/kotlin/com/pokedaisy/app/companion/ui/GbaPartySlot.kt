@@ -37,8 +37,7 @@ import kotlin.math.min
  * HP bar were checked pixel-for-pixel against real screenshots of every game
  * (mgba_dump `shot`); per-game numbers live in the generated [PartySlotStyle]s.
  *
- * The gender symbol needs a QoL ROM with the
- * QOL_GENDER_* telemetry byte or a native read that knows the game's gender
+ * The gender symbol needs a native read that knows the game's gender
  * ratios - otherwise it's reported unknown and just left off.
  */
 @Composable

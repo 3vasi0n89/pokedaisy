@@ -97,9 +97,6 @@ object MgbaCore {
     /** Writes [bytes] at GBA address [addr], EWRAM / IWRAM only (false otherwise). Emu thread, between frames. */
     external fun pkWriteBytes(addr: Long, bytes: ByteArray): Boolean
 
-    /** GBA address of the first occurrence of [magic] (4 bytes) in IWRAM/EWRAM, or -1. */
-    external fun pkFindMagic(magic: ByteArray): Long
-
     /** 4-char game code from the ROM header (`BPRE`, `BPEE`, …). */
     external fun pkRomCode(): String?
     external fun pkRomSize(): Long

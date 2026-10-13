@@ -208,7 +208,7 @@ class FakeSettings(showHintsInitially: Boolean = true, initialTabs: List<String>
         cheatList = cheatList.toMutableList().also { it[index] = it[index].copy(enabled = on) }
     }
     override val gameName = "Pokémon FireRed"
-    override val romFileName = "firered-qol.gba"
+    override val romFileName = "firered-hack.gba"
     private var tabs = initialTabs ?: com.pokedaisy.app.companion.DEFAULT_COMPANION_TABS
     override val companionTabs get() = tabs
     override fun setCompanionTabs(tabs: List<String>) { this.tabs = tabs }
@@ -518,7 +518,7 @@ fun dexShots(game: GameKind, live: ((SnapshotView) -> SnapshotView)?, w: Int, h:
         Shot("$g-dex-${section.name.lowercase()}", w, h, d, {
             val s = live(snapshot())
             val content: @Composable () -> Unit = {
-                com.pokedaisy.app.companion.ui.theme.QolTheme {
+                com.pokedaisy.app.companion.ui.theme.AppTheme {
                     val ui = androidx.compose.runtime.remember {
                         com.pokedaisy.app.companion.ui.DexUiState(androidx.compose.foundation.lazy.LazyListState()).apply { open = entry; this.section = section }
                     }
@@ -590,7 +590,7 @@ fun previewCheats() = listOf(
  * with [previewCheats] saved for it when [seeded]. */
 fun withCheats(seeded: Boolean = true, make: () -> SettingsActivity): androidx.activity.ComponentActivity {
     val ctx = android.content.Context()
-    val rom = File(ctx.filesDir, "roms/firered-qol.gba")
+    val rom = File(ctx.filesDir, "roms/firered-hack.gba")
     val crc = SettingsActivity.cheatCrcOf(rom)!!
     if (seeded) com.pokedaisy.app.cheats.CheatStore.forCrc(ctx.filesDir, crc).save(previewCheats())
     Prefs(ctx).cheatsEnabled = seeded
@@ -659,9 +659,9 @@ var lastActivity: androidx.activity.ComponentActivity? = null
 fun activity(expandIntro: Boolean = false, start: Boolean = false, make: () -> androidx.activity.ComponentActivity): () -> (@Composable () -> Unit) = {
     val ctx = android.content.Context()
     val roms = File(ctx.filesDir, "roms").apply { mkdirs() }
-    // Dump-style file names, as players have them; firered-qol stays unrecognised (a QoL build).
+    // Dump-style file names, as players have them; firered-hack stays unrecognised (a hack it doesn't know).
     val names = listOf(
-        "firered-qol.gba", "Pokemon - Unbound (v2.1.1.1).gba", "Pokemon - Emerald Version (USA, Europe).gba",
+        "firered-hack.gba", "Pokemon - Unbound (v2.1.1.1).gba", "Pokemon - Emerald Version (USA, Europe).gba",
         "1636 - Pokemon Radical Red.gba", "Pokemon - Gaia (v3.2).gba", "Pokemon Emerald Imperium (World) (v1.3.1).gba",
     )
     roms.listFiles()?.forEach { it.delete() }
@@ -673,7 +673,7 @@ fun activity(expandIntro: Boolean = false, start: Boolean = false, make: () -> a
         "${f.absolutePath}\t${f.length()}\t${f.lastModified()}\t${titles[n].orEmpty()}\n"
     })
     File(ctx.filesDir, "saves").mkdirs()
-    File(ctx.filesDir, "saves/firered-qol.sav").writeText("x")
+    File(ctx.filesDir, "saves/firered-hack.sav").writeText("x")
     val prefs = Prefs(ctx)
     // ScreenScraper off, as players get it (FeatureFlags): its shots turn it on with withScreenScraper in their make().
     com.pokedaisy.app.BuildConfig.FEATURE_SCREENSCRAPER = false
@@ -744,7 +744,7 @@ fun fakeMedia(ctx: android.content.Context) {
     val real = System.getProperty("ssMedia").orEmpty().takeIf { it.isNotBlank() }?.let(::File)
     if (real != null) {
         mapOf(
-            "firered-qol.gba" to "Pokémon FireRed", "Pokemon - Unbound (v2.1.1.1).gba" to "Pokémon Unbound",
+            "firered-hack.gba" to "Pokémon FireRed", "Pokemon - Unbound (v2.1.1.1).gba" to "Pokémon Unbound",
             "Pokemon - Emerald Version (USA, Europe).gba" to "Pokémon Emerald", "1636 - Pokemon Radical Red.gba" to "Pokémon Radical Red",
             "Pokemon - Gaia (v3.2).gba" to "Pokémon Gaia", "Pokemon Emerald Imperium (World) (v1.3.1).gba" to "Pokémon Emerald Imperium",
         ).forEach { (rom, title) -> File(real, title).takeIf { it.isDirectory }?.copyRecursively(File(root, rom), overwrite = true) }
@@ -759,7 +759,7 @@ fun fakeMedia(ctx: android.content.Context) {
         javax.imageio.ImageIO.write(img, "png", f)
     }
     listOf(
-        Triple("firered-qol.gba", java.awt.Color(0xD8, 0x50, 0x30), "Preview Quest Red"),
+        Triple("firered-hack.gba", java.awt.Color(0xD8, 0x50, 0x30), "Preview Quest Red"),
         Triple("Pokemon - Unbound (v2.1.1.1).gba", java.awt.Color(0x60, 0x40, 0xB0), "Preview Quest Violet"),
     ).forEach { (rom, tint, name) ->
         val dir = File(root, rom)
@@ -1092,7 +1092,7 @@ fun main(args: Array<String>) {
         Shot("$g-settings-ffmusic", bw, bh, bd, companion("SETTINGS")) { onAllNodesWithText("FF MUSIC").onFirst().performClick() },
         // ASPECT's pick-list: WIDE tagged NOT YET (the preview's settings know no game).
         Shot("$g-settings-aspect", bw, bh, bd, companion("SETTINGS")) {
-            onNodeWithText("AUTO ZOOM IN").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithText("ASPECT").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
         Shot("$g-settings-hotkeys", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText("HOTKEYS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
@@ -1164,7 +1164,7 @@ fun main(args: Array<String>) {
                     it.copy(mapGroup = group, mapNum = num, regionMapSectionId = sec, location = lookupLocation(sec))
                 }
                 val content: @Composable () -> Unit = {
-                    com.pokedaisy.app.companion.ui.theme.QolTheme {
+                    com.pokedaisy.app.companion.ui.theme.AppTheme {
                         val ui = androidx.compose.runtime.remember { com.pokedaisy.app.companion.ui.GuideUiState() }
                         val source = com.pokedaisy.app.companion.ui.rememberGuide(s.game, s.pokedex, s.guideTables)
                         if (source != null) com.pokedaisy.app.companion.ui.GuideScreen(source, ui, s)
@@ -1203,7 +1203,7 @@ fun main(args: Array<String>) {
                     // 1480 px at 2.5: a 3:2 game under a bar about 90 px tall.
                     androidx.compose.foundation.layout.Column(androidx.compose.ui.Modifier.width(592.dp)) {
                         com.pokedaisy.app.companion.ui.GameStatusBar(
-                            "firered-qol", "Pallet Town", 224300, "14:05", battery = BatteryStatus(82, charging = false),
+                            "FireRed", "Pallet Town", 224300, "14:05", battery = BatteryStatus(82, charging = false),
                         )
                         androidx.compose.foundation.layout.Box(
                             androidx.compose.ui.Modifier.fillMaxWidth().aspectRatio(1.5f)
@@ -1307,18 +1307,18 @@ fun main(args: Array<String>) {
         // A ROM imported with "add anyway?": the library tags what the second screen can't read.
         Shot("library-tag-unsupported", tw, th * 2, td, activity {
             val ctx = android.content.Context()
-            val qol = File(ctx.filesDir, "roms/firered-qol.gba").absolutePath
-            File(ctx.filesDir, "rom-folder-scan.tsv").writeText("$qol\t1\t1700000000000\t0\n")
+            val hack = File(ctx.filesDir, "roms/firered-hack.gba").absolutePath
+            File(ctx.filesDir, "rom-folder-scan.tsv").writeText("$hack\t1\t1700000000000\t0\n")
             LibraryActivity().apply {
-                unsupportedRoms = setOf(qol)
+                unsupportedRoms = setOf(hack)
                 partialRoms = setOf(File(ctx.filesDir, "roms/Pokemon - Gaia (v3.2).gba").absolutePath)
             }
         }),
         Shot("library-tag-unsupported-grid", tw, th * 2, td, activity {
             val ctx = android.content.Context()
-            val qol = File(ctx.filesDir, "roms/firered-qol.gba").absolutePath
-            File(ctx.filesDir, "rom-folder-scan.tsv").writeText("$qol\t1\t1700000000000\t0\n")
-            LibraryActivity().apply { unsupportedRoms = setOf(qol) }
+            val hack = File(ctx.filesDir, "roms/firered-hack.gba").absolutePath
+            File(ctx.filesDir, "rom-folder-scan.tsv").writeText("$hack\t1\t1700000000000\t0\n")
+            LibraryActivity().apply { unsupportedRoms = setOf(hack) }
         }) {
             onNodeWithContentDescription("Toggle view").performClick()
         },
@@ -1392,14 +1392,14 @@ fun main(args: Array<String>) {
         Shot("library-info", tw, th, td, activity {
             LibraryActivity().apply {
                 val ctx = android.content.Context()
-                gameInfo = com.pokedaisy.app.GameInfo.read(ctx, Prefs(ctx), File(ctx.filesDir, "roms/firered-qol.gba"), hashes = true)
+                gameInfo = com.pokedaisy.app.GameInfo.read(ctx, Prefs(ctx), File(ctx.filesDir, "roms/firered-hack.gba"), hashes = true)
             }
         }),
         // A ROM the app doesn't know: INFO's PICK A GAME, tapped (every config of its base game, AUTO, NONE OF THESE).
         Shot("library-info-pick", tw, th, td, activity {
             LibraryActivity().apply {
                 val ctx = android.content.Context()
-                val info = com.pokedaisy.app.GameInfo.read(ctx, Prefs(ctx), File(ctx.filesDir, "roms/firered-qol.gba"), hashes = true)
+                val info = com.pokedaisy.app.GameInfo.read(ctx, Prefs(ctx), File(ctx.filesDir, "roms/firered-hack.gba"), hashes = true)
                 gameInfo = com.pokedaisy.app.GameInfo(
                     info.title, info.sections, supportUrl = "https://example.invalid",
                     gamePick = com.pokedaisy.app.GameInfo.GamePick("0123456789abcdef0123456789abcdef01234567", "BPEE", "SOULGOLD_V1_2"),
@@ -1411,7 +1411,7 @@ fun main(args: Array<String>) {
         Shot("library-load-save", tw, th, td, activity {
             LibraryActivity().apply {
                 val ctx = android.content.Context()
-                saveLoad = LibraryActivity.PendingSaveLoad(File(ctx.filesDir, "roms/firered-qol.gba"), ByteArray(131072), "FireRed - Hall of Fame.sav")
+                saveLoad = LibraryActivity.PendingSaveLoad(File(ctx.filesDir, "roms/firered-hack.gba"), ByteArray(131072), "FireRed - Hall of Fame.sav")
             }
         }),
         // The update offer on opening the app, and while its APK downloads.
@@ -1429,20 +1429,20 @@ fun main(args: Array<String>) {
         }),
         // REPLACE COVER: a known game's icons, a search's game list, and no API key.
         Shot("library-cover-picker", tw, th, td, activity {
-            LibraryActivity().apply { coverPickerFor = File("firered-qol.gba"); coverSourceOverride = FakeCoverSource(known = true) }
+            LibraryActivity().apply { coverPickerFor = File("firered-hack.gba"); coverSourceOverride = FakeCoverSource(known = true) }
         }),
         Shot("library-cover-picker-search", tw, th, td, activity {
             LibraryActivity().apply { coverPickerFor = File("Pokemon Amethyst.gba"); coverSourceOverride = FakeCoverSource(known = false) }
         }),
         // RetroAchievements box art: first, beside SteamGridDB's icons; alone with no SteamGridDB key.
         Shot("library-cover-picker-boxart", tw, th, td, activity {
-            LibraryActivity().apply { coverPickerFor = File("firered-qol.gba"); coverSourceOverride = FakeCoverSource(known = true, boxArt = true) }
+            LibraryActivity().apply { coverPickerFor = File("firered-hack.gba"); coverSourceOverride = FakeCoverSource(known = true, boxArt = true) }
         }),
         Shot("library-cover-picker-boxart-only", tw, th, td, activity {
-            LibraryActivity().apply { coverPickerFor = File("firered-qol.gba"); coverSourceOverride = FakeCoverSource(known = false, boxArt = true, steamGridDb = false) }
+            LibraryActivity().apply { coverPickerFor = File("firered-hack.gba"); coverSourceOverride = FakeCoverSource(known = false, boxArt = true, steamGridDb = false) }
         }),
         Shot("library-cover-picker-nokey", tw, th, td, activity {
-            LibraryActivity().apply { coverPickerFor = File("firered-qol.gba") }
+            LibraryActivity().apply { coverPickerFor = File("firered-hack.gba") }
         }),
         // First-time setup: each step, before and after its folder is picked.
         Shot("setup-roms", tw, th, td, activity { LibraryActivity().apply { setup = SetupState() } }),

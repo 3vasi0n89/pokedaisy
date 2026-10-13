@@ -35,8 +35,8 @@ const val RUBY_SAPPHIRE_ITEMS = 349
 /**
  * Item descriptions, read from the player's own ROM - the games' text isn't bundled
  * (names are; descriptions are prose). The Poller picks the running game's table
- * ([NativeConfig.itemDescs], or [findVanillaItems] for the QoL builds, whose gItems
- * moves with every rebuild) and reads through [PokedexSource.reader], like the dex's
+ * ([NativeConfig.itemDescs], or [findVanillaItems] where that table isn't in the ROM)
+ * and reads through [PokedexSource.reader], like the dex's
  * flavour text. Line breaks become spaces (the bag rewraps), each text is read once.
  */
 object RomItemText {
@@ -87,7 +87,7 @@ object RomItemText {
     /**
      * Finds a vanilla gItems by its shape - item ids 1, 2, 3 ... at the same offset in
      * consecutive records, the description a ROM pointer - for a build whose table isn't
-     * at a known address (the FireRed / Emerald QoL builds). Scans the ROM once; null if
+     * at a known address. Scans the ROM once; null if
      * nothing matches.
      */
     fun findVanillaItems(reader: MemoryReader, romSize: Long): ItemDescTable? {

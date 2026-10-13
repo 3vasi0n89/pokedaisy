@@ -83,7 +83,7 @@ private suspend fun loadMonIconSheet(context: Context, asset: String?): Bitmap? 
         asset.startsWith("pokemon-unbound/") -> withContext(Dispatchers.IO) {
             id?.let { UnboundIconSource.get(it) }
         }
-        // v2 QoL ROMs / native configs that know gMonIconTable: decode
+        // Native configs that know gMonIconTable: decode
         // straight from the ROM (see IconTables.monPresent - gated
         // independently of item icons since some hacks relocate only one).
         id != null && DecompIconSource.tables.monPresent -> withContext(Dispatchers.IO) {

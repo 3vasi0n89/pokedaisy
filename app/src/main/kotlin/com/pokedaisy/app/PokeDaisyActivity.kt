@@ -51,9 +51,6 @@ import com.pokedaisy.app.companion.data.RomArt
 import com.pokedaisy.app.companion.data.RegionMapWatch
 import com.pokedaisy.app.companion.data.RomRegionMap
 import com.pokedaisy.app.companion.data.displayName
-import com.pokedaisy.app.companion.data.TELEMETRY_SIZE
-import com.pokedaisy.app.companion.data.TelemetryDecodeException
-import com.pokedaisy.app.companion.data.decodeTelemetry
 import com.pokedaisy.app.companion.ui.CompanionScreen
 import com.pokedaisy.app.companion.ui.GameStatusBar
 import java.io.File
@@ -192,8 +189,7 @@ class PokeDaisyActivity : Activity() {
         override fun requestUndoLoad() { if (::engine.isInitialized) engine.requestUndoLoad() }
     }
 
-    /** Backs the bottom-screen touch battle control (see PLAN.md
-     * Phase 5) — Tier A: firered-qol/emerald-qol only. */
+    /** Backs the bottom-screen touch battle control (see PLAN.md Phase 5). */
     private val battleInput = object : com.pokedaisy.app.companion.BattleInput {
         override val busy get() = if (::engine.isInitialized) engine.battleInputBusy else false
         override val gameSilent get() = ::engine.isInitialized && engine.gameAudioPaused
@@ -362,9 +358,8 @@ class PokeDaisyActivity : Activity() {
 
     /**
      * Where the battle POKéMON pane's switch finds the party menu: retail
-     * FireRed rev 1 / Emerald and their QoL builds only (same EWRAM addresses
-     * in both - gPartyMenu, gPlayerParty from the decomp ELFs, checked against
-     * each ROM's literal pools). Keyed on the detected game too, so LeafGreen,
+     * FireRed rev 1 / Emerald (gPartyMenu, gPlayerParty from the decomp ELFs,
+     * checked against each ROM's literal pools), the language ports and the hacks below. Keyed on the detected game too, so LeafGreen,
      * FireRed rev 0, Ruby/Sapphire and hacks that share a header code (Seaglass)
      * stay out.
      */
@@ -387,6 +382,28 @@ class PokeDaisyActivity : Activity() {
             BattleInputController.SwitchAddrs(partyMenu = 0x0203242CL, party = 0x02032C94L)
         game == com.pokedaisy.app.companion.data.GameKind.AMETHYST ->
             BattleInputController.SwitchAddrs(partyMenu = 0x0203B0A0L, party = 0x02024284L, grid = true)
+        // Unbound (EN / FR): FireRed's gPartyMenu / gPlayerParty (CFRU keeps its EWRAM) under CFRU's two-column party
+        // grid - slot 0 top-left, 1 top-right, 2 below: RIGHT 0 -> 1, DOWN 0 -> 2, then CANCEL (7). Headless on the
+        // user's save with the lead copied into slots 2-3: DOWN, A, SHIFT put party slot 2 into gBattlerPartyIndexes[0].
+        game == com.pokedaisy.app.companion.data.GameKind.UNBOUND ->
+            BattleInputController.SwitchAddrs(partyMenu = 0x0203B0A0L, party = 0x02024284L, grid = true)
+        // Radical Red: the same CFRU grid at FireRed's addresses (radical_red_battle's README).
+        game == com.pokedaisy.app.companion.data.GameKind.RADICAL_RED ->
+            BattleInputController.SwitchAddrs(partyMenu = 0x0203B0A0L, party = 0x02024284L, grid = true)
+        // Gaia: FireRed's addresses and FireRed's own one-column list (DOWN 0 -> 1; gaia_battle's README).
+        game == com.pokedaisy.app.companion.data.GameKind.GAIA ->
+            BattleInputController.SwitchAddrs(partyMenu = 0x0203B0A0L, party = 0x02024284L)
+        // Odyssey and Sword and Shield: CFRU's grid at FireRed's addresses, like Unbound (their fixtures' READMEs).
+        game == com.pokedaisy.app.companion.data.GameKind.ODYSSEY || game == com.pokedaisy.app.companion.data.GameKind.SWORD_SHIELD ->
+            BattleInputController.SwitchAddrs(partyMenu = 0x0203B0A0L, party = 0x02024284L, grid = true)
+        // Heart and Soul: gPartyMenu found by its slotId walking 0 -> 7 -> 0 with one Pokémon (CANCEL at 7); a list
+        // (DOWN 0 -> 1 with three). Headless: a written POKéMON cell opened it, DOWN, A, SHIFT sent slot 1 in.
+        game == com.pokedaisy.app.companion.data.GameKind.HEART_AND_SOUL ->
+            BattleInputController.SwitchAddrs(partyMenu = 0x020341FCL, party = 0x02034764L)
+        // Celia: gPartyMenu found by its slotId (0 -> 7 -> 0 with one Pokémon), a list; its gPlayerParty is
+        // FireRed's moved (NATIVE_CELIA). Headless: DOWN, A, SHIFT with three put slot 1 into gBattlerPartyIndexes[0].
+        game == com.pokedaisy.app.companion.data.GameKind.CELIA ->
+            BattleInputController.SwitchAddrs(partyMenu = 0x0203B368L, party = 0x0202433CL)
         game == com.pokedaisy.app.companion.data.GameKind.ROWE ->
             BattleInputController.SwitchAddrs(partyMenu = 0x0203E774L, party = 0x02025128L, monStride = 0x4C, grid = true)
         game == com.pokedaisy.app.companion.data.GameKind.QUETZAL ->
@@ -409,7 +426,8 @@ class PokeDaisyActivity : Activity() {
         game == com.pokedaisy.app.companion.data.GameKind.MARIOMON ->
             telemetry.knownPartyMenu()?.let { (menu, party) -> BattleInputController.SwitchAddrs(partyMenu = menu, party = party, grid = true) }
         game == com.pokedaisy.app.companion.data.GameKind.SOULGOLD ->
-            // Two releases at different addresses: their configs carry them.
+            // Two releases at different addresses: their configs carry them. A one-column list (slotId at +9: DOWN
+            // walks 0, 1, 2 and wraps to 0; A, SHIFT on slot 2 switched it in, headless on v1.1.4 with a 3-mon party).
             telemetry.knownPartyMenu()?.let { (menu, party) ->
                 BattleInputController.SwitchAddrs(partyMenu = menu, party = party, monStride = 96)
             }
@@ -915,7 +933,7 @@ class PokeDaisyActivity : Activity() {
                     ?.let { (action, move) -> BattleInputController.CursorAddrs(action = action, move = move) }
                 if (snap.connected) battleGen1Menus = snap.game == com.pokedaisy.app.companion.data.GameKind.YELLOW
                 // party.isNotEmpty(), not just connected: `connected` flips true as
-                // soon as the QOLT struct/native addresses are found, which can be
+                // soon as the native addresses are found, which can be
                 // well before the save's party has actually loaded into RAM (e.g.
                 // still on the title/continue screen just after boot) - a dump
                 // right then faithfully captures a real but useless "partyCount=0"
@@ -1592,57 +1610,13 @@ class PokeDaisyActivity : Activity() {
                 pendingFixtureDump = null
                 return
             }
-            // QolTelemetry_Update() rewrites the WHOLE struct roughly once a
-            // second (struct-path games only); if this sample's two separate
-            // reads land mid-rewrite, the result is a torn snapshot - not
-            // corruption, just unlucky timing. Retry next tick instead of
-            // freezing a garbage fixture. Bit real capture attempts before
-            // this check existed (item slots past itemCount weren't actually
-            // all-zero - see the emerald_qol capture writeup this guards
-            // against). Native-RAM games have no "QOLT" magic, so they always
-            // pass through untouched.
-            if (!isStructSnapshotConsistent(iwram) || !isStructSnapshotConsistent(ewram)) {
-                Log.w("pokedaisy", "fixture dump: torn struct read, retrying next tick")
-                return
-            }
-            pendingFixtureDump = null // one-shot, only once a snapshot is actually accepted
+            pendingFixtureDump = null // one-shot
             File(dir, "ewram.bin").writeBytes(ewram)
             File(dir, "iwram.bin").writeBytes(iwram)
             Log.i("pokedaisy", "fixture dump: wrote ${ewram.size}B EWRAM + ${iwram.size}B IWRAM to $dir")
         } catch (t: Throwable) {
             Log.e("pokedaisy", "fixture dump failed", t)
             pendingFixtureDump = null
-        }
-    }
-
-    /** True if [buf] has no "QOLT" magic (a native-RAM game - nothing to
-     * check) or if it does and the struct there decodes cleanly with every
-     * item slot from itemCount onward genuinely zeroed, matching
-     * QolTelemetry_Update()'s own zero-fill loop invariant. False means a
-     * torn read caught mid-rewrite. */
-    private fun isStructSnapshotConsistent(buf: ByteArray): Boolean {
-        val magic = "QOLT".toByteArray(Charsets.US_ASCII)
-        var idx = -1
-        outer@ for (i in 0..buf.size - magic.size) {
-            for (j in magic.indices) {
-                if (buf[i + j] != magic[j]) continue@outer
-            }
-            idx = i
-            break
-        }
-        if (idx < 0) return true // no struct here - native-RAM path, nothing to validate
-        if (idx + TELEMETRY_SIZE > buf.size) return false
-        return try {
-            val t = decodeTelemetry(buf.copyOfRange(idx, idx + TELEMETRY_SIZE))
-            var seenPadding = false
-            for (item in t.items) {
-                val isZero = item.itemId == 0 && item.quantity == 0 && item.pocket == 0
-                if (seenPadding && !isZero) return false // non-zero after padding started
-                if (isZero) seenPadding = true
-            }
-            true
-        } catch (e: TelemetryDecodeException) {
-            false
         }
     }
 

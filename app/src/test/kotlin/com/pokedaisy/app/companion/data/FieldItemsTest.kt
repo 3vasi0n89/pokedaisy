@@ -415,7 +415,7 @@ class FieldItemsTest {
     }
 
     @Test
-    fun `retail code is where the tables say, and FireRed's QoL build is left alone`() {
+    fun `retail code is where the tables say, and another ROM is left alone`() {
         assumeTrue(rom != null && frRom != null)
         assertTrue(fieldItemCodeMatches(FIELD_ITEMS_EMERALD, romReader(rom!!)))
         assertTrue(fieldItemCodeMatches(FIELD_ITEMS_FIRERED_REV1, romReader(frRom!!)))

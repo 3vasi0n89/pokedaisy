@@ -27,7 +27,8 @@ test('header', () => {
 test('FireRed / Emerald: known dumps, unknown small ROMs, big hacks', () => {
   assert.deepEqual(v('BPRE', 1, 16 * MB, '41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc'),
     { status: 'supported', title: 'Pokémon FireRed' });
-  assert.equal(v('BPEE', 0, 16 * MB).status, 'likely');
+  // Retail-sized but not a dump we know: a hack like any other.
+  assert.deepEqual(v('BPEE', 0, 16 * MB), { status: 'unsupported', reason: 'unknown-hack', base: 'Pokémon Emerald' });
   assert.deepEqual(v('BPRE', 0, 32 * MB, 'b4776b82a4c7915d0fadeaa27e013523f99dfd94'),
     { status: 'supported', title: 'Pokémon Unbound', version: 'v2.1.1.1', base: 'Pokémon FireRed' });
   assert.equal(v('BPEE', 0, 32 * MB).reason, 'unknown-hack');

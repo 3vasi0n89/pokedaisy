@@ -42,7 +42,7 @@ import com.pokedaisy.app.companion.data.hiddenPowerType
 import com.pokedaisy.app.companion.data.natureLowers
 import com.pokedaisy.app.companion.data.natureName
 import com.pokedaisy.app.companion.data.natureRaises
-import com.pokedaisy.app.companion.ui.theme.QolColors
+import com.pokedaisy.app.companion.ui.theme.AppColors
 
 private val statLabels = mapOf(
     STAT_HP to tk("HP"), STAT_ATK to tk("ATTACK"), STAT_DEF to tk("DEFENSE"),
@@ -147,7 +147,7 @@ private fun Muted(text: String, small: GbaTextMetrics, modifier: Modifier = Modi
 @Composable
 private fun IvBar(iv: Int, max: Int, small: GbaTextMetrics, modifier: Modifier) {
     val u = small.u
-    val color = if (iv >= max) IvPerfect else QolColors.hpColor(iv, max)
+    val color = if (iv >= max) IvPerfect else AppColors.hpColor(iv, max)
     Box(
         modifier
             .height(u * 6)

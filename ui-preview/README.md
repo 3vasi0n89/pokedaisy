@@ -23,7 +23,7 @@ gradle render -PcompanionW=960 -PcompanionH=1080   # the companion as a single-s
 byte-identical to retail FireRed rev 1 / Emerald - e.g. the pinned decomp built
 unpatched - with the `firered_vanilla` / `emerald_vanilla` save fixture as the
 save (its flags mark what's done). Without it the GUIDE shots show HERE's area
-lists and the hand-written pages only - what the QoL ROMs' struct path gets.
+lists and the hand-written pages only.
 The `guide-town-*` shots render HERE in a town, scrolled to PEOPLE / ITEMS.
 
 (Any Gradle 8.x works; there's no wrapper here. `./gradlew -p ui-preview render`
@@ -49,7 +49,7 @@ the app rebuilds it from the ROM (`RomArt`) - so the renderer does the same at
 startup from the decomp builds under `$DECOMPS` (`pokefirered/`, `pokeemerald/`),
 `-Prom` or `-PartRoms=a.gba,b.gba`, into `build/scratch/files/rom-art`. The fake
 party's mon icons come from `-PmonIcons=DIR` (or `$MON_ICONS`): one
-`<species>.png` per internal Gen 3 species id, e.g. the FireRed QoL project's
+`<species>.png` per internal Gen 3 species id, e.g. the private ROM-hack project's
 `tools/telemetry-viewer/assets/pokemon`. Without it the party shows no icons. Without
 any of those ROMs (a cloud session) those games show their fallbacks: the drawn
 party slot, no backdrop, a text-only map. A FireRed-engine hack's own region map

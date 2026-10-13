@@ -4,10 +4,8 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
 /**
- * Rebuilds a Telemetry snapshot by polling a Gen 3 game's own RAM globals rather
- * than reading the packed gQolTelemetry struct. It's the only path for Pokémon
- * Unbound (no struct) and the fall-back for retail FireRed when the QoL patch
- * isn't present. Kotlin port of tools/telemetry-viewer/native.go - keep in sync.
+ * Rebuilds a Telemetry snapshot by polling a Gen 3 game's own RAM globals: how
+ * every GBA game is read. Kotlin port of tools/telemetry-viewer/native.go - keep in sync.
  */
 
 // FireRed's own gBagPockets[] index order (item.c: gBagPockets[POCKET_X-1] =
@@ -23,7 +21,7 @@ val EMERALD_BAG_POCKET_ORDER = listOf(POCKET_ITEMS, POCKET_POKE_BALLS, POCKET_TM
 // I_COMBINE_BAG_POCKETS=TRUE - confirmed from Heart and Soul v2.0.6's own
 // source, and live: Potions in pocket 1, key items in 5): POCKET_ITEMS=0/POCKET_MEDICINE=1/POCKET_POKE_BALLS=2/POCKET_TM_HM=3/
 // POCKET_BERRIES=4/POCKET_KEY_ITEMS=5 - SIX pockets, not five. There's no
-// separate "medicine" bucket in our stable QOL_POCKET_* set, so it folds into
+// separate "medicine" bucket in our stable POCKET_* set, so it folds into
 // POCKET_ITEMS same as everything else that isn't balls/TMs/berries/key items.
 val HNS_BAG_POCKET_ORDER =
     listOf(POCKET_ITEMS, POCKET_ITEMS, POCKET_POKE_BALLS, POCKET_TM_HM, POCKET_BERRIES, POCKET_KEY_ITEMS)
@@ -43,7 +41,7 @@ data class NativeConfig(
     val bagPockets: Long,
     val bagPocketCount: Int,
     val encryptionKeyOff: Long,
-    // bagPocketOrder[p] is the stable QOL_POCKET_* id (see Telemetry.kt) that
+    // bagPocketOrder[p] is the stable POCKET_* id (see Telemetry.kt) that
     // native gBagPockets[p] holds for THIS game's engine - the array's
     // index-to-pocket assignment is compiled-in per game and FireRed/Emerald
     // order it differently (confirmed by reading both decomps' item.c:
@@ -53,9 +51,8 @@ data class NativeConfig(
     // config (rev0/rev1/Unbound/Gaia/Radical Red) shares it unmodified.
     val bagPocketOrder: List<Int> = FIRERED_BAG_POCKET_ORDER,
     // ROM addresses of the icon-graphics tables (0 = not known for this game →
-    // the app falls back to bundled sprites, if any). Same tables the v2
-    // gQolTelemetry struct exports for the QoL ROMs; here they're fixed retail
-    // addresses read from a vanilla decomp build's ELF.
+    // the app falls back to bundled sprites, if any). Fixed retail addresses
+    // read from a vanilla decomp build's ELF.
     val monIconTable: Long = 0,
     val monIconPaletteTable: Long = 0,
     val monIconPaletteIndices: Long = 0,
@@ -85,17 +82,16 @@ data class NativeConfig(
     val speciesMask: Int = 0xFFFF,
     val moveMask: Int = 0xFFFF,
     val ppMask: Int = 0xFF,
-    // Bottom-screen touch battle control (PLAN.md Phase 5, Tier B):
-    // addresses for the same gBattlerControllerFuncs[] scan the QoL ROMs'
-    // telemetry export does (see the gActiveBattler write-up there for why a
-    // scan, not a single index read). 0 = not known for this game -> touch
-    // battle control just stays disabled, same as a pre-v3 QoL ROM.
+    // Bottom-screen touch battle control (PLAN.md Phase 5): addresses for the
+    // gBattlerControllerFuncs[] scan (readNativeBattleInputFast says why a scan,
+    // not a single index read). 0 = not known for this game -> touch battle
+    // control just stays disabled.
     val battlerControllerFuncs: Long = 0,
     val handleInputChooseAction: Long = 0,
     val handleInputChooseMove: Long = 0,
-    // Bag/Party screen detection (for a BACK button while either is open) -
-    // see the FireRed qol_telemetry.c comment for why these two functions,
-    // not OpenBagAndChooseItem/OpenPartyMenuToChooseMon.
+    // Bag/Party screen detection (for a BACK button while either is open): the
+    // callbacks that wait while the bag / party is up, not
+    // OpenBagAndChooseItem/OpenPartyMenuToChooseMon (which only run once).
     val completeWhenChoseItem: Long = 0,
     val waitForMonSelection: Long = 0,
     // "Which mon does this move hit" target-select screen (reachable even in
@@ -153,7 +149,7 @@ data class NativeConfig(
     // +0x439, Ruby/Sapphire's (4 bytes more before it) at +0x43D.
     val inBattleOff: Long = 0x439,
     // Where the save keeps the TRAINER CARD's data (TrainerCard.kt); null = no
-    // CARD tab. Retail FireRed / LeafGreen / Emerald and the QoL builds only:
+    // CARD tab. Retail FireRed / LeafGreen / Emerald only:
     // the hacks below copy these configs and their saves differ.
     val trainerCard: TrainerCardSave? = null,
     // The ROM's language letter (game code BPE<S|D|F|I>): a European Emerald's
@@ -228,8 +224,7 @@ val NATIVE_FIRERED_REV0 = NativeConfig(
 // A prior version of this config guessed rev 1 shifted gMain/saveBlock1Ptr/
 // saveBlock2Ptr to 0x03003100/0x03005018/0x0300501C — WRONG, never live-
 // verified (see CLAUDE.md). Confirmed 2026-09-15 by building the pinned
-// pokefirered commit's `firered_rev1` target UNPATCHED (stash the QoL patches,
-// `make firered_rev1` in the firered-qol-build image) and checking it's
+// pokefirered commit's `firered_rev1` target unpatched and checking it's
 // byte-identical to retail (sha1 dd5945db… matches) before reading its own
 // pokefirered_rev1.map: gMain/gSaveBlock1Ptr/gSaveBlock2Ptr — and every other
 // field NATIVE_FIRERED_REV0 declares — are IDENTICAL between rev 0 and rev 1.
@@ -251,8 +246,8 @@ val NATIVE_FIRERED_REV1 = NATIVE_FIRERED_REV0.copy(
     // addresses differ slightly (revision-conditional code shifts things).
     handleInputChooseAction = 0x0802e44cL,
     handleInputChooseMove = 0x0802ea24L,
-    // Between gBattleStruct and gEnemyParty, as in every build of battle_main.c (the QoL build's
-    // map has them there too). Headless on retail: back-to-back presses all land, A right after.
+    // Between gBattleStruct and gEnemyParty, as in every build of battle_main.c.
+    // Headless on retail: back-to-back presses all land, A right after.
     actionCursor = 0x02023FF8L,
     moveCursor = 0x02023FFCL,
     completeWhenChoseItem = 0x08030750L,
@@ -298,7 +293,13 @@ val NATIVE_FIRERED_REV1 = NATIVE_FIRERED_REV0.copy(
 // live in an actual Unbound battle - unlike Tiers A/B, both of which shipped
 // with an equally-reasoned design and still had a real bug only real play
 // caught (see gactivebattler-loop-var-gotcha, arm-thumb-bit-nm-gotcha).
-val NATIVE_UNBOUND = NATIVE_FIRERED_REV0
+val NATIVE_UNBOUND = NATIVE_FIRERED_REV0.copy(
+    // The battle menus' cursors are FireRed's (CFRU keeps its EWRAM), checked headless on the user's save
+    // (unbound_battle's README): RIGHT / DOWN / LEFT / UP walk the action cursor 0 -> 1 -> 3 -> 2 -> 0, and a cell
+    // written before A is what the game takes (2 opens the party menu, a move cell spends that move's PP).
+    actionCursor = 0x02023FF8L,
+    moveCursor = 0x02023FFCL,
+)
 
 // Unbound's own POKéDEX tables (SHA1-pinned, see POKEDEX_UNBOUND) - kept off
 // NATIVE_UNBOUND itself, which the other CFRU configs reuse as NATIVE_FIRERED_REV0.
@@ -381,6 +382,9 @@ val NATIVE_GAIA_V3_2 = NATIVE_FIRERED_REV0.copy(
     monIconPaletteTable = 0x0823C500L,
     pokedex = POKEDEX_GAIA,
     guideTables = GUIDE_TABLES_GAIA,
+    // FireRed's battle menu cursors, checked headless like Unbound's (gaia_battle's README).
+    actionCursor = 0x02023FF8L,
+    moveCursor = 0x02023FFCL,
 )
 
 // Pokémon Radical Red v4.1 - a 32 MB BPRE hack like Gaia/Unbound above, but
@@ -417,6 +421,9 @@ val NATIVE_RADICAL_RED_V4_1 = NATIVE_FIRERED_REV0.copy(
     itemIconTable = 0x093C8100L,
     pokedex = POKEDEX_RADICAL_RED,
     guideTables = GUIDE_TABLES_RADICAL_RED,
+    // FireRed's battle menu cursors (CFRU's EWRAM), checked headless like Unbound's (radical_red_battle's README).
+    actionCursor = 0x02023FF8L,
+    moveCursor = 0x02023FFCL,
 )
 
 // Pokemon Odyssey (English) v4.1.1 - a 32 MB BPRE hack like the others above.
@@ -430,7 +437,11 @@ val NATIVE_RADICAL_RED_V4_1 = NATIVE_FIRERED_REV0.copy(
 // wrong live, re-derive the specific broken field the same way Gaia's icon
 // tables were (find a still-byte-identical helper function, read its literal
 // pool) rather than guessing again.
-val NATIVE_ODYSSEY = NATIVE_FIRERED_REV0.copy(pokedex = POKEDEX_ODYSSEY, guideTables = GUIDE_TABLES_ODYSSEY, itemDescs = vanillaItems(0x083DB028L))
+val NATIVE_ODYSSEY = NATIVE_FIRERED_REV0.copy(
+    pokedex = POKEDEX_ODYSSEY, guideTables = GUIDE_TABLES_ODYSSEY, itemDescs = vanillaItems(0x083DB028L),
+    // FireRed's battle menu cursors (CFRU), checked headless like Unbound's (odyssey_battle's README).
+    actionCursor = 0x02023FF8L, moveCursor = 0x02023FFCL,
+)
 
 // Retail Emerald (BPEE). Same struct layouts as FireRed (gMain +0x439 inBattle,
 // +0x24 vblank counter both hold); only the global addresses differ. From
@@ -721,12 +732,19 @@ val NATIVE_HEART_AND_SOUL = NATIVE_EMERALD.copy(
     itemIconTable = 0x0878EFE4L,          // gItemsInfo[0].iconPic
     itemIconStride = 0x2C,
     itemPalCompressed = false,
-    battlerControllerFuncs = 0,
-    handleInputChooseAction = 0,
-    handleInputChooseMove = 0,
-    completeWhenChoseItem = 0,
-    waitForMonSelection = 0,
+    // Found by diffing headless dumps of a Route 29 battle (the action menu, FIGHT's move menu, BAG, POKéMON): the
+    // IWRAM word that holds a different ROM pointer in each. No target handler yet (a single battle never shows the
+    // target screen; 0 never matches a live controller function). Checked: a written action cell + A lands on the
+    // handler written (1 the bag, 2 the party menu), a written move cell + A spends that move's PP.
+    battlerControllerFuncs = 0x03002F54L,
+    handleInputChooseAction = 0x0805D1C5L,
+    handleInputChooseMove = 0x0805C091L,
+    completeWhenChoseItem = 0x0805A95DL,
+    waitForMonSelection = 0x0805A9A1L,
     handleInputChooseTarget = 0,
+    // gActionSelectionCursor / gMoveSelectionCursor (EWRAM bytes walking 0 -> 1 -> 3 / 0 -> 1 in those dumps).
+    actionCursor = 0x020003A4L,
+    moveCursor = 0x020003A8L,
     pokedex = POKEDEX_HEART_AND_SOUL,
     guideTables = GUIDE_TABLES_HEART_AND_SOUL,
 )
@@ -841,6 +859,11 @@ val NATIVE_LAZARUS = NATIVE_EMERALD.copy(
     battleMonLayout = EXPANSION_BATTLE_MON,
     battleStructPtr = 0x0200082CL,
     monToSwitchIntoOff = 0x3C,
+    // gActionSelectionCursor / gMoveSelectionCursor: +0x10 / +0x14 past the gBattleStruct pointer, as in battle_main.c.
+    // Found by dump diffs (0 -> 1 -> 3 on RIGHT / DOWN) and checked headless: a written 2 + A opens the party menu, a
+    // written move cell + A spends that move's PP (EXPANSION_BATTLE_MON's pp +0x25).
+    actionCursor = 0x0200083CL,
+    moveCursor = 0x02000840L,
     enemyParty = 0x0201BBB8L,
     battlerControllerFuncs = 0x03002248L,
     handleInputChooseAction = 0x0805D649L,
@@ -932,6 +955,11 @@ val NATIVE_SOULGOLD = NATIVE_EMERALD.copy(
     battleMonLayout = SOULGOLD_BATTLE_MON,
     battleStructPtr = 0x02001ABCL,
     monToSwitchIntoOff = 0x115,
+    // gActionSelectionCursor / gMoveSelectionCursor, adjacent as in battle_main.c: found headless by walking them
+    // (0 -> 1 -> 3 on RIGHT / DOWN) on v1.1.4 and all three v1.2 builds (same RAM: the v1.2 configs inherit them),
+    // and a cell written before A is what the game takes (2 opens the party menu, a move cell spends its own PP).
+    actionCursor = 0x02001E50L,
+    moveCursor = 0x02001E54L,
     enemyParty = 0x02038DDCL,
     battlerControllerFuncs = 0x03002E44L,
     handleInputChooseAction = 0x08061CD1L,
@@ -1075,6 +1103,10 @@ val NATIVE_ROWE = NATIVE_EMERALD.copy(
     battleMons = 0x02024C10L,
     battleMonLayout = ROWE_BATTLE_MON,
     battleStructPtr = 0x020250A4L,
+    // gActionSelectionCursor / gMoveSelectionCursor, +0x10 / +0x14 past the gBattleStruct pointer. Checked
+    // headless: RIGHT / DOWN walk 0 -> 1 -> 3, a written 2 + A opens the party menu, a written move 1 + A spends its PP.
+    actionCursor = 0x020250B4L,
+    moveCursor = 0x020250B8L,
     monToSwitchIntoOff = 0x5E,
     enemyParty = 0x020252F0L,
     battlerControllerFuncs = 0x03004AD0L,
@@ -1280,6 +1312,11 @@ val NATIVE_EMERALD_SEAGLASS = NATIVE_EMERALD.copy(
     battleMons = 0x02000360L,
     battleMonLayout = EXPANSION_BATTLE_MON,
     battleStructPtr = 0x02000824L,
+    // gActionSelectionCursor / gMoveSelectionCursor: +0x10 / +0x14 past the gBattleStruct pointer (Lazarus's layout,
+    // 8 bytes earlier). Checked headless: RIGHT / DOWN walk 0 -> 1 -> 3, a written 2 + A opens the party menu, a
+    // written move 1 + A spends its PP.
+    actionCursor = 0x02000834L,
+    moveCursor = 0x02000838L,
     monToSwitchIntoOff = 0x3C,
     enemyParty = 0x02019E78L,
     battlerControllerFuncs = 0x03002244L,
@@ -1345,11 +1382,19 @@ val NATIVE_CELIA = NATIVE_FIRERED_REV0.copy(
     monIconPaletteIndices = 0x08C13F0CL,
     monIconPaletteTable = 0x08C14440L,
     itemIconTable = 0x08C1469CL,
-    battlerControllerFuncs = 0,
-    handleInputChooseAction = 0,
-    handleInputChooseMove = 0,
-    completeWhenChoseItem = 0,
-    waitForMonSelection = 0,
+    // Found by diffing headless dumps of a scripted battle (celia_battle's README): the IWRAM word holding a different
+    // ROM pointer at the action menu, the move menu and the party menu; the bag's from a written BAG cell + A. No
+    // target handler yet. Its battle block is FireRed's moved 0x14 up (gBattleMons 0x02023BF8), gBattlerPartyIndexes
+    // with it (0x02023BE2: 0 -> 1 after a SHIFT to slot 1), the cursors 0x020240AC / 0x020240B0 (0 -> 1 -> 3), and a
+    // written move 1 + A spent one PP byte (0x02023C1E).
+    battlerControllerFuncs = 0x03005380L,
+    handleInputChooseAction = 0x08037AFDL,
+    handleInputChooseMove = 0x08038185L,
+    completeWhenChoseItem = 0x0803A005L,
+    waitForMonSelection = 0x08039E99L,
+    actionCursor = 0x020240ACL,
+    moveCursor = 0x020240B0L,
+    battlerPartyIndexes = 0x02023BE2L,
     handleInputChooseTarget = 0,
     pokedex = POKEDEX_CELIA,
     guideTables = GUIDE_TABLES_CELIA,
@@ -1426,6 +1471,10 @@ val NATIVE_TMT2 = NATIVE_EMERALD.copy(
     battleMons = 0x020005ACL,
     battleMonLayout = TMT2_BATTLE_MON,
     battleStructPtr = 0x020000B0L,
+    // gActionSelectionCursor / gMoveSelectionCursor, found by dump diffs (0 -> 1 -> 3 on RIGHT / DOWN) and checked
+    // headless: a written 2 + A opens the party menu, a written move 1 + A spends its PP (TMT2_BATTLE_MON's pp +0x26).
+    actionCursor = 0x02000414L,
+    moveCursor = 0x02000418L,
     monToSwitchIntoOff = 0x8B,
     enemyParty = 0x02032A3CL,
     battlerControllerFuncs = 0x03004590L,
@@ -1466,6 +1515,11 @@ val NATIVE_GLAZED = NATIVE_EMERALD.copy(
     battlerPartyIndexes = NATIVE_EMERALD_RETAIL.battlerPartyIndexes,
     battleStructPtr = NATIVE_EMERALD_RETAIL.battleStructPtr,
     monToSwitchIntoOff = NATIVE_EMERALD_RETAIL.monToSwitchIntoOff,
+    // Retail's battle menu cursors too: checked headless on a scripted wild battle (RIGHT / DOWN walk 0 -> 1 -> 3, a
+    // written 2 + A opens the party menu, a written move + A spends its PP - against a Magikarp: its Pikachu's Sweet
+    // Kiss confused the lead on the first try, and a self-hit spends none).
+    actionCursor = NATIVE_EMERALD_RETAIL.actionCursor,
+    moveCursor = NATIVE_EMERALD_RETAIL.moveCursor,
 )
 
 // Pokémon Emerald Imperium v1.3.1 - BPEE, 32 MB, pokeemerald-expansion 1.10.0 (its
@@ -1523,6 +1577,10 @@ val NATIVE_IMPERIUM = NATIVE_EMERALD.copy(
     battleMons = 0x02000360L,
     battleMonLayout = EXPANSION_BATTLE_MON,
     battleStructPtr = 0x02000830L,
+    // gActionSelectionCursor / gMoveSelectionCursor, +0x10 / +0x14 past the gBattleStruct pointer. Checked
+    // headless: RIGHT / DOWN walk 0 -> 1 -> 3, a written 2 + A opens the party menu, a written move 1 + A spends its PP.
+    actionCursor = 0x02000840L,
+    moveCursor = 0x02000844L,
     monToSwitchIntoOff = 0x3C,
     enemyParty = 0x02037850L,
     battlerControllerFuncs = 0x03004F5CL,
@@ -1599,6 +1657,10 @@ val NATIVE_QUETZAL = NATIVE_EMERALD.copy(
     battleMons = 0x0202305CL,
     battleMonLayout = EXPANSION_BATTLE_MON,
     battleStructPtr = 0x0202352CL,
+    // gActionSelectionCursor / gMoveSelectionCursor, +0x10 / +0x14 past the gBattleStruct pointer (English and Spanish). Checked
+    // headless: RIGHT / DOWN walk 0 -> 1 -> 3, a written 2 + A opens the party menu, a written move 1 + A spends its PP.
+    actionCursor = 0x0202353CL,
+    moveCursor = 0x02023540L,
     monToSwitchIntoOff = 0x3C,
     enemyParty = 0x02023AACL,
     battlerControllerFuncs = 0x03005580L,
@@ -1722,6 +1784,10 @@ val NATIVE_AMETHYST = NATIVE_FIRERED_REV0.copy(
     battleStructPtr = 0x02023FE8L,
     monToSwitchIntoOff = 0x5C,
     handleInputChooseTarget = 0x088E8245L,
+    // FireRed's battle menu cursors (CFRU), checked headless on v1.3.0 and v1.4.1 like Unbound's: RIGHT / DOWN walk
+    // 0 -> 1 -> 3, a written 2 + A opens the party menu, a written move 1 + A spends its PP.
+    actionCursor = 0x02023FF8L,
+    moveCursor = 0x02023FFCL,
 )
 
 // Pokemon Amethyst v1.4.1: the same RAM (a v1.3.0 save loads; its EWRAM after
@@ -1748,6 +1814,10 @@ val NATIVE_AMETHYST_V1_4_1 = NATIVE_AMETHYST.copy(
 // gWildMonHeaders (0x08A1B1B0), which it repointed: scripts/gen_orange_islands_tables.py. Its
 // region map is its own Orange Archipelago on FireRed's region_map.c (RomRegionMap).
 val NATIVE_ORANGE_ISLANDS = NATIVE_FIRERED_REV0.copy(
+    // FireRed's battle menu cursors (retail rev 0's EWRAM), checked headless like Unbound's: RIGHT / DOWN walk
+    // 0 -> 1 -> 3, a written 2 + A opens the party menu, a written move 1 + A spends its PP.
+    actionCursor = NATIVE_FIRERED_REV1.actionCursor,
+    moveCursor = NATIVE_FIRERED_REV1.moveCursor,
     pokedex = POKEDEX_ORANGE_ISLANDS,
     guideTables = GUIDE_TABLES_ORANGE_ISLANDS,
     enemyParty = NATIVE_FIRERED_REV1.enemyParty,
@@ -1765,6 +1835,10 @@ val NATIVE_ORANGE_ISLANDS = NATIVE_FIRERED_REV0.copy(
 // (0x0872AF04) for its new maps, and renamed a few things (GameKind.FIRERED with
 // ActiveTables' ultraViolet: UltraVioletGen.kt). Its region map is FireRed's byte for byte.
 val NATIVE_ULTRA_VIOLET = NATIVE_FIRERED_REV0.copy(
+    // FireRed's battle menu cursors (retail rev 0's EWRAM), checked headless like Unbound's: RIGHT / DOWN walk
+    // 0 -> 1 -> 3, a written 2 + A opens the party menu, a written move 1 + A spends its PP.
+    actionCursor = NATIVE_FIRERED_REV1.actionCursor,
+    moveCursor = NATIVE_FIRERED_REV1.moveCursor,
     pokedex = POKEDEX_ULTRA_VIOLET,
     guideTables = GUIDE_TABLES_ULTRA_VIOLET,
     enemyParty = NATIVE_FIRERED_REV1.enemyParty,
@@ -1781,6 +1855,9 @@ val NATIVE_ULTRA_VIOLET = NATIVE_FIRERED_REV0.copy(
 // TACKLE, ₽5000, POTION x2 / SOOTHE BELL / OLD ROD) decodes with rev 0's RAM. Its Casual / Performance /
 // Casual and Performance patches keep every table and the RAM: the same save and battle decode in each.
 val NATIVE_SWORD_SHIELD = NATIVE_FIRERED_REV0.copy(
+    // FireRed's battle menu cursors (CFRU), checked headless like Unbound's (a scripted WOOLOO battle on the base patch).
+    actionCursor = 0x02023FF8L,
+    moveCursor = 0x02023FFCL,
     itemDescs = vanillaItems(0x093C0000L),
     monIconTable = 0x099F1EB8L,
     monIconPaletteIndices = 0x099F1980L,
@@ -1877,6 +1954,10 @@ val NATIVE_RECHARGED_YELLOW_V1_8_0 = NativeConfig(
     enemyParty = 0x020387ACL,
     battlerPartyIndexes = 0x02001448L,
     battleStructPtr = 0x02001880L,
+    // gActionSelectionCursor / gMoveSelectionCursor, +0x10 / +0x14 past the gBattleStruct pointer (every release: the battle globals sit below its 1.9 EWRAM shift). Checked
+    // headless: RIGHT / DOWN walk 0 -> 1 -> 3, a written 2 + A opens the party menu, a written move 1 + A spends its PP.
+    actionCursor = 0x02001890L,
+    moveCursor = 0x02001894L,
     monToSwitchIntoOff = 0x5C,
     partyMenu = 0x020384CCL,
     pokedex = POKEDEX_RECHARGED_YELLOW_V1_8_0,
@@ -1993,6 +2074,10 @@ val NATIVE_MARIOMON_V1_5_1 = NATIVE_EMERALD.copy(
     battleMons = 0x02024BF0L,
     battleMonLayout = EXPANSION_BATTLE_MON,
     battleStructPtr = 0x020250BCL,
+    // gActionSelectionCursor / gMoveSelectionCursor, +0x10 / +0x14 past the gBattleStruct pointer (v1.5.1 / v1.5.2). Checked
+    // headless: RIGHT / DOWN walk 0 -> 1 -> 3, a written 2 + A opens the party menu, a written move 1 + A spends its PP.
+    actionCursor = 0x020250CCL,
+    moveCursor = 0x020250D0L,
     monToSwitchIntoOff = 0x5C,
     enemyParty = 0x02025860L,
     battlerControllerFuncs = 0x03004B90L,
@@ -2045,6 +2130,10 @@ val NATIVE_MARIOMON_V1_3 = NATIVE_MARIOMON_V1_5_1.copy(
     battlerPositions = 0x02024AE2L,
     battleMons = 0x02024AF0L,
     battleStructPtr = 0x02024F9CL,
+    // gActionSelectionCursor / gMoveSelectionCursor, +0x10 / +0x14 past the gBattleStruct pointer (v1.3 / v1.2.2 / v1.2.1). Checked
+    // headless: RIGHT / DOWN walk 0 -> 1 -> 3, a written 2 + A opens the party menu, a written move 1 + A spends its PP.
+    actionCursor = 0x02024FACL,
+    moveCursor = 0x02024FB0L,
     monToSwitchIntoOff = 0x3C,
     enemyParty = 0x020254E8L,
     handleInputChooseAction = 0x0807AA19L,
@@ -2384,8 +2473,7 @@ private val NIDORAN_M_NAME = byteArrayOf(0xC8.toByte(), 0xC3.toByte(), 0xBE.toBy
 /**
  * The party-menu gender symbol for the native RAM path, computed the way the
  * game does (GetMonGender: personality & 0xFF vs the species' genderRatio;
- * DisplayPartyPokemonGender's Nidoran rule) - the QoL ROMs' struct exports it
- * directly instead. Needs the game's own gBaseStats ratios, keyed by its own
+ * DisplayPartyPokemonGender's Nidoran rule). Needs the game's own gBaseStats ratios, keyed by its own
  * species ids: retail FireRed/Emerald share [genderRatiosFireRed]; the CFRU
  * hacks have theirs in GenderRatiosCfru.kt.
  */
@@ -2412,8 +2500,8 @@ private fun Mon.withNativeGender(raw: ByteArray, off: Int, layout: PartyMonLayou
         else -> return this
     }
     // BoxPokemon +0x13 flags byte (isBadEgg:1, hasSpecies:1, isEgg:1): an egg
-    // shows as SPECIES_EGG with no gender, like the party menu (and like the
-    // QoL ROMs' own MON_DATA_SPECIES_OR_EGG export). The CFRU hacks kept
+    // shows as SPECIES_EGG with no gender, like the party menu
+    // (MON_DATA_SPECIES_OR_EGG). The CFRU hacks kept
     // vanilla's SPECIES_EGG (412 - checked against each ROM's icon table).
     // Quetzal keeps it in the IV word's bit 30 instead (QUETZAL_PARTY_MON).
     val egg = if (layout.eggInIvWord) (raw[off + layout.plainBox + 0x28 + 3].toInt() and 0x40) != 0
@@ -2460,15 +2548,12 @@ private const val MAX_BATTLERS_COUNT = 4
 private var lastLoggedFn0 = -1L
 
 /**
- * Fast, non-1Hz-throttled peek at (battleActiveBattler, battleInputState) for
- * the native-RAM path (vanilla FireRed/Emerald) - the Tier B counterpart of
- * TelemetrySampler.sampleBattleInputFast for the gQolTelemetry-struct path.
- * See PLAN.md Phase 5. Returns null if [cfg] doesn't have the
+ * Fast, non-1Hz-throttled peek at (battleActiveBattler, battleInputState),
+ * for TelemetrySampler.sampleBattleInputFast. See PLAN.md Phase 5. Returns null if [cfg] doesn't have the
  * addresses this needs (Unbound - Tier C, unimplemented).
  *
  * Reads the whole gBattlerControllerFuncs[MAX_BATTLERS_COUNT] array and scans
- * it host-side, exactly like the QoL ROMs' own telemetry export does now -
- * NOT a single gActiveBattler-indexed read, which is a stale/out-of-range
+ * it host-side - NOT a single gActiveBattler-indexed read, which is a stale/out-of-range
  * loop variable by the time anything outside battle_main.c's own per-frame
  * dispatch loop gets to look at it (see gactivebattler-loop-var-gotcha memory).
  *

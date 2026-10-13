@@ -29,7 +29,7 @@ data class FieldItemFns(
     /** gItems: struct Item, holdEffectParam at +0x13 (a Repel's steps) with [itemNameLen] 14. */
     val items: Long,
     /** CRC32 of each function's first 32 bytes (varGet, varSet, checkBagHasItem, removeBagItem,
-     * fieldControlsLocked): a build that moved them (FireRed's QoL build) is left alone. */
+     * fieldControlsLocked): a build that moved them is left alone. */
     val codeCrcs: List<Long>,
     /** USE on a party Pokémon and GIVE; null = the Repels only. */
     val party: PartyItemFns? = null,
@@ -155,8 +155,8 @@ val FIELD_ITEMS_FIRERED_REV1 = FieldItemFns(
     fly = FLY_FIRERED_REV1,
 )
 
-/** Retail Emerald (BPEE): its functions sit where the pinned pokeemerald build has them (the QoL build's too, and
- * Emerald Kaizo's, retail edited in place). Every address from pret's pokeemerald built clean (byte for byte retail,
+/** Retail Emerald (BPEE): its functions sit where the pinned pokeemerald build has them (Emerald
+ * Kaizo's too, retail edited in place). Every address from pret's pokeemerald built clean (byte for byte retail,
  * SHA1 f3ae0881...) and its ELF. Emerald has no PokemonItemUseNoEffect: the no-effect check is its party menu's own,
  * ExecuteTableBasedItemEffect, on the Pokémon and then undone ([PartyItemFns.itemNoEffect]). */
 val FIELD_ITEMS_EMERALD = FieldItemFns(
@@ -323,8 +323,8 @@ class FieldItemSupport(
     val canTake: Boolean get() = party != null
 }
 
-/** [fns]' support on the running ROM, or null when its code isn't where [fns] says (a QoL build,
- * a hack). The holdable items come from the ROM's gItems ([holdableItems]). */
+/** [fns]' support on the running ROM, or null when its code isn't where [fns] says (a hack
+ * that moved it). The holdable items come from the ROM's gItems ([holdableItems]). */
 fun fieldItemSupport(fns: FieldItemFns, read: (addr: Long, len: Int) -> ByteArray): FieldItemSupport? {
     if (!fieldItemCodeMatches(fns, read)) return null
     val party = fns.party ?: return FieldItemSupport(fns, emptySet())

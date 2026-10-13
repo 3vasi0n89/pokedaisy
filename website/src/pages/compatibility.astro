@@ -45,7 +45,7 @@ const retail = [...Object.entries(data.baseCodes).map(([code, title]) => ({ code
       </article>
       <article class="f-card vcard" data-reveal style="--i:1">
         <h3 class="vtitle">ORIGINAL GAMES</h3>
-        <p class="small muted">Retail dumps. FireRed and Emerald also cover the FireRed / Emerald QoL builds.</p>
+        <p class="small muted">Retail dumps.</p>
         <ul class="vlist">
           {data.gameBoy.map((g) => <li><span>{g.title}</span><span class="vval">GAME BOY</span></li>)}
           {retail.map((r) => (

@@ -76,8 +76,8 @@ import com.pokedaisy.app.companion.data.withMovesVs
 import com.pokedaisy.app.companion.COMPANION_TABS
 import com.pokedaisy.app.companion.DEFAULT_COMPANION_TABS
 import com.pokedaisy.app.companion.MAX_BAR_TABS
-import com.pokedaisy.app.companion.ui.theme.QolColors
-import com.pokedaisy.app.companion.ui.theme.QolTheme
+import com.pokedaisy.app.companion.ui.theme.AppColors
+import com.pokedaisy.app.companion.ui.theme.AppTheme
 import com.pokedaisy.app.companion.ui.theme.LocalGameFont
 import com.pokedaisy.app.companion.ui.theme.LocalGameTextScale
 import com.pokedaisy.app.companion.ui.theme.LocalGameFontWidth
@@ -149,7 +149,7 @@ fun CompanionScreen(
         LocalGameFont provides gameFont,
         LocalGameTextScale provides if (gameFont != null) gameTextScale(snapshot.game) else 1f,
         LocalGameFontWidth provides if (gameFont != null) gameFontWidth(snapshot.game) else 1f,
-    ) { QolTheme { key(snapshot.game) {
+    ) { AppTheme { key(snapshot.game) {
         val game = snapshot.game
         // Until the first real data arrives (the ROM takes a few seconds to
         // boot / be detected) the data tabs show a loading animation.
@@ -297,7 +297,7 @@ fun CompanionScreen(
             selectedLabel = "SETTINGS"; detailIndex = null; showSuggestions = false; showBattleStats = false; dexUi.open = null
         }
 
-        Box(modifier = Modifier.fillMaxSize().background(QolColors.bgBottom)) {
+        Box(modifier = Modifier.fillMaxSize().background(AppColors.bgBottom)) {
             // Per-game party-menu background, pixel-scaled to fill - behind
             // every tab (SETTINGS and STATES' OPTION-style windows included),
             // except behind a bag screen with its own backdrop (Emerald),
@@ -797,7 +797,7 @@ private fun ErrorBanner(message: String) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(PixelRoundedShape(6.dp))
-            .background(QolColors.windowFrame)
+            .background(AppColors.windowFrame)
             .padding(2.dp)
             .clip(PixelRoundedShape(4.dp))
             .background(if (OptionColors.dark) Color(0xFF3A2A1E) else Color(0xFFFCEFD8))

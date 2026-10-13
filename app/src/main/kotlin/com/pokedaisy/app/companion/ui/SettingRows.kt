@@ -27,7 +27,7 @@ import com.pokedaisy.app.companion.i18n.tr
 
 /**
  * One line of a settings list: [value] (red, in the value column) or null for a plain
- * command row; [header] = a group title. [badge] goes after the value ("ALPHA"),
+ * command row; [header] = a group title. [badge] goes after the value ("BETA"),
  * [labelBadge] after the label ("BETA"); [enabled] false greys the row out.
  */
 class SettingRow(

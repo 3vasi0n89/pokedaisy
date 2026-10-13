@@ -134,7 +134,7 @@ Settings screen. Species, move and item names and the GUIDE pages stay as the ga
   screen's Settings) sets a pace that stays, per game: 0.25×, 0.5×, 1×, 1.5×, 2×, 3× or 4×.
 - **Real-time clock** for the games that use one (Ruby, Sapphire, Emerald and ROM hacks):
   day and night, berries, tides and daily events follow the device's clock, and saves keep it.
-- **Fast-forward music** (alpha) that keeps playing the song at its normal speed, instead of chipmunk sound.
+- **Fast-forward music** that keeps playing the song at its normal speed, instead of chipmunk sound.
 - **Save states** on hotkeys, with undo.
 - **Rewind** (optional, Settings > REWIND): hold the REWIND HOLD hotkey (R on a keyboard; pick a pad button in
   HOTKEYS) to play the last ~20 seconds backwards. It never touches your save file.

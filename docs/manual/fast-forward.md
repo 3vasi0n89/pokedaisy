@@ -61,14 +61,14 @@ For a slow pace that lasts, use `GAME SPEED` at `0.5×` or `0.25×` instead.
 
 Sped-up game music turns into chipmunk noise. `FF MUSIC` picks what you hear while fast-forwarding:
 
-- **`STEADY`** (marked `ALPHA`, the default) keeps the song playing at its normal speed and pitch while the game races. The song loops where the game loops it, and it carries on through menus when `SMART` slows the game down, instead of starting over.
+- **`STEADY`** (the default) keeps the song playing at its normal speed and pitch while the game races. The song loops where the game loops it, and it carries on through menus when `SMART` slows the game down, instead of starting over.
 - **`SPED-UP`** plays the game's own sound at the game's speed.
 - **`OFF`** is silence while fast-forwarding.
 
 `STEADY` works by preparing a clean recording of each song from your ROM, in the background. The first time you play a game, it goes through the game's songs once; a song that isn't ready yet is silent during fast-forward. Once a song is done, it's kept, so this only happens the first time you hear it.
 
 > [!NOTE]
-> `STEADY` is still an alpha. If a song sounds wrong or stays silent, switch to `SPED-UP`, and let us know which game and where.
+> If a song sounds wrong or stays silent with `STEADY`, switch to `SPED-UP`, and let us know which game and where.
 
 ## The real-time clock
 

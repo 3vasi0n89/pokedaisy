@@ -7,7 +7,7 @@ import java.io.File
 /** Stand-in for the launcher's second-screen Presentation: what it would show lands in [Captured.second]. */
 class LauncherSecondScreen(private val activity: androidx.activity.ComponentActivity, private val content: @Composable () -> Unit) {
     fun show(): Boolean {
-        CapturedSecond.content = { com.pokedaisy.app.companion.ui.theme.QolTheme { content() } }
+        CapturedSecond.content = { com.pokedaisy.app.companion.ui.theme.AppTheme { content() } }
         return true
     }
 

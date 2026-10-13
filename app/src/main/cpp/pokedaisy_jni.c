@@ -947,50 +947,6 @@ Java_com_pokedaisy_app_MgbaCore_pkRenderReadBytes(JNIEnv* env, jobject thiz, jlo
     return out;
 }
 
-static jlong pk_find_magic(const jbyte* m4);
-
-// Scans IWRAM then EWRAM for a 4-byte magic; returns its GBA address or -1.
-JNIEXPORT jlong JNICALL
-Java_com_pokedaisy_app_MgbaCore_pkFindMagic(JNIEnv* env, jobject thiz, jbyteArray jMagic) {
-    jbyte m4[4];
-    if ((*env)->GetArrayLength(env, jMagic) < 4) {
-        return -1;
-    }
-    (*env)->GetByteArrayRegion(env, jMagic, 0, 4, m4);
-    pthread_rwlock_rdlock(&pk_coreLock);
-    jlong found = pk_find_magic(m4);
-    pthread_rwlock_unlock(&pk_coreLock);
-    return found;
-}
-
-static jlong pk_find_magic(const jbyte* m4) {
-    if (!pk_is_gba(g.core)) {
-        return -1;
-    }
-    const uint32_t regions[][2] = {
-        { 0x03000000u, 0x8000u },     // IWRAM (32 KiB) — struct lives here
-        { 0x02000000u, 0x40000u },    // EWRAM (256 KiB)
-    };
-    uint8_t buf[4096 + 3];
-    for (int r = 0; r < 2; r++) {
-        uint32_t base = regions[r][0];
-        uint32_t size = regions[r][1];
-        for (uint32_t off = 0; off < size; off += 4096) {
-            uint32_t chunk = (size - off < 4096) ? (size - off) : 4096;
-            uint32_t read = chunk + 3;
-            if (off + read > size) read = chunk;   // don't overrun region tail
-            pk_read_range(g.core, base + off, buf, (int) read);
-            for (uint32_t i = 0; i + 4 <= read; i++) {
-                if (buf[i] == (uint8_t) m4[0] && buf[i + 1] == (uint8_t) m4[1] &&
-                    buf[i + 2] == (uint8_t) m4[2] && buf[i + 3] == (uint8_t) m4[3]) {
-                    return (jlong) (base + off + i);
-                }
-            }
-        }
-    }
-    return -1;
-}
-
 JNIEXPORT jstring JNICALL
 Java_com_pokedaisy_app_MgbaCore_pkRomCode(JNIEnv* env, jobject thiz) {
     if (!g.core) {

@@ -1,7 +1,7 @@
 package com.pokedaisy.app.companion.data
 
 /**
- * FireRed's guide (retail and the QoL build), and LeafGreen's - one text,
+ * FireRed's guide, and LeafGreen's - one text,
  * built per version. Every fact here was checked against the pokefirered
  * decomp's map scripts (data/maps/…/scripts.inc) - where an item is given,
  * what a gate checks - rather than taken from memory. The two versions differ

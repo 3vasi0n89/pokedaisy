@@ -80,7 +80,7 @@ const val FIRERED_THEME_ID = 0
  * FireRed's, so what still reads them (the in-game companion's few themed bits)
  * looks as before.
  */
-val isDaisyTheme: Boolean get() = QolColors.currentThemeId == DAISY_THEME_ID
+val isDaisyTheme: Boolean get() = AppColors.currentThemeId == DAISY_THEME_ID
 
 /** The theme stored as [id], or the default for an unknown one. */
 fun themeById(id: Int): ThemeSpec = APP_THEMES.firstOrNull { it.id == id } ?: APP_THEMES.first()
@@ -157,11 +157,11 @@ val APP_THEMES = listOf(
  * capsule, and a pixel font throughout. Field names kept stable so callers
  * don't churn. The "chrome" fields (bgTop, bgBottom, the window/accent/slot
  * colors) are backed by Compose `State` so picking a theme (see [applyTheme]) recomposes
- * every screen live, app-wide — QolColors is a process-wide singleton, so this
+ * every screen live, app-wide — AppColors is a process-wide singleton, so this
  * reaches the top screen AND the Screen-2 companion (a separate Presentation
  * in the same process) at once.
  */
-object QolColors {
+object AppColors {
     private var theme by mutableStateOf(APP_THEMES[0])
 
     val bgTop: Color get() = theme.bgTop
@@ -318,13 +318,13 @@ fun rememberGameFont(game: GameKind?): FontFamily? {
 }
 
 @Composable
-fun QolTheme(content: @Composable () -> Unit) {
+fun AppTheme(content: @Composable () -> Unit) {
     // Pick up the persisted theme choice ONCE per composition (inside the
     // remember{} block itself, not just the id lookup) — this function reads
-    // QolColors.accent/bgBottom/panel/text below to build darkColorScheme(),
+    // AppColors.accent/bgBottom/panel/text below to build darkColorScheme(),
     // so it recomposes every time the theme changes, including from a LIVE
     // pick on this exact screen (e.g. SettingsActivity's Theme page calls
-    // QolColors.applyTheme() directly for instant feedback). A prior version
+    // AppColors.applyTheme() directly for instant feedback). A prior version
     // called applyTheme() unconditionally in the composable body on every
     // recomposition, which re-applied the stale remembered Prefs value and
     // stomped the just-picked theme back to whatever it was on first launch —
@@ -334,7 +334,7 @@ fun QolTheme(content: @Composable () -> Unit) {
     remember(context) {
         // runCatching: previews / screenshot tests may have no real prefs.
         val id = runCatching { com.pokedaisy.app.Prefs(context).appTheme }.getOrDefault(DAISY_THEME_ID)
-        QolColors.applyTheme(themeById(id))
+        AppColors.applyTheme(themeById(id))
         runCatching { DarkMode.load(context) }
     }
 
@@ -351,13 +351,13 @@ fun QolTheme(content: @Composable () -> Unit) {
     )
     MaterialTheme(
         colorScheme = darkColorScheme(
-            primary = QolColors.accent,
+            primary = AppColors.accent,
             onPrimary = Color.White,
-            background = QolColors.bgBottom,
-            surface = QolColors.panel,
-            onSurface = QolColors.text,
-            onSurfaceVariant = QolColors.text,
-            onBackground = QolColors.text,
+            background = AppColors.bgBottom,
+            surface = AppColors.panel,
+            onSurface = AppColors.text,
+            onSurfaceVariant = AppColors.text,
+            onBackground = AppColors.text,
         ),
         typography = typography,
         content = content,
@@ -467,7 +467,7 @@ private fun buildGameBackground(context: android.content.Context, game: GameKind
 }
 
 /**
- * A thick, high-contrast [QolColors.focusRing] ring drawn just inside whatever
+ * A thick, high-contrast [AppColors.focusRing] ring drawn just inside whatever
  * shape the element already uses (over its own edge) — the shared D-pad/keyboard
  * "here's your cursor" indicator. [shape] is the element's own outline (its frame's
  * corner radius): the ring's outer edge is that outline, so none of the frame peeks out
@@ -487,7 +487,7 @@ fun Modifier.gbaFocusRing(focused: Boolean, shape: androidx.compose.ui.graphics.
         val ring = androidx.compose.ui.graphics.Path().apply {
             op(outer, inner, androidx.compose.ui.graphics.PathOperation.Difference)
         }
-        drawPath(ring, QolColors.focusRing)
+        drawPath(ring, AppColors.focusRing)
     }
 
 /** An [androidx.compose.ui.graphics.Outline] as a path. */
@@ -504,23 +504,23 @@ private fun androidx.compose.ui.graphics.Outline.asPath(): androidx.compose.ui.g
  * over the item's innermost (already-drawn) fill color.
  */
 fun Modifier.gbaFocusTint(focused: Boolean, shape: androidx.compose.ui.graphics.Shape): Modifier =
-    if (focused) this.background(QolColors.focusRing.copy(alpha = 0.30f), shape) else this
+    if (focused) this.background(AppColors.focusRing.copy(alpha = 0.30f), shape) else this
 
 /** A FR/LG "window": cream fill, blue outer frame, gold hairline, light inner edge. */
 @Composable
 fun GbaWindow(
     modifier: Modifier = Modifier,
     padding: PaddingValues = PaddingValues(10.dp),
-    fill: Color = QolColors.panel,
+    fill: Color = AppColors.panel,
     content: @Composable () -> Unit,
 ) {
     Box(
         modifier = modifier
-            .background(QolColors.windowFrame, PixelRoundedShape(8.dp))
+            .background(AppColors.windowFrame, PixelRoundedShape(8.dp))
             .padding(2.dp)
-            .background(QolColors.windowGold, PixelRoundedShape(6.dp))
+            .background(AppColors.windowGold, PixelRoundedShape(6.dp))
             .padding(1.dp)
-            .background(QolColors.windowInner, PixelRoundedShape(5.dp))
+            .background(AppColors.windowInner, PixelRoundedShape(5.dp))
             .padding(2.dp)
             .background(fill, PixelRoundedShape(4.dp))
             .padding(padding),
@@ -531,7 +531,7 @@ fun GbaWindow(
  * FR/LG "menu button": a cream key with the blue double-frame, pressable. Used
  * everywhere in place of Material `Button`/`OutlinedButton`, which vanish on the
  * teal backdrop. [selected] gives it the blue "highlighted option" fill; keyboard
- * / D-pad focus draws a thick orange [QolColors.focusRing] ring around the whole
+ * / D-pad focus draws a thick orange [AppColors.focusRing] ring around the whole
  * key, kept a different color from "selected" so the two are never ambiguous.
  * [danger] tints it red for destructive actions (e.g. the confirm button on a
  * delete dialog).
@@ -549,27 +549,27 @@ fun GbaButton(
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
     val frame = when {
-        !enabled -> QolColors.muted
-        danger -> QolColors.hpLow
-        else -> QolColors.windowFrame
+        !enabled -> AppColors.muted
+        danger -> AppColors.hpLow
+        else -> AppColors.windowFrame
     }
     val fill = when {
-        !enabled -> QolColors.panelAlt
+        !enabled -> AppColors.panelAlt
         danger -> Color(0xFFFCE4E0)
-        selected -> QolColors.windowInner
-        else -> QolColors.panel
+        selected -> AppColors.windowInner
+        else -> AppColors.panel
     }
     val contentColor = when {
-        !enabled -> QolColors.muted
-        danger -> QolColors.hpLow
-        else -> QolColors.text
+        !enabled -> AppColors.muted
+        danger -> AppColors.hpLow
+        else -> AppColors.text
     }
     Box(
         modifier = modifier
             .gbaFocusRing(focused, PixelRoundedShape(10.dp))
             .background(frame, PixelRoundedShape(7.dp))
             .padding(2.dp)
-            .background(if (danger) Color(0xFFF8B8A8) else QolColors.windowGold, PixelRoundedShape(5.dp))
+            .background(if (danger) Color(0xFFF8B8A8) else AppColors.windowGold, PixelRoundedShape(5.dp))
             .padding(1.dp)
             .background(fill, PixelRoundedShape(4.dp))
             .gbaFocusTint(focused, PixelRoundedShape(4.dp))
@@ -589,11 +589,11 @@ fun OnSlotText(
     text: String,
     fontSize: Int,
     modifier: Modifier = Modifier,
-    color: Color = QolColors.onSlot,
+    color: Color = AppColors.onSlot,
     weight: FontWeight = FontWeight.Normal,
 ) {
     // NOTE: `style = TextStyle(shadow = ...)` looked right but silently threw
-    // away the ambient pixel-font Typography QolTheme sets — Text() merges its
+    // away the ambient pixel-font Typography AppTheme sets — Text() merges its
     // own `style` param wholesale over LocalTextStyle.current rather than
     // layering just the one field, so every slot label/HP/Lv on the party
     // screen rendered in the platform default font instead of the pixel font.
@@ -607,7 +607,7 @@ fun OnSlotText(
         fontSize = fontSize.sp,
         fontFamily = pixelFontFamily(),
         style = TextStyle(
-            shadow = Shadow(QolColors.onSlotOutline, Offset(1.5f, 1.5f), 0f),
+            shadow = Shadow(AppColors.onSlotOutline, Offset(1.5f, 1.5f), 0f),
         ),
     )
 }
@@ -646,9 +646,9 @@ fun GbaConfirmDialog(
             padding = PaddingValues(16.dp),
         ) {
             Column {
-                Text(title, color = QolColors.text, fontWeight = FontWeight.Bold, fontSize = 21.sp)
+                Text(title, color = AppColors.text, fontWeight = FontWeight.Bold, fontSize = 21.sp)
                 Spacer(Modifier.padding(top = 8.dp))
-                Text(message, color = QolColors.muted, fontSize = 16.sp)
+                Text(message, color = AppColors.muted, fontSize = 16.sp)
                 Spacer(Modifier.padding(top = 16.dp))
                 Row {
                     GbaButton(onClick = onDismiss, modifier = Modifier.weight(1f)) { Text(dismissLabel) }

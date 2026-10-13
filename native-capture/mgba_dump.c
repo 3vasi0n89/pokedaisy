@@ -89,6 +89,7 @@
 #include <mgba/core/config.h>
 #include <mgba/core/blip_buf.h>
 #include <mgba/core/log.h>
+#include <mgba/core/serialize.h>
 #include <mgba-util/vfs.h>
 #include <mgba-util/crc32.h>
 #include <mgba/internal/arm/arm.h>
@@ -726,6 +727,14 @@ int main(int argc, char** argv) {
         } else if (!strcmp(cmd, "dump")) {
             sscanf(line, "%*s %255s", arg1);
             cmdDump(arg1);
+        } else if (!strcmp(cmd, "loadstate")) {
+            // An mGBA savestate (the app's states/<crc>/resume, a slot): where the player was, to look at headless.
+            // Never its save data (SAVESTATE_SAVEDATA), and never against a rebuilt ROM (stale code pointers).
+            sscanf(line, "%*s %255s", arg1);
+            struct VFile* sf = VFileOpen(arg1, O_RDONLY);
+            bool ok = sf && mCoreLoadStateNamed(core, sf, SAVESTATE_RTC);
+            if (sf) sf->close(sf);
+            printf("loadstate: %s %s (frame %u)\n", arg1, ok ? "loaded" : "FAILED", core->frameCounter(core));
         } else if (!strcmp(cmd, "vdump")) {
             sscanf(line, "%*s %255s", arg1);
             cmdVdump(arg1);
@@ -859,12 +868,20 @@ int main(int argc, char** argv) {
 #ifdef HAVE_PK_WIDE
         } else if (!strcmp(cmd, "wideon")) {
             sscanf(line, "%*s %d", &n);
-            // The game by its ROM's CRC32, as the app picks it (pk_wide_games.h).
-            size_t size = core->romSize(core);
-            uint8_t* bytes = malloc(size);
-            for (size_t i = 0; bytes && i < size; i++) bytes[i] = (uint8_t) core->busRead8(core, 0x08000000u + (uint32_t) i);
-            uint32_t crc = bytes ? doCrc32(bytes, size) : 0;
-            free(bytes);
+            // The game by its ROM's CRC32, as the app picks it (pk_wide_games.h): the file's bytes. Not the ROM in
+            // memory - mGBA keeps a cart's GPIO registers (the RTC of Emerald, Unbound...) inside its ROM buffer at
+            // 0xC4, so once the game has read its clock the buffer (and the bus) no longer hash as the file does.
+            uint32_t crc = 0;
+            FILE* rf = fopen(romPath, "rb");
+            if (rf) {
+                fseek(rf, 0, SEEK_END);
+                long fsz = ftell(rf);
+                fseek(rf, 0, SEEK_SET);
+                uint8_t* fb = fsz > 0 ? malloc((size_t) fsz) : NULL;
+                if (fb && fread(fb, 1, (size_t) fsz, rf) == (size_t) fsz) crc = doCrc32(fb, (size_t) fsz);
+                free(fb);
+                fclose(rf);
+            }
             wideOn = pk_wide_configure(crc);
             wideView = (struct PkWideView) { -n, 0, PK_WIDE_W + 2 * n, PK_WIDE_H };
             memset(&wideStats, 0, sizeof(wideStats));

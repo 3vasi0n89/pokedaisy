@@ -63,7 +63,7 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.pokedaisy.app.companion.data.GameKind
 import com.pokedaisy.app.companion.data.activeGame
-import com.pokedaisy.app.companion.ui.theme.QolColors
+import com.pokedaisy.app.companion.ui.theme.AppColors
 import com.pokedaisy.app.companion.ui.theme.gbaFocusRing
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.focus.FocusRequester
@@ -314,7 +314,7 @@ fun OptionLine(
     labelWeight: Float = 0.58f,
     /** A dashed line under the row, between it and the next. */
     divider: Boolean = false,
-    /** An [OptionBadge] after the label ("ALPHA"). */
+    /** An [OptionBadge] after the label ("BETA"). */
     labelBadge: String? = null,
     /** Pixel art before the label (RetroAchievements' trophy), a line high. */
     labelIcon: (@Composable () -> Unit)? = null,
@@ -365,7 +365,7 @@ fun OptionLine(
     }
 }
 
-/** A small tag on a row ("ALPHA" on a mode that isn't finished): white on the value red, pill-shaped. */
+/** A small tag on a row ("BETA" on a feature that isn't finished): white on the value red, pill-shaped. */
 @Composable
 fun OptionBadge(
     text: String, m: GbaTextMetrics, modifier: Modifier = Modifier, fill: Color = OptionColors.value,
@@ -719,10 +719,10 @@ fun AppBackdrop(
         return
     }
     val m = rememberGbaTextMetrics()
-    val (light, lightDark) = if (QolColors.currentThemeId == 0) {
+    val (light, lightDark) = if (AppColors.currentThemeId == 0) {
         Color(0xFF4AADA5) to Color(0xFF398C8C)
     } else {
-        QolColors.slotFill to QolColors.slotFillDark
+        AppColors.slotFill to AppColors.slotFillDark
     }
     // Dark mode: the theme's stripes at night (the game backdrops' scrim, worked out once).
     val scrim = OptionColors.backdropScrim

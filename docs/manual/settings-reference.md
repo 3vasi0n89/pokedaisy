@@ -21,7 +21,7 @@ Many rows are on both. They're the same setting, so changing it on one screen ch
 | --- | --- | --- | --- |
 | `FF SPEED` | `INFINITE`, 1.5x, **2x**, 3x, 4x, 5x, 6x, 8x, 10x | How fast fast-forward runs. `INFINITE` means as fast as the device can go. | [Fast-forward](fast-forward.md) |
 | `FF MODE` | **`SMART`**, `NORMAL` | `SMART` drops to normal speed in menus and on the region map, and keeps battles fast. `NORMAL` is fast everywhere. | [Fast-forward](fast-forward.md) |
-| `FF MUSIC` | **`STEADY`** (tagged `ALPHA`), `SPED-UP`, `OFF` | What you hear while fast-forwarding: the song at its normal tempo, the game's audio sped up, or silence. | [Fast-forward](fast-forward.md) |
+| `FF MUSIC` | **`STEADY`**, `SPED-UP`, `OFF` | What you hear while fast-forwarding: the song at its normal tempo, the game's audio sped up, or silence. | [Fast-forward](fast-forward.md) |
 | `REWIND` | `ON`, **`OFF`** | Keeps the last 20 seconds or so, so the `REWIND HOLD` hotkey can play them backwards. Never touches your save file. | [Fast-forward](fast-forward.md) |
 
 ### Controls

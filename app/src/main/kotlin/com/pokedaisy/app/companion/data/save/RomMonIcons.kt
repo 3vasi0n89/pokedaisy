@@ -15,7 +15,7 @@ import java.util.concurrent.ConcurrentHashMap
  * Party icons for PC BOXES / TRADE, read from the player's own ROM *file* - nothing is bundled, and no game is
  * running in the library. The same decoder as the companion's ([decodeMonIcon]) over the tables the companion
  * already knows for that ROM: retail FireRed rev 0 / 1 and Emerald by hash, the other retail games (LeafGreen,
- * Ruby, Sapphire, other languages) by game code + revision. Anything else (the QoL builds, hacks) gets none, and
+ * Ruby, Sapphire, other languages) by game code + revision. Anything else (hacks) gets none, and
  * the screens show names instead of guessing at addresses.
  */
 class RomMonIcons private constructor(private val rom: File, private val tables: IconTables) {

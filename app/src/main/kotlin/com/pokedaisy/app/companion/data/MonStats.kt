@@ -3,7 +3,7 @@ package com.pokedaisy.app.companion.data
 /**
  * A Pokémon's IVs, EVs and nature - the summary's STATS page. Read from the
  * decrypted BoxPokemon (EVs substruct, Misc substruct's IV word), so only the
- * native RAM paths have it; the QoL struct doesn't export it.
+ * native RAM paths have it.
  *
  * Every list is in the game's own stat order ([STAT_HP] .. [STAT_SPDEF]):
  * HP, ATTACK, DEFENSE, SPEED, SP. ATK, SP. DEF. [stats] are the party struct's
@@ -67,7 +67,7 @@ fun hiddenPowerType(ivs: List<Int>): String {
 
 /**
  * Hidden Power's power (30..70) from the IVs' second bits - the Gen 3 rule,
- * which only the retail games and the QoL builds are known to keep (the
+ * which only the retail games are known to keep (the
  * expansion hacks use Gen 6's flat 60); null where it isn't known.
  */
 fun hiddenPowerPower(ivs: List<Int>): Int? =

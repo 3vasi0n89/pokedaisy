@@ -131,7 +131,7 @@ import com.pokedaisy.app.companion.ui.OptionTextField
 import com.pokedaisy.app.companion.ui.OptionTitleWindow
 import com.pokedaisy.app.companion.ui.drawLayeredFrame
 import com.pokedaisy.app.companion.ui.rememberGbaTextMetrics
-import com.pokedaisy.app.companion.ui.theme.QolTheme
+import com.pokedaisy.app.companion.ui.theme.AppTheme
 import com.pokedaisy.app.companion.ui.theme.gbaFocusRing
 import java.io.File
 import com.pokedaisy.app.companion.ui.PixelRoundedShape
@@ -301,7 +301,7 @@ class LibraryActivity : ComponentActivity() {
         expandIntro = !prefs.expandIntroSeen && prefs.gameAspect != com.pokedaisy.app.companion.GameAspect.WIDE
 
         setContent {
-            QolTheme {
+            AppTheme {
                 // The library's windows (INFO, RENAME, the pick-lists...) register their BACK here, as on the companion.
                 androidx.compose.runtime.CompositionLocalProvider(com.pokedaisy.app.companion.ui.LocalCompanionBack provides libraryBack) {
                     val s = setup
@@ -1763,7 +1763,7 @@ class LibraryActivity : ComponentActivity() {
     /** The launcher's game list, the classic library's look: a header (sort, view, import, refresh, help, settings),
      * RECENTLY PLAYED, then the games as rows or tiles - the cursor's the white card with the focus ring - and the
      * button legend bottom right. [onMain]: on the main display (the Thor's top screen, the wide one), where a row
-     * has room for the file's path. Tap = the cursor onto it, tap again = play. */
+     * has room for the file's path. A tap plays it (the cursor moves onto it first, so BACK finds it there). */
     @Composable
     private fun LauncherList(m: GbaTextMetrics, small: GbaTextMetrics, onMain: Boolean) {
         @Suppress("UNUSED_EXPRESSION") revision
@@ -1775,7 +1775,7 @@ class LibraryActivity : ComponentActivity() {
         val context = with(androidx.compose.ui.platform.LocalDensity.current) { (m.rowHeight / 2).roundToPx() }
         fun card(rom: File, fromRecent: Boolean) = LauncherCard(
             cursor = launcher.isCursor(rom, fromRecent),
-            onTap = { if (launcher.isCursor(rom, fromRecent)) play(rom) else launcher.select(rom, fromRecent) },
+            onTap = { launcher.select(rom, fromRecent); play(rom) },
             onMenu = { launcher.select(rom, fromRecent); openLauncherMenu() },
         )
         Box(Modifier.fillMaxSize()) {

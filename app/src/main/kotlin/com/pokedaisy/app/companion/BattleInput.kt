@@ -25,7 +25,7 @@ interface BattleInput {
     /** Backs out of move-select to action-select (a single B press). */
     fun back()
 
-    /** Whether [switchTo] works in this game (FireRed / Emerald and their QoL builds). */
+    /** Whether [switchTo] works in this game (PokeDaisyActivity's switchAddrsFor knows it). */
     val canSwitch: Boolean get() = false
 
     /** Switches to the party mon with this personality ([com.pokedaisy.app.companion.data.MonView.personality]):

@@ -91,7 +91,7 @@ import com.pokedaisy.app.companion.data.RomItemText
 import com.pokedaisy.app.companion.data.buildSnapshotView
 import com.pokedaisy.app.companion.data.readNativeTelemetry
 import com.pokedaisy.app.companion.data.resetNativeBagCache
-import com.pokedaisy.app.companion.ui.theme.QolTheme
+import com.pokedaisy.app.companion.ui.theme.AppTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
@@ -248,7 +248,7 @@ open class CompanionScreenshotTest {
 
     private fun achievementListShot(content: @androidx.compose.runtime.Composable (com.pokedaisy.app.companion.CompanionAchievements) -> Unit) =
         paparazzi.snapshot {
-            QolTheme {
+            AppTheme {
                 androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
                     GameBackdrop(GameKind.FIRERED)
                     content(SampleCompanion.Achievements(SampleCompanion.achievementsState))
@@ -284,7 +284,7 @@ open class CompanionScreenshotTest {
     @Test fun leaderboardPage() = leaderboardShot(board = 11)
 
     private fun leaderboardShot(board: Int?) = paparazzi.snapshot {
-        QolTheme {
+        AppTheme {
             androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.fillMaxSize()) {
                 GameBackdrop(GameKind.FIRERED)
                 AchievementsScreen(
@@ -320,19 +320,19 @@ open class CompanionScreenshotTest {
     /** The summary's STATS page: IVs / EVs / nature / Hidden Power instead of the moves. */
     @Test
     fun partyDetailStats() = paparazzi.snapshot {
-        QolTheme { MonDetailScreen(SampleCompanion.snapshot.party, 0, {}, {}, initialShowStats = true) }
+        AppTheme { MonDetailScreen(SampleCompanion.snapshot.party, 0, {}, {}, initialShowStats = true) }
     }
 
     /** TAKE (FieldItems.kt): CHARMANDER holds a LEFTOVERS, so the summary's bottom row has TAKE with its icon... */
-    @Test fun partyDetailTake() = paparazzi.snapshot { QolTheme { MonDetailScreen(takeParty, 0, {}, {}, itemUse = takeUse) } }
+    @Test fun partyDetailTake() = paparazzi.snapshot { AppTheme { MonDetailScreen(takeParty, 0, {}, {}, itemUse = takeUse) } }
 
     /** ...and pops up what it did, like the bag's USE / GIVE. */
     @Test fun partyDetailTaken() = paparazzi.snapshot {
-        QolTheme { MonDetailScreen(takeParty, 0, {}, {}, itemUse = takeUse, initialNotice = ItemNotice(200, "Received LEFTOVERS from CHARMANDER.")) }
+        AppTheme { MonDetailScreen(takeParty, 0, {}, {}, itemUse = takeUse, initialNotice = ItemNotice(200, "Received LEFTOVERS from CHARMANDER.")) }
     }
 
     /** ...which asks first. */
-    @Test fun partyDetailTakeAsk() = paparazzi.snapshot { QolTheme { MonDetailScreen(takeParty, 0, {}, {}, itemUse = takeUse, initialTakeAsk = true) } }
+    @Test fun partyDetailTakeAsk() = paparazzi.snapshot { AppTheme { MonDetailScreen(takeParty, 0, {}, {}, itemUse = takeUse, initialTakeAsk = true) } }
 
     private val takeParty get() = SampleCompanion.snapshot.party.mapIndexed { i, m -> m.copy(personality = i + 1L, iconAsset = spriteAsset("pokemon", m.species)) }
 
@@ -354,7 +354,7 @@ open class CompanionScreenshotTest {
     /** Battle INFO's STATS page (FOE IVS on): your battler beside the foe. */
     @Test
     fun battleStats() = paparazzi.snapshot {
-        QolTheme {
+        AppTheme {
             val party = SampleCompanion.snapshot.party
             BattleStatsScreen(listOf(party[0]), listOf(party[1]), "FOE", onBack = {})
         }
@@ -363,7 +363,7 @@ open class CompanionScreenshotTest {
     /** INFO with FOE IVS on in a trainer battle: STATS beside SUGGESTIONS, the FOE TEAM strip still fits. */
     @Test
     fun battleInfoStatsButton() = paparazzi.snapshot {
-        QolTheme {
+        AppTheme {
             val you = SampleCompanion.snapshot.party[0]
             BattleInfoScreen(
                 listOf(you.withMovesVs(foes[1])), listOf(foes[1]), isDouble = false, showHints = true,
@@ -375,7 +375,7 @@ open class CompanionScreenshotTest {
 
     @Test
     fun battleInfo() = paparazzi.snapshot {
-        QolTheme {
+        AppTheme {
             val party = SampleCompanion.snapshot.party
             BattleInfoScreen(listOf(party[0].withMovesVs(party[1])), listOf(party[1]), isDouble = false, showHints = true, onBack = {}, onShowSuggestions = {})
         }
@@ -392,7 +392,7 @@ open class CompanionScreenshotTest {
     /** FOE DETAILS in a double battle: two sprites / HP bars on the player's strip, two foe cards. */
     @Test
     fun battleInfoFoeDetailsDouble() = paparazzi.snapshot {
-        QolTheme {
+        AppTheme {
             val party = SampleCompanion.snapshot.party
             // The sample party has two: each side gets both.
             val foes = listOf(party[1], party[0]).map {
@@ -406,7 +406,7 @@ open class CompanionScreenshotTest {
     }
 
     private fun trainerBattle(foeDetails: Boolean) = paparazzi.snapshot {
-        QolTheme {
+        AppTheme {
             fun foe(species: Int, level: Int, hp: Int, maxHp: Int): MonView {
                 val mu = com.pokedaisy.app.companion.data.typeMatchups(
                     com.pokedaisy.app.companion.data.typeIdOf("Rock"),
@@ -438,7 +438,7 @@ open class CompanionScreenshotTest {
 
     @Test
     fun battleSuggestions() = paparazzi.snapshot {
-        QolTheme {
+        AppTheme {
             val party = SampleCompanion.snapshot.party
             SuggestionsScreen(party, foe = party[1], onBack = {}, onShowInfo = {}, active = listOf(party[0]))
         }
@@ -491,7 +491,7 @@ open class CompanionScreenshotTest {
     /** The picker over a game it's read as (WRONG GAME? / SETTINGS > GAME): the one in use marked. */
     @Test
     fun gamePickerOverlay() = paparazzi.snapshot {
-        QolTheme {
+        AppTheme {
             Box(Modifier.fillMaxSize()) {
                 CompanionScreen(SampleCompanion.snapshot, SampleCompanion.Slots, SampleCompanion.Settings())
                 GamePickerOverlay(SamplePicker.picker(current = "SOULGOLD_V1_2"), SamplePicker.actions, askForSupport = {}, onDismiss = {})
@@ -569,7 +569,7 @@ open class CompanionScreenshotTest {
 
     @Test
     fun dexEntry() = paparazzi.snapshot {
-        QolTheme {
+        AppTheme {
             val dex = SampleCompanion.snapshot.pokedex!!
             val ui = DexUiState(androidx.compose.foundation.lazy.rememberLazyListState())
             ui.open = 6
@@ -588,7 +588,7 @@ open class CompanionScreenshotTest {
     fun dexEntryEmerald() {
         val shot = emeraldDex() ?: return
         paparazzi.snapshot {
-            QolTheme {
+            AppTheme {
                 val ui = DexUiState(androidx.compose.foundation.lazy.rememberLazyListState())
                 ui.open = 258 // MUDKIP
                 PokedexEntryScreen(shot.pokedex!!, ui, 258)
@@ -612,7 +612,7 @@ open class CompanionScreenshotTest {
         listOf(271, 272).forEach { GuideRomSource.party(g, it) }
         GuideRomSource.encounters(g, live.mapGroup, live.mapNum)
         paparazzi.snapshot {
-            QolTheme {
+            AppTheme {
                 val source = rememberGuide(GameKind.EMERALD, live.pokedex, live.guideTables)!!
                 GuideScreen(source, GuideUiState().apply { page = "NEXT BOSS" }, live)
             }
@@ -685,7 +685,7 @@ open class CompanionScreenshotTest {
         PokedexSource.nationalOf(v.pokedex!!.tables, 1)
         v.progress?.let { p -> gameGuide(guideId(kind, live))?.bosses?.forEach { b -> b.trainers(p).forEach { GuideRomSource.party(live, it) } } }
         paparazzi.snapshot {
-            QolTheme {
+            AppTheme {
                 val ui = androidx.compose.runtime.remember {
                     GuideUiState().apply { this.page = page; open?.let { this.open = it.first; level = it.second } }
                 }
@@ -727,7 +727,7 @@ open class CompanionScreenshotTest {
     fun dexEntryUnbound() {
         val shot = unboundDex() ?: return
         paparazzi.snapshot {
-            QolTheme {
+            AppTheme {
                 val ui = DexUiState(androidx.compose.foundation.lazy.rememberLazyListState())
                 ui.open = 443 // GIBLE
                 PokedexEntryScreen(shot.pokedex!!, ui, 443)
@@ -783,7 +783,7 @@ open class CompanionScreenshotTest {
     fun guideEvolutions() = guideShot("EVOLUTIONS", "EVOLUTIONS/YOUR PARTY/PIDGEY/null" to 2)
 
     private fun guideShot(page: String, open: Pair<String, Int>) = paparazzi.snapshot {
-        QolTheme {
+        AppTheme {
             val ui = androidx.compose.runtime.remember {
                 GuideUiState().apply { this.page = page; this.open = open.first; level = open.second }
             }
@@ -807,7 +807,7 @@ open class CompanionScreenshotTest {
     /** ONIX fainted; the trainer is about to use RHYHORN ("Will you change POKéMON?"): INFO shows it, your moves rated against it. */
     @Test
     fun battleFoeNext() = paparazzi.snapshot {
-        QolTheme {
+        AppTheme {
             val you = SampleCompanion.snapshot.party[0]
             BattleInfoScreen(
                 listOf(you.withMovesVs(foes[2])), listOf(foes[2]), isDouble = false, showHints = true, onBack = {}, onShowSuggestions = {},
@@ -819,7 +819,7 @@ open class CompanionScreenshotTest {
     /** A tapped slot the trainer hasn't sent out yet. */
     @Test
     fun battleFoeTapped() = paparazzi.snapshot {
-        QolTheme {
+        AppTheme {
             val you = SampleCompanion.snapshot.party[0]
             BattleInfoScreen(
                 listOf(you.withMovesVs(foes[3])), listOf(foes[3]), isDouble = false, showHints = true, onBack = {}, onShowSuggestions = {},
@@ -1022,7 +1022,7 @@ open class CompanionScreenshotTest {
         if (dexEntry != null && dex != null) {
             PokedexSource.entry(dex.tables, dexEntry); PokedexSource.frontSprite(dex.tables, dexEntry)
             paparazzi.snapshot {
-                QolTheme {
+                AppTheme {
                     androidx.compose.runtime.CompositionLocalProvider(
                         com.pokedaisy.app.companion.ui.theme.LocalGameFont provides com.pokedaisy.app.companion.ui.theme.rememberGameFont(GameKind.YELLOW),
                         com.pokedaisy.app.companion.ui.theme.LocalGameTextScale provides com.pokedaisy.app.companion.ui.theme.gameTextScale(GameKind.YELLOW),
@@ -1097,8 +1097,8 @@ open class CompanionScreenshotTest {
                 ?.let { com.pokedaisy.app.companion.data.MoveLearning.best(it) } != null
         } ?: tms.firstOrNull()
         paparazzi.snapshot {
-            if (learn) QolTheme { MonDetailScreen(v.party, learnAt, {}, {}, learn = ctx, initialLearnPick = learnPick) }
-            else if (tmRow) QolTheme {
+            if (learn) AppTheme { MonDetailScreen(v.party, learnAt, {}, {}, learn = ctx, initialLearnPick = learnPick) }
+            else if (tmRow) AppTheme {
                 // The TMs & HMs alone, so their rows ("TM06 TOXIC") show above the bar.
                 ItemsScreen(
                     v.items.filter { com.pokedaisy.app.companion.data.MoveLearning.isTm(it.itemId) },
@@ -1107,9 +1107,9 @@ open class CompanionScreenshotTest {
                     itemExtra = { item, text, shadow -> TmLearnersRow(ctx!!, v.party, item, text, shadow, rememberGbaTextMetrics()) },
                 )
             }
-            else if (describe) QolTheme { ItemsScreen(v.items, androidx.compose.ui.Modifier.fillMaxSize(), initialItemId = v.items.first().itemId) }
+            else if (describe) AppTheme { ItemsScreen(v.items, androidx.compose.ui.Modifier.fillMaxSize(), initialItemId = v.items.first().itemId) }
             else if (entry == null) CompanionScreen(v, SampleCompanion.Slots, SampleCompanion.Settings(), initialTab = tab)
-            else QolTheme {
+            else AppTheme {
                 val ui = DexUiState(androidx.compose.foundation.lazy.rememberLazyListState())
                 ui.open = entry
                 PokedexEntryScreen(dex!!, ui, entry)
@@ -1198,7 +1198,7 @@ open class CompanionScreenshotTest {
         val v = SampleCompanion.snapshot.copy(game = kind, party = emptyList(), pokedex = dex)
         paparazzi.snapshot {
             if (entry == null) CompanionScreen(v, SampleCompanion.Slots, SampleCompanion.Settings(), initialTab = "DEX")
-            else QolTheme {
+            else AppTheme {
                 val ui = DexUiState(androidx.compose.foundation.lazy.rememberLazyListState())
                 ui.open = entry
                 PokedexEntryScreen(dex!!, ui, entry)
@@ -1250,7 +1250,7 @@ open class CompanionScreenshotTest {
         g?.let { DexDetails.catchSpots(it, species) }
         DexDetails.levelUp(t, g, species); DexDetails.teachable(t, g, species)
         paparazzi.snapshot {
-            QolTheme {
+            AppTheme {
                 val ui = DexUiState(androidx.compose.foundation.lazy.rememberLazyListState())
                 ui.open = entry
                 ui.section = section
@@ -1265,7 +1265,7 @@ open class CompanionScreenshotTest {
     /** A USE that went through: the popup over the bag, with the item and a tick. */
     @Test fun itemsUsedNotice() = paparazzi.snapshot {
         val items = listOf(ItemView(13, "Potion", 2, spriteAsset("items", 13)), ItemView(86, "Repel", 3, spriteAsset("items", 86)))
-        QolTheme {
+        AppTheme {
             GameBackdrop(GameKind.FIRERED)
             ItemsScreen(items, androidx.compose.ui.Modifier.fillMaxSize(), itemUse = PartyItemUse(emptyList()), initialNotice = ItemNotice(13, "Used on CHARMANDER."))
         }
@@ -1288,7 +1288,7 @@ open class CompanionScreenshotTest {
     /** ... which lists the towns visited (PALLET, VIRIDIAN, PEWTER, CERULEAN), the flyer by the title. */
     @Test fun mapFlyList() = paparazzi.snapshot {
         val t = com.pokedaisy.app.companion.data.FlyTargets(com.pokedaisy.app.companion.data.FlyResult.OK, listOf(0x58, 0x59, 0x5A, 0x5B), 1, 0x222)
-        QolTheme { GameBackdrop(GameKind.FIRERED); MapScreen(flyer, androidx.compose.ui.Modifier.fillMaxSize(), fly = flyAction, initialFly = t) }
+        AppTheme { GameBackdrop(GameKind.FIRERED); MapScreen(flyer, androidx.compose.ui.Modifier.fillMaxSize(), fly = flyAction, initialFly = t) }
     }
 
     /** A Repel's description with USE (FieldItems.kt). */
@@ -1302,7 +1302,7 @@ open class CompanionScreenshotTest {
             ItemView(86, "Repel", 3, spriteAsset("items", 86), description = "Prevents weak wild POKéMON from appearing for 100 steps."),
             ItemView(13, "Potion", 2, spriteAsset("items", 13)),
         )
-        QolTheme { ItemsScreen(items, androidx.compose.ui.Modifier.fillMaxSize(), itemUse = use, initialItemId = 86) }
+        AppTheme { ItemsScreen(items, androidx.compose.ui.Modifier.fillMaxSize(), itemUse = use, initialItemId = 86) }
     }
 
     /** FireRed rev 1's USE / GIVE (FieldItems.kt) as the app answers them, with the party pick's slots fixed. */
@@ -1355,7 +1355,7 @@ open class CompanionScreenshotTest {
             ItemView(360, "Bicycle", 1, spriteAsset("items", 360), POCKET_KEY_ITEMS),
             ItemView(262, "Old Rod", 1, spriteAsset("items", 262), POCKET_KEY_ITEMS),
         )
-        QolTheme { GameBackdrop(GameKind.FIRERED); ItemsScreen(items, androidx.compose.ui.Modifier.fillMaxSize(), itemUse = PartyItemUse(emptyList()), initialItemId = 13) }
+        AppTheme { GameBackdrop(GameKind.FIRERED); ItemsScreen(items, androidx.compose.ui.Modifier.fillMaxSize(), itemUse = PartyItemUse(emptyList()), initialItemId = 13) }
     }
 
     /** USE on a POTION: who it would help lit (CHARMANDER and PIDGEY below full HP), the egg, the fainted PIKACHU
@@ -1364,7 +1364,7 @@ open class CompanionScreenshotTest {
         pickParty.forEach { DecompIconSource.get(it.species) }
         val use = PartyItemUse(pickTargets(SlotVerdict.OK, SlotVerdict.OK, SlotVerdict.EGG, SlotVerdict.NO_EFFECT, SlotVerdict.NO_EFFECT, SlotVerdict.NO_EFFECT, held = listOf(0, 183, 0, 0, 200, 0)))
         val items = listOf(ItemView(13, "Potion", 3, spriteAsset("items", 13), POCKET_ITEMS, "Restores the HP of a POKéMON by 20 points."))
-        QolTheme {
+        AppTheme {
             GameBackdrop(GameKind.FIRERED)
             ItemsScreen(items, androidx.compose.ui.Modifier.fillMaxSize(), itemUse = use, initialItemId = 13, party = pickParty, initialPick = false)
         }
@@ -1375,7 +1375,7 @@ open class CompanionScreenshotTest {
         pickParty.forEach { DecompIconSource.get(it.species) }
         val use = PartyItemUse(pickTargets(SlotVerdict.OK, SlotVerdict.OK, SlotVerdict.EGG, SlotVerdict.OK, SlotVerdict.HOLDS_IT, SlotVerdict.OK, held = listOf(0, 183, 0, 0, 200, 0)))
         val items = listOf(ItemView(200, "Leftovers", 1, spriteAsset("items", 200), POCKET_ITEMS, "An item to be held by a POKéMON."))
-        QolTheme {
+        AppTheme {
             GameBackdrop(GameKind.FIRERED)
             ItemsScreen(items, androidx.compose.ui.Modifier.fillMaxSize(), itemUse = use, initialItemId = 200, party = pickParty, initialPick = true)
         }
@@ -1388,7 +1388,7 @@ open class CompanionScreenshotTest {
             ItemView(34, "Ether", 1, spriteAsset("items", 34)), give = false,
             pickTargets(SlotVerdict.NO_EFFECT, SlotVerdict.NO_EFFECT, SlotVerdict.EGG, SlotVerdict.NO_EFFECT, SlotVerdict.OK, SlotVerdict.NO_EFFECT),
         )
-        QolTheme {
+        AppTheme {
             GameBackdrop(GameKind.FIRERED)
             ItemPartyPicker(pick, pickParty, rememberGbaTextMetrics(), itemName = "Ether", picksMove = true, onCancel = {}, onPick = { _, _ -> }, initialMoveSlot = 4)
         }
@@ -1398,7 +1398,7 @@ open class CompanionScreenshotTest {
     @Test fun itemsUseNotNow() = paparazzi.snapshot {
         val use = PartyItemUse(emptyList(), com.pokedaisy.app.companion.data.ItemUseResult.NOT_NOW)
         val items = listOf(ItemView(13, "Potion", 3, spriteAsset("items", 13), POCKET_ITEMS, "Restores the HP of a POKéMON by 20 points."))
-        QolTheme {
+        AppTheme {
             GameBackdrop(GameKind.FIRERED)
             ItemsScreen(items, androidx.compose.ui.Modifier.fillMaxSize(), itemUse = use, initialItemId = 13, party = pickParty, initialPick = false)
         }
@@ -1434,7 +1434,7 @@ open class CompanionScreenshotTest {
 
     @Test
     fun optionSelector() = paparazzi.snapshot {
-        QolTheme {
+        AppTheme {
             val m = rememberGbaTextMetrics()
             OptionSelector("FF SPEED", listOf("INFINITE", "2×", "3×", "4×", "6×"), "4×", { it }, m, onPick = {}, onDismiss = {})
         }
@@ -1442,7 +1442,7 @@ open class CompanionScreenshotTest {
 
     @Test
     fun optionConfirm() = paparazzi.snapshot {
-        QolTheme {
+        AppTheme {
             val m = rememberGbaTextMetrics()
             OptionConfirm("CLOSE GAME?", "Returns to the ROM list. Progress is saved automatically.", "CLOSE", m, onConfirm = {}, onDismiss = {})
         }
@@ -1654,7 +1654,7 @@ object SampleCompanion {
         override val companionShaders = true
         override fun setCompanionShaders(on: Boolean) {}
         override val gameName = "Pokémon FireRed"
-        override val romFileName = "firered-qol.gba"
+        override val romFileName = "firered-hack.gba"
     }
 }
 private const val FR_ROM = "Pokemon - FireRed Version (USA, Europe) (Rev 1).gba"

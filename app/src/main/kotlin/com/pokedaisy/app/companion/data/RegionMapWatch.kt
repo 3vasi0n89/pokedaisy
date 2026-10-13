@@ -13,7 +13,7 @@ import java.io.RandomAccessFile
  * - FireRed / LeafGreen and the hacks built on them: region_map.c's
  *   `sRegionMap` (Town Map, Fly map and wall maps alike), found from the
  *   literal pools that load it next to its struct offset `0x4796`.
- * - Emerald (retail and the QoL build): field_region_map.c's
+ * - Emerald: field_region_map.c's
  *   `sFieldRegionMapHandler`, region_map.c's `sFlyMap`, and - Emerald has no
  *   Town Map item, its map is the PokéNav's HOENN MAP - pokenav.c's
  *   `gPokenavResources->substructPtrs[POKENAV_SUBSTRUCT_REGION_MAP_STATE]`,

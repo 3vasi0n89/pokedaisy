@@ -220,7 +220,7 @@ object GameMedia {
         else listOf(ScreenScraperClient.SYSTEM_GB, ScreenScraperClient.SYSTEM_GBC)
     }
 
-    /** The retail game a hack or QoL build is built on, by its header (searched when nothing else matched). */
+    /** The retail game a hack is built on, by its header (searched when nothing else matched). */
     private fun baseGameTitle(rom: File): String? = baseGameTitle(RomIdentity.gameCode(rom))
 
     /** The retail game a header [code] belongs to (BPR = FireRed ...), as ScreenScraper names it. */

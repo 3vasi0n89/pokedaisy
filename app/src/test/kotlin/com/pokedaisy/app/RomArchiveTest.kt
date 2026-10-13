@@ -63,7 +63,9 @@ class RomArchiveTest {
         assertEquals(RomIdentity.sha1(gba), RomIdentity.sha1(archive))
         assertEquals(RomIdentity.md5(gba), RomIdentity.md5(archive))
         assertEquals(SaveStates.crc32(gba), SaveStates.crc32(archive))
-        assertTrue(CompanionSupport.isSupported(archive))
+        // Judged by the ROM inside: this made-up FireRed isn't a dump the companion knows, in an archive or not.
+        assertFalse(CompanionSupport.isSupported(gba))
+        assertEquals(CompanionSupport.isSupported(gba), CompanionSupport.isSupported(archive))
         val out = File(tmp.root, "out.gba")
         assertEquals("FireRed.gba", RomArchive.extract(archive, out)?.name)
         assertArrayEquals(rom, out.readBytes())
