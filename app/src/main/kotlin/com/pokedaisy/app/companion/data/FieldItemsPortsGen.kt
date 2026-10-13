@@ -61,6 +61,20 @@ val FIELD_ITEMS_PORTS: Map<String, FieldItemFns> = mapOf(
             useFuncs = setOf(0x080A2988L, 0x080A29A4L, 0x080A29C0L, 0x080A2C34L),
         ),
     ),
+    // Pokemon - Blattgruene Edition (Germany).gba (SHA1 0802d1fb...), from BPGE0; masked: repel.
+    "BPGD0" to FieldItemFns(
+        varGet = 0x0806E4CCL, varSet = 0x0806E4E8L, checkBagHasItem = 0x08099FF8L, removeBagItem = 0x0809A290L,
+        fieldControlsLocked = 0x08069948L, repelVar = 0x4020, items = 0x083DA354L,
+        codeCrcs = listOf(0xE6DE47BAL, 0x6E7CC2BEL, 0xD30D656EL, 0xC40BF208L, 0x9C26CCA4L),
+        itemNameLen = 14,
+        party = PartyItemFns(
+            getMonData = 0x0803FAE8L, setMonData = 0x0804027CL, itemNoEffect = 0x08042314L,
+            itemEffect = 0x080412C0L, addBagItem = 0x0809A13CL, party = 0x02024284L, partyCount = 0x02024029L,
+            scratch = 0x0203FFF0L, itemCount = 375, unholdablePockets = setOf(2, 4),
+            codeCrcs = listOf(0x7D0EE480L, 0x9AD3DA91L, 0x788AB547L, 0xEADAC6C9L, 0xC316CD20L),
+            useFuncs = setOf(0x080A17A0L, 0x080A17BCL, 0x080A17D8L, 0x080A1A58L),
+        ),
+    ),
     // Pokemon - Edicion Esmeralda.gba (SHA1 fe1558a3...), from BPEE0; masked: repel.
     "BPES0" to FieldItemFns(
         varGet = 0x0809D6A8L, varSet = 0x0809D6C4L, checkBagHasItem = 0x080D637CL, removeBagItem = 0x080D66FCL,

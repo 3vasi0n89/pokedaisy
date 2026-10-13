@@ -13,7 +13,7 @@ Any GBA or Game Boy game plays in PokeDaisy. "Supported" is about the companion 
 **The original Game Boy Advance games:**
 
 - Pokémon FireRed, LeafGreen, Emerald, Ruby and Sapphire.
-- The English (USA / Europe) releases and the Spanish, German, French, Italian and Japanese ones (LeafGreen in German isn't on the list yet), every revision.
+- The English (USA / Europe) releases and the Spanish, German, French, Italian and Japanese ones, every revision.
 
 **Game Boy:**
 

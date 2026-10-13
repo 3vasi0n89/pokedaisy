@@ -932,7 +932,7 @@ reboot from the `.srm`: every change kept, checksums valid) and in the app on th
 (and English FireRed / Ruby / Sapphire rev 0) are generated: `scripts/port_field_items.py <multi-language dir>` maps each English
 table's functions (code bytes, else BL-masked), party globals and gItems (literal pools) into the port and checks them against the
 ROM (gItems' records, the Repel's steps, the mapped field-use routines = what gItems points at) -> `FieldItemsPortsGen.kt`,
-34 ROMs, each checked headless like the English ones. Not mapped: Japanese Ruby / Sapphire / Emerald. Hacks
+35 ROMs, each checked headless like the English ones. Not mapped: Japanese Ruby / Sapphire / Emerald. Hacks
 that are retail code edited in place (`fieldItemsForGame`, by GameKind): Glazed (Emerald's table, its hooked VarGet / VarSet's CRCs),
 Orange Islands and Ultra Violet (FireRed rev 0's), and the CFRU hacks (Unbound, Radical Red, Odyssey, Amethyst, Gaia, Sword and
 Shield: FireRed rev 0's functions, each hack's own gItems; S&S keeps Berries / Mail in pocket 2, so only the TM pocket is kept out

@@ -373,7 +373,7 @@ POKéMON and reading gBattlerControllerFuncs at each), then `PortsVerifyTest` co
 each with English: party, bag, money, place, the dex (every national number's species,
 height and weight), the guide tables and the gym leader's party, the battlers, the
 battle handlers, and that every name resolves. It writes `build/ports/report.md` and
-`build/ports/fields.png` (every ROM's field, at a glance). All 33 pass. `PortedRomsTest`
+`build/ports/fields.png` (every ROM's field, at a glance). All 34 pass. `PortedRomsTest`
 keeps four of those dumps (`port_*`, against `port_en_*`) as fixtures. The party art the
 European FireReds redrew (HP label, status icons, font) is fingerprinted from the ports
 (`FR_<LANG>_*`, `gen_rom_art_sigs.py`) into `partyfr_<lang>/`; European Ruby / Sapphire
@@ -997,7 +997,7 @@ only keeps a 256x256 ring of tiles in VRAM (`field_camera.c`), so the rest would
   (u16 x, y + the bits, padded to 4 by agbcc - the menu cursor's RAM table showed it); Japanese R/S keep
   FireRed / Emerald's gMain and 4-byte subsprites (`PK_WIDE_FAMILY_RS_JA`). Kotlin asks native (`WideScreen.gameFor` -> `pkWideKnows`); a game WIDE doesn't know shows
   as ORIGINAL (the companion's pick-list tags WIDE NOT YET). `scripts/verify_wide.py` boots every ROM in the table
-  headless with its save and checks a walk (BG0 off) and a scripted battle (BG3 + OBJ) frame by frame - all 81 in the
+  headless with its save and checks a walk (BG0 off) and a scripted battle (BG3 + OBJ) frame by frame - all 82 in the
   table pass (build/wide/verify.md; a hack marked `pending` is checked too - its row is under `PK_WIDE_PENDING`, which only
   verify_wide.py's build defines - but the app doesn't have it). Rerun both after
   touching pk_wide.c.

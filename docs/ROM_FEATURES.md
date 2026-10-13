@@ -14,7 +14,7 @@ change to any of the places listed under "Where it's decided" updates its rows h
 | FireRed | ES | ✅ | ✅ | ◐ ² | ✅ | ✅ | — | — |
 | FireRed | DE / FR / IT / JP | ✅ | ✅ | — | ✅ | ✅ | — | — |
 | LeafGreen | USA/Europe rev 0 and 1 | ✅ | ✅ | — | — | ✅ | ✅ | ✅ |
-| LeafGreen | ES / FR / IT / JP | ✅ | ✅ | — | ✅ | ✅ | — | — |
+| LeafGreen | ES / DE / FR / IT / JP | ✅ | ✅ | — | ✅ | ✅ | — | — |
 | Emerald | USA/Europe | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Emerald | ES / DE / FR / IT | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
 | Emerald | JP | ✅ | ✅ | — | ✅ | — | — | — |
