@@ -663,11 +663,7 @@ class EmulatorEngine(
                 // Refreshes per frame when the display paces 1x; 0 = the timer and blocking audio.
                 val perFrame = if (speed == 1f && track != null && bufferFrames > 0) vsyncsPerFrame() else 0
                 pacedPerFrame = perFrame
-                val ffPer = if (speed > 1f && speed.isFinite()) vsyncsPerFrame().let { k ->
-                    val n = speed * k
-                    val r = n.roundToInt()
-                    if (k > 0 && r >= 1 && kotlin.math.abs(n - r) < 0.01f) r else 0
-                } else 0
+                val ffPer = ffFramesPerRefresh(speed, vsyncsPerFrame())
                 if (ffPer != ffPerTick) {
                     ffPerTick = ffPer
                     ffGroup = 1   // this frame ends a group: drawn, then the next refresh's tick
@@ -1004,4 +1000,17 @@ class EmulatorEngine(
         /** The D-pad's bits: one held = the player walking (the look-around glides back). */
         const val DIRECTIONS = MgbaCore.Key.UP or MgbaCore.Key.DOWN or MgbaCore.Key.LEFT or MgbaCore.Key.RIGHT
     }
+}
+
+/**
+ * Fast-forward on the refresh: game frames to run on each refresh of a screen that shows one game frame per
+ * [refreshesPerFrame] refreshes at 1x (1 on 60 Hz, 2 on 120 Hz), or 0 when [speed] isn't a whole number of
+ * frames a refresh there (the timer paces it). 2x is 2 a refresh on 60 Hz but 1 on 120 Hz - multiplying
+ * instead ran 120 Hz screens at 4x the speed asked for (GitHub #64).
+ */
+internal fun ffFramesPerRefresh(speed: Float, refreshesPerFrame: Int): Int {
+    if (speed <= 1f || !speed.isFinite() || refreshesPerFrame <= 0) return 0
+    val n = speed / refreshesPerFrame
+    val r = n.roundToInt()
+    return if (r >= 1 && kotlin.math.abs(n - r) < 0.01f) r else 0
 }

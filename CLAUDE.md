@@ -972,7 +972,7 @@ starts a frame) and `EmulatorView` waits on `publish`; at most one frame's worth
 hiccup the game raced through frames); the game surface asks for 60 Hz (`Surface.setFrameRate`, a hint), so a 120 Hz
 screen can drop to 60 while it's up. Not yet checked on a Thor - read `fps=` in logcat and `dumpsys SurfaceFlinger`.
 **Fast-forward on the refresh (2026-10-13)**: a whole-number FF speed (2x / 3x / 4x on 60 Hz, `ffPerTick` =
-speed x refreshes per frame) runs its group of game frames back to back on each refresh tick and draws only the last
+speed / refreshes per frame, `ffFramesPerRefresh`: 2x is 1 a refresh on 120 Hz - multiplying ran it at 8x, GitHub #64) runs its group of game frames back to back on each refresh tick and draws only the last
 (EXPAND's window too), so every displayed frame advances the same number of game frames. Timer-paced FF (frames every
 4.17 ms with ms sleeps, EXPAND drawn every 12 ms) gave the 60 Hz screen steps of 3, 3, 5 - the user's "not as smooth as
 RetroArch", measured on the Thor at 4x; the compositor itself presented every 16.6 ms. Other speeds (1.5x, below 1x,
