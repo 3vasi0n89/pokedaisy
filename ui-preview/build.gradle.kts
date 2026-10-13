@@ -58,7 +58,7 @@ tasks.register<JavaExec>("render") {
     workingDir = rootDir.resolve("../app/src/main/assets")
     systemProperty("java.awt.headless", "true")
     systemProperty("game", (project.findProperty("game") as String?) ?: "FIRERED")
-    // -Plang=JA / FR / DE / IT / ES: the app's text in that language.
+    // -Plang=JA / FR / DE / IT / ES / BR / PT: the app's text in that language.
     systemProperty("lang", (project.findProperty("lang") as String?) ?: "")
     // -Pdark=true: every screen in DARK MODE (pair with -Pout=build/shots-dark).
     systemProperty("dark", (project.findProperty("dark") as String?) ?: "")

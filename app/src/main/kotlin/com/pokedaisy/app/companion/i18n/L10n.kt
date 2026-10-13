@@ -6,7 +6,7 @@ import androidx.compose.runtime.setValue
 import java.util.Locale
 
 /**
- * The app's own text in six languages. Game data (Pokémon / move / item / type
+ * The app's own text in eight languages. Game data (Pokémon / move / item / type
  * names, GUIDE pages) isn't translated here - it comes from the game's tables.
  *
  * Text is keyed by its English: `tr("CLOSE GAME")` returns the current
@@ -19,13 +19,17 @@ import java.util.Locale
  * "NEXT" in English and has its own translations. `TranslationsTest` fails
  * on a `tr` / `tk` literal missing from a table.
  */
-enum class AppLanguage(val code: String, val romLetter: Char, val locale: String, val nativeName: String) {
+enum class AppLanguage(val code: String, val romLetter: Char?, val locale: String, val nativeName: String) {
     EN("EN", 'E', "en", "ENGLISH"),
     JA("JA", 'J', "ja", "日本語"),
     FR("FR", 'F', "fr", "FRANÇAIS"),
     DE("DE", 'D', "de", "DEUTSCH"),
     IT("IT", 'I', "it", "ITALIANO"),
     ES("ES", 'S', "es", "ESPAÑOL"),
+    // No Gen 3 game came out in Portuguese, so no ROM picks these: the device's language or the LANGUAGE row does
+    // (GitHub #61). Brazil's is the official games' Portuguese; Portugal's keeps those game words, its own everyday ones.
+    BR("BR", null, "pt-BR", "PORTUGUÊS (BR)"),
+    PT("PT", null, "pt", "PORTUGUÊS (PT)"),
     ;
 
     companion object {
@@ -35,15 +39,24 @@ enum class AppLanguage(val code: String, val romLetter: Char, val locale: String
         fun ofRomCode(gameCode: String?): AppLanguage? =
             gameCode?.getOrNull(3)?.let { l -> entries.firstOrNull { it.romLetter == l } }
 
-        fun ofLocale(locale: Locale): AppLanguage? = entries.firstOrNull { it.locale == locale.language }
+        /** Portuguese by region: Brazil's for pt-BR, Portugal's for every other pt. */
+        fun ofLocale(locale: Locale): AppLanguage? =
+            if (locale.language == "pt") { if (locale.country == "BR") BR else PT }
+            else entries.firstOrNull { it.locale == locale.language }
     }
 }
 
 /** [Prefs.appLanguage]'s value for "follow the ROM". */
 const val LANGUAGE_AUTO = "AUTO"
 
-/** One English string's five translations. */
-data class Tr(val ja: String, val fr: String, val de: String, val it: String, val es: String) {
+/**
+ * One English string's translations. [br] (Brazilian Portuguese) and [pt] (Portugal's) are required in the
+ * app's own tables (`TranslationsTest`), optional in the GUIDE's, which show English in Portuguese.
+ */
+data class Tr(
+    val ja: String, val fr: String, val de: String, val it: String, val es: String,
+    val br: String? = null, val pt: String? = null,
+) {
     fun of(lang: AppLanguage): String? = when (lang) {
         AppLanguage.EN -> null
         AppLanguage.JA -> ja
@@ -51,6 +64,8 @@ data class Tr(val ja: String, val fr: String, val de: String, val it: String, va
         AppLanguage.DE -> de
         AppLanguage.IT -> it
         AppLanguage.ES -> es
+        AppLanguage.BR -> br
+        AppLanguage.PT -> pt
     }
 }
 
@@ -66,14 +81,19 @@ object L10n {
     /**
      * Applies [setting] ([LANGUAGE_AUTO] or an [AppLanguage.code]). AUTO = the
      * running ROM's language ([romCode], its header game code); with no ROM
-     * (Library / Settings) the device's, else English.
+     * (Library / Settings) the device's, else English. A language no ROM comes in
+     * (Portuguese) wins over an English game too.
      */
     fun apply(setting: String, romCode: String?, device: Locale = Locale.getDefault()) {
         if (romCode != lastRomCode) gameLetter = null
         lastRomCode = romCode
         lastSetting = setting
         val game = if (romCode != null) gameLetter?.let { l -> AppLanguage.entries.firstOrNull { it.romLetter == l } } else null
-        autoLanguage = game ?: AppLanguage.ofRomCode(romCode) ?: AppLanguage.ofLocale(device) ?: AppLanguage.EN
+        val rom = game ?: AppLanguage.ofRomCode(romCode)
+        val dev = AppLanguage.ofLocale(device)
+        // No game is in Portuguese: on a Portuguese device an English game shows the device's, not English.
+        autoLanguage = if (rom != null && !(rom == AppLanguage.EN && dev?.romLetter == null && dev != null)) rom
+            else dev ?: AppLanguage.EN
         language = AppLanguage.ofCode(setting) ?: autoLanguage
     }
 

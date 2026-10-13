@@ -1303,14 +1303,15 @@ Sapphire config. `GameText` (EmeraldLanguages.kt) is keyed by game code (`Native
 `localText`). Japanese FireRed / LeafGreen can't read the English saves: verify_ports boots them with Japanese
 ones (`firered_ja` / `leafgreen_ja`) and checks them absolutely.
 
-**Languages** (`companion/i18n/`): the app's own text in EN / JA / FR / DE / IT / ES - not game
+**Languages** (`companion/i18n/`): the app's own text in EN / JA / FR / DE / IT / ES / BR / PT - not game
 data (species / moves / items / types / statuses, which come from each ROM in its own language).
 **GUIDE text** (issue #35: a French game's guide was half English) is translated for the games that come in
 other languages - FireRed / LeafGreen, Emerald, Ruby / Sapphire, Unbound (FR), Quetzal (ES): `trGuide()`
 (`i18n/GuideText.kt`) looks a whole hand-written line (entry, hint, answer, note, boss, HERE's building names) up
 in `i18n/guide/GuideText<Game>.kt`, whose names are the localized games' own (from their ROM tables). Separate
 from the app's `Tr*.kt` (not checked by check_translations.py); `GuideTranslationsTest` fails while one of
-those guides has a line without all five languages and lists them in `app/build/guide-missing/`. A new or
+those guides has a line without all five languages (Portuguese is optional there: `Tr.br` / `.pt` default null, so
+guides show English in Portuguese) and lists them in `app/build/guide-missing/`. A new or
 changed line in those guides needs its translations; English-only hacks' guides stay English.
 `tr("ENGLISH")` looks the English up in the `Tr<Area>.kt` tables (one line per entry, parsed by
 `scripts/check_translations.py`; `TranslationsTest` runs the same check), `tr("{0} LEFT", n)` for
@@ -1319,7 +1320,10 @@ enum labels, GUIDE state keys) - it stays English and the OPTION pieces (OptionL
 OptionTitleWindow, OptionButton, OptionBadge, group titles) translate what they draw. `L10n.language`
 is Compose state: a pick redraws both screens at once. Prefs.appLanguage AUTO = the ROM header's
 language letter (BPR**E**/F/D/I/S/J - every ROM the companion supports today is E) in game, the
-device's in the Library / Settings. Japanese is kana only, like Gen 3's; translations use the
+device's in the Library / Settings. **Portuguese** (GitHub #61) is two languages, BR (Brazil) and PT (Portugal), picked by
+the device's region (`ofLocale`); no ROM is in Portuguese (`romLetter` null), so a Portuguese device's AUTO wins over an
+English game too. Both use the Brazilian games' terms (MOCHILA, GOLPES, PS, MT); PT only swaps everyday words (ECRÃ,
+GUARDAR, FICHEIRO, DEFINIÇÕES). Japanese is kana only, like Gen 3's; translations use the
 localized games' own words and stay about as short as the English (chips and buttons are sized
 for it - `LocalizedScreenshotTest` renders the main screens per language). New UI text: wrap it
-and add its five translations in the area's table.
+and add its seven translations in the area's table.

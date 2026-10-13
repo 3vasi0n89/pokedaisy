@@ -62,7 +62,7 @@ class LocalizedScreenshotTest(private val lang: AppLanguage) {
 
     /** Battle INFO against an Onix with the game in this language: its types in the game's words (GitHub #40). */
     @Test fun battleInfoTypes() {
-        com.pokedaisy.app.companion.data.romLanguage = lang.romLetter
+        com.pokedaisy.app.companion.data.romLanguage = lang.romLetter ?: 'E'   // no game is in Portuguese
         try {
             paparazzi.snapshot(lang.code) {
                 AppTheme {

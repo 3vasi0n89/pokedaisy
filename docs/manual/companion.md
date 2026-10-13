@@ -88,7 +88,9 @@ Every option is explained in the [Settings reference](settings-reference.md). Th
 
 ### LANGUAGE
 
-The app's own text comes in English, Japanese, French, German, Italian and Spanish. `LANGUAGE` starts on `AUTO`, which follows the game's language; pick another and both screens switch at once.
+The app's own text comes in English, Japanese, French, German, Italian, Spanish and Portuguese, with Brazil's and Portugal's Portuguese as two choices. `LANGUAGE` starts on `AUTO`, which follows the game's language; pick another and both screens switch at once.
+
+No game came out in Portuguese, so on a phone or handheld set to Portuguese, `AUTO` shows Portuguese over an English game too. The GUIDE's written pages stay in English in Portuguese.
 
 This only changes PokeDaisy's words (buttons, labels, hints). Pokémon, move and item names stay as your game has them, so a French game shows its French names whatever you pick, and an English game keeps its English ones.
 

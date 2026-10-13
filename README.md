@@ -119,9 +119,10 @@ Pick which tabs sit in the tab bar in the companion's Settings.
 <details>
 <summary><strong>Languages</strong></summary>
 
-The app's own text comes in English, Japanese, French, German, Italian and Spanish. By default it
-follows the ROM's language (the device's in the Library); pick another under LANGUAGE in either
-Settings screen. Species, move and item names and the GUIDE pages stay as the game has them
+The app's own text comes in English, Japanese, French, German, Italian, Spanish and Portuguese
+(Brazil's and Portugal's). By default it follows the ROM's language (the device's in the Library;
+no game is in Portuguese, so a Portuguese device keeps Portuguese over an English game); pick another
+under LANGUAGE in either Settings screen. Species, move and item names and the GUIDE pages stay as the game has them
 (a translated hack's in its language; Quetzal's in the ones its own IDIOMA options pick).
 
 </details>

@@ -55,7 +55,19 @@ class TranslationsTest {
         // Library: no ROM.
         L10n.apply(LANGUAGE_AUTO, null, Locale.GERMAN)
         assertEquals(AppLanguage.DE, L10n.language)
+        // Portuguese by region (GitHub #61): Brazil's, else Portugal's. No ROM is in Portuguese, so an English
+        // game shows the device's Portuguese too; a game in another language keeps its own.
         L10n.apply(LANGUAGE_AUTO, null, Locale.forLanguageTag("pt-BR"))
+        assertEquals(AppLanguage.BR, L10n.language)
+        L10n.apply(LANGUAGE_AUTO, null, Locale.forLanguageTag("pt-PT"))
+        assertEquals(AppLanguage.PT, L10n.language)
+        L10n.apply(LANGUAGE_AUTO, "BPRE", Locale.forLanguageTag("pt-BR"))
+        assertEquals(AppLanguage.BR, L10n.language)
+        L10n.apply(LANGUAGE_AUTO, "BPRF", Locale.forLanguageTag("pt-PT"))
+        assertEquals(AppLanguage.FR, L10n.language)
+        L10n.apply(LANGUAGE_AUTO, "BPRE", Locale.GERMAN)
+        assertEquals(AppLanguage.EN, L10n.language)
+        L10n.apply(LANGUAGE_AUTO, null, Locale.forLanguageTag("ko-KR"))
         assertEquals(AppLanguage.EN, L10n.language)
         // An override wins over the ROM.
         L10n.apply("IT", "BPRE")
