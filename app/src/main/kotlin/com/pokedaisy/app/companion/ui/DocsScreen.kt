@@ -167,7 +167,7 @@ fun DocsReader(
                         GbaText(tr("LOADING THE MANUAL…"), OptionColors.label, OptionColors.labelShadow, m)
                     } else {
                         Text(
-                            tr("The manual comes from pokedaisy.web.app and is kept for reading offline. Connect to the internet once to get it."),
+                            tr("The manual comes from pokedaisy.com and is kept for reading offline. Connect to the internet once to get it."),
                             style = readingStyle(m), color = OptionColors.label,
                         )
                         OptionButton(tr("RETRY"), m, onClick = ::load)

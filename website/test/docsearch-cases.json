@@ -3,7 +3,7 @@
   "docs": {
     "version": 1,
     "rev": "test",
-    "site": "https://pokedaisy.web.app",
+    "site": "https://pokedaisy.com",
     "synonyms": { "ff": ["fast", "forward"], "turbo": ["fast", "forward"], "savestate": ["state"] },
     "sections": [{ "id": "player", "title": "Playing", "pages": ["fast-forward", "saves", "screen", "cheats"] }],
     "pages": [

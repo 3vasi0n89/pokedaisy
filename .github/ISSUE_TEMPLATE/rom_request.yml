@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Support is added per exact version, found by the ROM's SHA-1. The [ROM check](https://pokedaisy.web.app/compatibility/)
+        Support is added per exact version, found by the ROM's SHA-1. The [ROM check](https://pokedaisy.com/compatibility/)
         fills in the fields below for you. **Never attach or link the ROM itself** - only the hack's official page.
   - type: input
     id: game

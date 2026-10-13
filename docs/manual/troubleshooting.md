@@ -23,7 +23,7 @@ See [Library](library.md) for more on folders and importing.
 
 ## The companion says NOT SUPPORTED
 
-The game plays fine, but the companion doesn't recognise the file. Usually that means it's a version of a game or hack that isn't on the list, or a ROM that's been modified. Run the file through the [ROM check](https://pokedaisy.web.app/compatibility/) to see why (the ROM stays on your device).
+The game plays fine, but the companion doesn't recognise the file. Usually that means it's a version of a game or hack that isn't on the list, or a ROM that's been modified. Run the file through the [ROM check](https://pokedaisy.com/compatibility/) to see why (the ROM stays on your device).
 
 If it's built on one of the original GBA games, PokeDaisy may still read it by best effort, or ask you **WHICH GAME IS THIS?** If you'd like it supported properly, tap `ASK FOR SUPPORT`. All of this is explained in [Supported games](supported-games.md).
 
@@ -122,7 +122,7 @@ PokeDaisy has no accounts of its own, no ads and no tracking. Your games and sav
 
 ## How do I report a bug or ask for a game?
 
-- **No GitHub account?** Use the [feedback page](https://pokedaisy.web.app/feedback/) for bug reports, game requests and ideas.
+- **No GitHub account?** Use the [feedback page](https://pokedaisy.com/feedback/) for bug reports, game requests and ideas.
 - **On GitHub:** open an issue at [github.com/lidor30/pokedaisy/issues](https://github.com/lidor30/pokedaisy/issues).
 - **For a game the companion doesn't read,** `ASK FOR SUPPORT` on the companion's NOT SUPPORTED page (or in the game's library `INFO`) fills in the details we need.
 

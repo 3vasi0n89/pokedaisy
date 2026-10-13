@@ -7,7 +7,7 @@ import { REPO_URL } from '../lib/releases.js';
 
 interface Props { title: string; description: string; noindex?: boolean }
 const { title, description, noindex = false } = Astro.props;
-const site = Astro.site ?? new URL('https://pokedaisy.web.app');
+const site = Astro.site ?? new URL('https://pokedaisy.com');
 const ogImage = new URL('/og.png', site).href;
 const favicon = `data:image/svg+xml,${encodeURIComponent(spriteSvg('logo').svg)}`;
 const path = Astro.url.pathname;

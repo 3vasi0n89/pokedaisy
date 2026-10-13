@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://pokedaisy.web.app/sitemap.xml
+Sitemap: https://pokedaisy.com/sitemap.xml

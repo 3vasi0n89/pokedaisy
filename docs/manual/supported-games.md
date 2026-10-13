@@ -46,7 +46,7 @@ Any GBA or Game Boy game plays in PokeDaisy. "Supported" is about the companion 
 | Pokémon SoulGold | 1.1.4, and three builds of 1.2 |
 | Pokémon R.O.W.E. | 2.1.9.1 Experimental |
 
-Not every game gets every tab yet. Some hacks have the guide's live pages only, a few have no guide, and battle panes in many hacks haven't been checked in every kind of battle. The full table, tab by tab, is on the [compatibility page](https://pokedaisy.web.app/compatibility/) and in the [README](https://github.com/lidor30/pokedaisy#supported-games).
+Not every game gets every tab yet. Some hacks have the guide's live pages only, a few have no guide, and battle panes in many hacks haven't been checked in every kind of battle. The full table, tab by tab, is on the [compatibility page](https://pokedaisy.com/compatibility/) and in the [README](https://github.com/lidor30/pokedaisy#supported-games).
 
 ## Support is for the exact version
 
@@ -59,7 +59,7 @@ That's why the version matters:
 
 ## Check your ROM before you play
 
-The website's [ROM check](https://pokedaisy.web.app/compatibility/) tells you whether a file is supported. Pick the ROM and it runs the same checks the app does, right in your browser. **The ROM never leaves your device**: nothing is uploaded.
+The website's [ROM check](https://pokedaisy.com/compatibility/) tells you whether a file is supported. Pick the ROM and it runs the same checks the app does, right in your browser. **The ROM never leaves your device**: nothing is uploaded.
 
 In the app, the library tags games the companion can't read as `NOT SUPPORTED`, and ones it reads only in part as `PARTIALLY SUPPORTED`. A game's `INFO` (long-press it in the library) tells you more.
 
@@ -95,10 +95,10 @@ When the companion can't read a game at all, every tab except `SETTINGS` shows a
 
 Want it supported? Tap `ASK FOR SUPPORT`, on that page or in the game's library `INFO`. It opens a GitHub issue form filled in with the file's name, game code, size and SHA-1, so the right version can be found. It never sends the ROM itself.
 
-No GitHub account? The [feedback page](https://pokedaisy.web.app/feedback/) takes game requests too.
+No GitHub account? The [feedback page](https://pokedaisy.com/feedback/) takes game requests too.
 
 > [!TIP]
-> Before you ask, run the file through the [ROM check](https://pokedaisy.web.app/compatibility/). If it's a supported hack in a different version, getting the listed version is the quickest fix.
+> Before you ask, run the file through the [ROM check](https://pokedaisy.com/compatibility/). If it's a supported hack in a different version, getting the listed version is the quickest fix.
 
 ## Sharing a best effort match (optional)
 

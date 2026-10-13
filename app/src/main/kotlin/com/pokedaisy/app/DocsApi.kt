@@ -19,7 +19,7 @@ import java.security.MessageDigest
  * offline; [DocsStore.refresh] asks again with the copy's ETag, so an unchanged manual costs one small reply.
  */
 object DocsApi {
-    const val URL = "https://pokedaisy.web.app/api/docs/v1/docs.json"
+    const val URL = "https://pokedaisy.com/api/docs/v1/docs.json"
     /** The API version this reader draws; a newer one gets its own path (/v2/) and older apps keep /v1/. */
     const val VERSION = 1
 
@@ -79,7 +79,7 @@ object DocsApi {
         }.orEmpty()
         return Manual(
             rev = o.optString("rev"),
-            site = o.optString("site", "https://pokedaisy.web.app").trimEnd('/'),
+            site = o.optString("site", "https://pokedaisy.com").trimEnd('/'),
             sections = objects(o.optJSONArray("sections")).map { Section(it.getString("id"), it.getString("title"), strings(it.optJSONArray("pages"))) },
             pages = objects(o.optJSONArray("pages")).map { p ->
                 Page(

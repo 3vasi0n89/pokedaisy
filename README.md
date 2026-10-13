@@ -13,7 +13,7 @@
   <strong><a href="https://github.com/lidor30/pokedaisy/releases/latest">Download</a></strong>
   · <strong><a href="#features">Features</a></strong>
   · <strong><a href="#supported-games">Supported games</a></strong>
-  · <strong><a href="https://pokedaisy.web.app/docs/">Manual</a></strong>
+  · <strong><a href="https://pokedaisy.com/docs/">Manual</a></strong>
   · <strong><a href="https://github.com/lidor30/pokedaisy/issues">Report a problem</a></strong>
   · <strong><a href="https://buymeacoffee.com/lidor30g">Buy me a coffee</a></strong>
 </p>
@@ -69,7 +69,7 @@ controls fill the space between the game and the companion.
    - **Add cover art** (optional) with a free [SteamGridDB](https://www.steamgriddb.com) API key.
 
 You can change all of this later in Settings. The full manual is at
-[pokedaisy.web.app/docs](https://pokedaisy.web.app/docs/), and inside the app under Settings > HELP.
+[pokedaisy.com/docs](https://pokedaisy.com/docs/), and inside the app under Settings > HELP.
 
 **No games are included.** Use your own legally dumped ROMs.
 

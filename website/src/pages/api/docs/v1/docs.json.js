@@ -4,6 +4,6 @@
 import { docsApi, loadDocs } from '../../../../lib/docs.js';
 
 export function GET({ site }) {
-  const body = docsApi(loadDocs(), site ?? 'https://pokedaisy.web.app');
+  const body = docsApi(loadDocs(), site ?? 'https://pokedaisy.com');
   return new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json; charset=utf-8' } });
 }

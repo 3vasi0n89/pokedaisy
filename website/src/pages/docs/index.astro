@@ -7,7 +7,7 @@ import { loadDocs } from '../../lib/docs.js';
 import { CREATURE_IDS } from '../../lib/creatures.js';
 
 const docs = loadDocs();
-const site = Astro.site ?? new URL('https://pokedaisy.web.app');
+const site = Astro.site ?? new URL('https://pokedaisy.com');
 const bySlug = new Map(docs.pages.map((p) => [p.slug, p]));
 const jsonLd = [{
   '@context': 'https://schema.org',

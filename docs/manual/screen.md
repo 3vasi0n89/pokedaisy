@@ -35,7 +35,7 @@ A few things worth knowing:
 - **Menus and the title screen** can't be extended, so there the strips glow softly with the colours at the game's edges, and fade back into the map when you return to it.
 - **Supported games:** FireRed, LeafGreen, Emerald, Ruby and Sapphire (every language and revision), plus Unbound, Radical Red, Lazarus, SoulGold, Heart and Soul, Gaia, Odyssey, Amethyst 1.3.0, Glazed, Seaglass, Emerald Imperium, Emerald Rogue, Too Many Types 2, Recharged Yellow, Super Mariomon, Ultra Violet, Sword and Shield Ultimate Plus and Celia's hack.
 
-`EXPAND` is tagged `BETA` in Settings: it works in every game listed above, but it isn't perfect yet, and now and then you may spot something at the edges that the game itself doesn't show. If you do, [tell us](https://pokedaisy.web.app/feedback/) where it happened.
+`EXPAND` is tagged `BETA` in Settings: it works in every game listed above, but it isn't perfect yet, and now and then you may spot something at the edges that the game itself doesn't show. If you do, [tell us](https://pokedaisy.com/feedback/) where it happened.
 
 In a game that doesn't support it yet, `EXPAND` shows as `ORIGINAL` and the companion's pick-list tags it `NOT YET`. You can leave it on: it kicks in for every game that has it.
 

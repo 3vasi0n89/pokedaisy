@@ -17,7 +17,7 @@ export function getStaticPaths() {
 const { page, docs, prev, next } = Astro.props;
 const section = docs.sections.find((s) => s.id === page.section);
 const toc = page.blocks.filter((b) => b.t === 'h2').map((b) => ({ id: b.id, text: b.text }));
-const site = Astro.site ?? new URL('https://pokedaisy.web.app');
+const site = Astro.site ?? new URL('https://pokedaisy.com');
 const url = new URL(`/docs/${page.slug}/`, site).href;
 const firstShot = page.blocks.find((b) => b.t === 'img');
 const jsonLd = [

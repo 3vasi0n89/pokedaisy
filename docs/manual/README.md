@@ -1,7 +1,7 @@
 # The PokeDaisy manual
 
 This folder is the user manual, and the only place it's written. The website turns it into
-[pokedaisy.web.app/docs](https://pokedaisy.web.app/docs/) and the docs API (`/api/docs/v1/docs.json`),
+[pokedaisy.com/docs](https://pokedaisy.com/docs/) and the docs API (`/api/docs/v1/docs.json`),
 and the app's HELP screens (top-screen Settings > HELP, the library's `?` button, the companion's
 SETTINGS > HELP) read that API, keeping a copy for offline reading. Edit a page here and both readers show
 it after the next release (the site, and with it the API, deploys only with an app release).

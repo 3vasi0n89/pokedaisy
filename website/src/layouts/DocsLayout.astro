@@ -18,7 +18,7 @@ interface Props {
 }
 const { title, description, docs, current, toc = [], jsonLd = [], search = true } = Astro.props;
 const pageTitle = (slug: string) => docs.pages.find((p: any) => p.slug === slug)?.title ?? slug;
-const canonical = new URL(Astro.url.pathname, Astro.site ?? 'https://pokedaisy.web.app').href;
+const canonical = new URL(Astro.url.pathname, Astro.site ?? 'https://pokedaisy.com').href;
 ---
 <Base title={title} description={description}>
   <Fragment slot="head">

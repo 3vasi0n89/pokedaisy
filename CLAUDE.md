@@ -1164,7 +1164,7 @@ constant's name, and regenerating the website's `website/src/data/compat.json` (
 fails while it's stale: `UPDATE_SITE_DATA=1 ./gradlew :app:testDebugUnitTest --tests '*SiteDataExportTest'`).
 **Website** (`website/`, Astro, static, Node 22.12+): its ROM check (`src/lib/compat.js`) runs
 `isSupported`'s rules in the browser over that JSON - the ROM is never uploaded; keep the two in step.
-Deployed to Firebase Hosting (`pokedaisy.web.app`) by `.github/workflows/website.yml` **only with an app release**
+Deployed to Firebase Hosting (`pokedaisy.com`) by `.github/workflows/website.yml` **only with an app release**
 (the user's rule: the site never lists games the downloadable APK can't run): a published, non-pre-release release
 deploys its tag's `website/`; pushes to main only build + test; a manual run takes a release tag (redeploy / roll
 back). A site-only fix therefore waits for the next release (or a manual run of the current tag after moving it); the checker's ASK FOR SUPPORT pre-fills `.github/ISSUE_TEMPLATE/rom_request.yml` by field id.

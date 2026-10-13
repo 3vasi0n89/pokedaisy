@@ -35,7 +35,7 @@ UPDATE_SITE_DATA=1 ./gradlew :app:testDebugUnitTest --tests '*SiteDataExportTest
 
 ## Deploy
 
-Firebase Hosting, project `pokedaisy` → https://pokedaisy.web.app (`firebase.json`, `.firebaserc`).
+Firebase Hosting, project `pokedaisy` → https://pokedaisy.com (`firebase.json`, `.firebaserc`).
 `.github/workflows/website.yml` deploys the live site only when an app version is released: publishing a
 GitHub release (not a pre-release) builds and deploys `website/` as it is at that release's tag, so the game
 table and ROM check always match the APK people can download. Pushes to `main` only test and build. Pull

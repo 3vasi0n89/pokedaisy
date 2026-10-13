@@ -69,4 +69,4 @@ The app downloads the manual from the PokeDaisy website and keeps a copy, so aft
 ![The manual inside the app on the top screen: a search box and the list of sections and pages](shots/help-contents.png "The manual on the top screen")
 
 > [!TIP]
-> The same pages are on the website at [pokedaisy.web.app/docs](https://pokedaisy.web.app/docs/), handy for reading on a computer or sending a link to a friend.
+> The same pages are on the website at [pokedaisy.com/docs](https://pokedaisy.com/docs/), handy for reading on a computer or sending a link to a friend.

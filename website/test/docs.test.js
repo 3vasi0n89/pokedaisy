@@ -13,8 +13,8 @@ const text = (f) => readFileSync(join(dir, f), 'utf8');
 test('every page parses, links resolve and screenshots exist', () => {
   const docs = loadDocs();
   assert.ok(docs.pages.length > 0);
-  const api = docsApi(docs, 'https://pokedaisy.web.app/');
-  assert.equal(api.site, 'https://pokedaisy.web.app');
+  const api = docsApi(docs, 'https://pokedaisy.com/');
+  assert.equal(api.site, 'https://pokedaisy.com');
   assert.match(api.rev, /^[0-9a-f]{12}$/);
   for (const p of docs.pages) {
     assert.ok(p.summary.length > 20, `${p.slug}: write a real summary`);

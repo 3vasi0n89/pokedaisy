@@ -26,7 +26,7 @@ test('shared cases rank as expected', () => {
 });
 
 test('the real manual answers common questions', () => {
-  const index = buildIndex(docsApi(loadDocs(), 'https://pokedaisy.web.app'));
+  const index = buildIndex(docsApi(loadDocs(), 'https://pokedaisy.com'));
   for (const [q, page] of cases.manual) {
     const hits = search(index, q, 3).map((h) => h.page);
     assert.ok(hits.includes(page), `"${q}" should find ${page} in its top 3, got ${hits.join(', ')}`);
