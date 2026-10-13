@@ -195,6 +195,9 @@ tasks.withType<Test> {
 dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.activity:activity-compose:1.9.1")
+    // Firebase (play-services-basement) brings androidx.fragment 1.1.0, too old for registerForActivityResult
+    // (lintVitalRelease's InvalidFragmentVersionForActivityResult): ask for one that matches activity 1.9.
+    implementation("androidx.fragment:fragment:1.8.2")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.4")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4")
     implementation("androidx.savedstate:savedstate-ktx:1.2.1")
