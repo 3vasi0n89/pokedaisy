@@ -1783,10 +1783,12 @@ static bool effectsUp(void) {
 //   OFF           not the map at all: a battle, a menu screen, the title
 
 #define OVERLAY_TILES 300         // BG0 tiles (of 600) a picture over the field covers (a text box ~160 at most)
-#define OVERLAY_ROWS 11           // ... in at least this many full-width tile rows (28+ of 30): a picture is one block
-                                  // 14 rows tall; the START menu's SAVE screen covers as many tiles, in windows that
-                                  // never make more than a text box's 6 full rows (Gen 3 draws window text as unique
-                                  // tiles, so counting distinct tiles can't tell them apart)
+#define OVERLAY_ROWS 11           // ... in at least this many full-width tile rows (28+ of 30) one after another: a
+                                  // picture is one block 14 rows tall; the START menu's SAVE screen covers as many
+                                  // tiles, in windows that never make more than a text box's 6 full rows (Gen 3 draws
+                                  // window text as unique tiles, so counting distinct tiles can't tell them apart), and
+                                  // Unbound's full-screen START menu makes 11 - but as two bars, 6 rows over the field
+                                  // and 5 under it, which dimmed the field while the menu was open (GitHub #86)
 #define FADE_LEVEL 12             // a frame whose every sampled pixel is this dark (or as near white) is a fade
 #define OVERLAY_STEP 24           // the dim's ramp per frame (0..256)
 #define OVERLAY_DIM 150           // how dark the map around the picture goes, of 256
@@ -1803,13 +1805,13 @@ static bool questLogPlaying(void) {
     return s == 2 || s == 3;   // QL_STATE_PLAYBACK / QL_STATE_PLAYBACK_LAST
 }
 
-/** BG0 covers most of the screen with a picture: one block of full-width rows (windows, even a save screen's, never
- * make more than a text box's few). */
+/** BG0 covers most of the screen with a picture: one unbroken block of full-width rows (windows, even a save
+ * screen's, never make more than a text box's few; Unbound's START menu bars, top and bottom, aren't one block). */
 static bool overlayUp(void) {
     if (!(io(0) & 0x100)) return false;
     const uint8_t* vram = (const uint8_t*) G->video.vram;
     uint32_t scr = ((io(0x08) >> 8) & 31) * 0x800u;
-    int hofs = io(0x10) & 0x1FF, vofs = io(0x12) & 0x1FF, n = 0, fullRows = 0;
+    int hofs = io(0x10) & 0x1FF, vofs = io(0x12) & 0x1FF, n = 0, run = 0, block = 0;
     for (int ty = 0; ty < 20; ty++) {
         int row = 0;
         for (int tx = 0; tx < 30; tx++) {
@@ -1817,9 +1819,10 @@ static bool overlayUp(void) {
             if (le16(vram + scr + 2 * (uint32_t) (ry * 32 + rx)) & 0x3FF) row++;
         }
         n += row;
-        if (row >= 28) fullRows++;
+        run = row >= 28 ? run + 1 : 0;
+        if (run > block) block = run;
     }
-    return n >= OVERLAY_TILES && fullRows >= OVERLAY_ROWS;
+    return n >= OVERLAY_TILES && block >= OVERLAY_ROWS;
 }
 
 /** The frame is all black or all white: a fade between two maps (a door, a connection building), not a screen of

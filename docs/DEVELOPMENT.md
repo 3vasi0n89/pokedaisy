@@ -943,10 +943,11 @@ only keeps a 256x256 ring of tiles in VRAM (`field_camera.c`), so the rest would
   pull-in never jumps and eases both ends.
 - **FireRed's map preview** (entering Viridian Forest, Mt. Moon...: `map_preview_screen.c` draws a picture on BG0 over
   the field while the new map sits under it, so the margins showed the new map around a boxed picture): OVERLAY is BG0
-  covering >= 300 of the screen's 600 tiles in >= 11 full-width tile rows (`OVERLAY_ROWS`: the picture is one block 14
-  rows tall; the START menu's SAVE screen covers as many tiles but in windows that never make more than a text box's 6
-  full rows - and Gen 3 draws window text as unique tiles, so counting distinct tiles can't tell them apart: it dimmed
-  the SAVE screen once); while it's up the map around the picture is dimmed - the frame's own pixels that aren't BG0's
+  covering >= 300 of the screen's 600 tiles in >= 11 full-width tile rows one after another (`OVERLAY_ROWS`: the picture
+  is one block 14 rows tall; the START menu's SAVE screen covers as many tiles but in windows that never make more than
+  a text box's 6 full rows - and Gen 3 draws window text as unique tiles, so counting distinct tiles can't tell them
+  apart: it dimmed the SAVE screen once; Unbound's full-screen START menu and its save prompt make 11 full rows, but as
+  two bars above and below the field, and dimmed it until the rows had to be one block - GitHub #86); while it's up the map around the picture is dimmed - the frame's own pixels that aren't BG0's
   and all of the margins - ramping over ~11 frames (`OVERLAY_DIM`) and then following the card's own alpha blend as
   the game fades it out (`overlayStrength`: BLDALPHA's first weight while BG0 is the first target), so the map comes
   back exactly as the card goes (it once stayed dark until the card's tiles were gone, then brightened in a step).
