@@ -343,6 +343,33 @@ Java_com_pokedaisy_app_MgbaCore_pkSetKeys(JNIEnv* env, jobject thiz, jint mask) 
     }
 }
 
+/** The game wrote its save within the last ~15 frames: mGBA's dirty flag, cleared (and the file synced) once the
+ * writes have been quiet that long. A Gen 3 save spans several frames, sector after sector. */
+static bool pkSaveDirty(struct mCore* core) {
+    if (pk_is_gba(core)) return ((struct GBA*) core->board)->memory.savedata.dirty != 0;
+    if (core->platform(core) == mPLATFORM_GB) return ((struct GB*) core->board)->sramDirty != 0;
+    return false;
+}
+
+/** Lets a save the game is writing finish before the core stops (leaving the app, CLOSE GAME, a suspend state): the
+ * loop used to stop between any two frames, so leaving mid-"SAVING..." and then removing the app from recents (no
+ * resume to finish it) left the newer slot half written - the game said its save was corrupt and loaded the one
+ * before. Runs frames with no keys, unheard and undrawn, until mGBA has synced the save, at most [maxFrames].
+ * Emu thread, like pkRunFrame. Returns the frames run. */
+JNIEXPORT jint JNICALL
+Java_com_pokedaisy_app_MgbaCore_pkFinishSave(JNIEnv* env, jobject thiz, jint maxFrames) {
+    if (!g.core) return 0;
+    int n = 0;
+    if (pkSaveDirty(g.core)) g.core->setKeys(g.core, 0);
+    while (n < maxFrames && pkSaveDirty(g.core)) {
+        g.core->runFrame(g.core);
+        pkDrainAudio();
+        g.audioAvail = 0;
+        n++;
+    }
+    return n;
+}
+
 JNIEXPORT void JNICALL
 Java_com_pokedaisy_app_MgbaCore_pkRunFrame(JNIEnv* env, jobject thiz) {
     if (!g.core) {

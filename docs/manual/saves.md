@@ -16,6 +16,7 @@ Losing a 40-hour save is the worst thing an emulator can do, so PokeDaisy is car
 
 - **A backup every time you start a game.** Before the game opens its save, PokeDaisy copies it into a `pokedaisy-backups` folder next to the save. It keeps the newest 10 different copies for each game, and only makes a new one when the save has changed.
 - **Resuming never overwrites a newer save.** When a game picks up where you left off, PokeDaisy first checks the save file hasn't changed since. If it has (you played it in RetroArch, copied in another save, or moved your saves folder), the old snapshot is set aside and the game starts from the save file instead.
+- **A save in progress always finishes.** If you leave the game while it says it's saving (HOME, the recent apps screen, `CLOSE GAME`), PokeDaisy lets the save finish before it stops the game, so swiping PokeDaisy away right after can't leave a half written save behind.
 - **Loading another save keeps the old one.** `LOAD SAVE` renames your current save to a dated copy before putting the new one in place.
 
 ## Where your saves live

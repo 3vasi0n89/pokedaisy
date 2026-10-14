@@ -1011,9 +1011,18 @@ class EmulatorEngine(
             // The GL thread lets go of the frame buffer before pkDeinit frees it.
             runCatching { onCoreStopping?.invoke() }.onFailure { Log.e("pokedaisy", "core stopping hook failed", it) }
             videoBuf = null
+            runCatching { finishSave() }
             MgbaCore.pkDeinit()
             runCatching { RetroAchievements.onCoreStopped() }
         }
+    }
+
+    /** A save the game is in the middle of writing gets to finish before the core stops or a suspend state is taken
+     * (MgbaCore.pkFinishSave): a game left mid-save and then swiped away from recents came back with its newer save
+     * slot half written. 600 frames is ten seconds of game time; they run unpaced, a fraction of that. */
+    private fun finishSave() {
+        val n = MgbaCore.pkFinishSave(600)
+        if (n > 0) Log.i("pokedaisy", "let the game finish its save: $n frames")
     }
 
     /** Loads [cheatText] into the core (emu thread). Achievements pause while any is in. */
@@ -1042,6 +1051,7 @@ class EmulatorEngine(
         }
         pendingSuspend?.let { target ->
             pendingSuspend = null
+            finishSave()
             val ok = saveState(target)
             Log.i("pokedaisy", "suspend state save: $ok -> ${target.name}")
             running = false

@@ -1140,6 +1140,10 @@ from the file (a real report: a resume state from a blank first boot wiped an Un
 0xFF). Every start also copies the save to `<saves>/pokedaisy-backups/` first (`SaveBackups`, newest
 10 distinct), which the library's RESTORE BACKUP lists. Never add a path that writes the save
 without both.
+A save the game is writing always finishes before the core stops (`pkFinishSave`, from EmulatorEngine before the suspend
+state and before `pkDeinit`): frames run unheard while mGBA's savedata `dirty` flag is set. Leaving mid-"SAVING..." and
+then swiping the app from recents used to leave the newer slot half written ("The save file is corrupted"; checked
+headless on Emerald: 276 frames to finish).
 **Where a save is** (`SavesLocation.saveFor`, every save path goes through it): the game's own folder (library
 menu > SAVE FOLDER, `Prefs.romSaveDir`, by file name; setting it copies the current save over if the folder has
 none - never moves it), else the first of the saves folder and Settings > FOLDERS > ALSO LOOK IN (`Prefs.extraSaveDirs`)

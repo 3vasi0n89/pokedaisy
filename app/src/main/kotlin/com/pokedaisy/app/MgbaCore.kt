@@ -48,6 +48,10 @@ object MgbaCore {
     external fun pkSetKeys(mask: Int)
     external fun pkRunFrame()
 
+    /** Runs frames (no keys, no sound) until a save the game is writing has reached the file, at most [maxFrames];
+     * returns how many ran. Emu thread. */
+    external fun pkFinishSave(maxFrames: Int): Int
+
     /** WIDE ([WideScreen]): draw the game whose ROM has this CRC32 ([WideScreen.gameFor]; 0 = off). Emu thread. */
     external fun pkWideConfigure(crc: Int)
     /** WIDE: whether pk_wide.c has tables for the ROM with this CRC32 (pk_wide_games.h). Any thread. */
