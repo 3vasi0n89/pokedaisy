@@ -243,6 +243,31 @@ class Prefs(context: Context) {
         get() = p.getBoolean("field_hud", true)
         set(v) = p.edit().putBoolean("field_hud", v).apply()
 
+    /** The QUICK MENU's actions the player keeps (SETTINGS > QUICK MENU), by name; every one by default. */
+    var quickMenuActions: Set<com.pokedaisy.app.companion.QuickAction>
+        // Stored as the ones switched off, so an action added later shows by itself.
+        get() {
+            val off = p.getString("quick_menu_hidden", null)?.split(',').orEmpty()
+            return com.pokedaisy.app.companion.QuickAction.entries.filter { it.name !in off }.toSet()
+        }
+        set(v) = p.edit().putString("quick_menu_hidden", com.pokedaisy.app.companion.QuickAction.entries.filter { it !in v }.joinToString(",") { it.name }).apply()
+
+    /** QUICK MENU > STYLE: RING (default) / GRID; anything else stored (an AUTO from a test build) reads as RING. */
+    var quickMenuStyle: com.pokedaisy.app.companion.QuickMenuStyle
+        get() = p.getString("quick_menu_style", null)?.let { n -> com.pokedaisy.app.companion.QuickMenuStyle.entries.firstOrNull { it.name == n } }
+            ?: com.pokedaisy.app.companion.QuickMenuStyle.RING
+        set(v) = p.edit().putString("quick_menu_style", v.name).apply()
+
+    /** QUICK MENU > LABELS: each action's name under its icon (ON) or icons alone. */
+    var quickMenuLabels: Boolean
+        get() = p.getBoolean("quick_menu_labels", true)
+        set(v) = p.edit().putBoolean("quick_menu_labels", v).apply()
+
+    /** WILD ENCOUNTERS as it was before the QUICK MENU turned it OFF, to put back. */
+    var wildEncountersBeforeOff: Int
+        get() = p.getInt("wild_encounters_before_off", 100)
+        set(v) = p.edit().putInt("wild_encounters_before_off", v).apply()
+
     /** The FIELD HUD's LAYOUT / LOOK / SIZE and the parts switched off (SETTINGS > HUD), by name. */
     var fieldHudStyle: com.pokedaisy.app.companion.FieldHudStyle
         get() {

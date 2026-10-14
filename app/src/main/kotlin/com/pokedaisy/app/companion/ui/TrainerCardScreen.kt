@@ -1,5 +1,9 @@
 package com.pokedaisy.app.companion.ui
 
+import com.pokedaisy.app.companion.ui.theme.gbaFocusRing
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import com.pokedaisy.app.companion.i18n.tr
 import android.graphics.Bitmap
 import androidx.compose.animation.core.Animatable
@@ -90,6 +94,8 @@ fun TrainerCardScreen(card: TrainerCardInfo, art: TrainerCardArt.Art, modifier: 
     val scope = rememberCoroutineScope()
     var flipping by remember { mutableStateOf(false) }
     val m = rememberGbaTextMetrics(1f)
+    val cardFocus = remember { MutableInteractionSource() }
+    val focused by cardFocus.collectIsFocusedAsState()
     Column(
         modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -106,7 +112,12 @@ fun TrainerCardScreen(card: TrainerCardInfo, art: TrainerCardArt.Art, modifier: 
                 Modifier
                     .size(size)
                     .graphicsLayer { scaleY = squash.value }
-                    .soundClickable(enabled = !flipping) {
+                    // The companion's window: the card is the tab's one D-pad stop, A flips it. Never disabled while it
+                    // flips (a disabled clickable drops the focus): a press mid-flip is ignored instead.
+                    .focusStart(true)
+                    .gbaFocusRing(focused, RectangleShape)
+                    .soundClickable(interactionSource = cardFocus, indication = null) {
+                        if (flipping) return@soundClickable
                         flipping = true
                         scope.launch {
                             squash.animateTo(0f, tween(FLIP_MS, easing = LinearEasing))

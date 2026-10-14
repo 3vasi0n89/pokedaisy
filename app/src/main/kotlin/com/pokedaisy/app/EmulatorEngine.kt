@@ -91,6 +91,10 @@ class EmulatorEngine(
     @Volatile var fieldMovesKnown = false
         private set
 
+    /** The player is on a bike, as the field read has it ([MgbaCore.FIELD_AVATAR] games only): QUICK MENU's GET OFF. */
+    @Volatile var riding = false
+        private set
+
     /** AUTO-RUN: B held for the player while walking on the field (holding B walks); never on a bike or in a menu. */
     @Volatile var autoRun = false
 
@@ -765,6 +769,8 @@ class EmulatorEngine(
                 val wildKeep = if (wildFlag != 0L) wildEncounters else 100
                 fieldState = if (gba && fieldGame != WideScreen.OFF) MgbaCore.pkFieldState(runIndoors, wildKeep) else 0
                 if (fieldState and MgbaCore.FIELD_AVATAR != 0) fieldMovesKnown = true
+                val bike = MgbaCore.FIELD_AVATAR or MgbaCore.FIELD_BIKE
+                riding = (fieldState and bike) == bike
                 val battleState = battleInput.gameState
                 scene = when {
                     // A battle's own bag and party screens count as menus, as SMART has them.

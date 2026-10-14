@@ -31,6 +31,7 @@ Many rows are on both. They're the same setting, so changing it on one screen ch
 | `TOUCH PAD` | **`AUTO`**, `ALWAYS`, `NEVER` | The on-screen buttons. `AUTO` shows them until you use a real controller. Applies the next time a game opens. | [Controls](controls.md) |
 | `GAME BUTTONS` | a page | Which button presses A, B, L, R, `START` and `SELECT`, plus `START 2`, `SELECT 2`, `TURBO A` and `TURBO B`. Press the button you want on each row. | [Controls](controls.md) |
 | `HOTKEYS` | **`ON`**, `OFF` (a page) | Shortcuts for save states, fast-forward, slow motion, rewind, `ZOOM` and leaving the game. Each can be a combination of buttons, or cleared with `CLEAR`. Off, every button goes to the game. | [Controls](controls.md) |
+| `QUICK MENU` | a page | Its `STYLE` (**`RING`**, `GRID`), `LABELS` (**`ON`**, `OFF`) and which actions it shows (all of them to start with). Its button is the `QUICK MENU` hotkey. | [Controls](controls.md) |
 
 ### Screen
 
@@ -115,6 +116,7 @@ The companion's list has the same groups, plus a `COMPANION` group of its own. `
 | `TOUCH PAD` | as on the top screen | The on-screen buttons. | [Controls](controls.md) |
 | `GAME BUTTONS` | a page | Rebind a button by tapping it, then tapping a key's name. | [Controls](controls.md) |
 | `HOTKEYS` | a page | Turn hotkeys on or off and bind each to one key (`NONE` unbinds). Button combinations are set on the top screen. | [Controls](controls.md) |
+| `QUICK MENU` | a page | As on the top screen. | [Controls](controls.md) |
 
 ### Companion
 

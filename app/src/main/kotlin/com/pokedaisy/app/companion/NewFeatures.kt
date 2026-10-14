@@ -25,8 +25,14 @@ object NewFeatures {
     /** SETTINGS > HUD > PC: the game's PC from a button beside BAG. */
     const val HUD_PC = "hud_pc"
 
+    /** SETTINGS > QUICK MENU and HOTKEYS > QUICK MENU (companion.ui.QuickMenu). */
+    const val QUICK_MENU = "quick_menu"
+
+    /** SETTINGS > HUD > REPEL STEPS: a REPEL's steps left, counting down beside the balls. */
+    const val HUD_REPEL = "hud_repel"
+
     /** Every feature that gets the tag. */
-    val ALL = listOf(HUD, BATTLE_BUTTONS, GAME_HOTKEYS, COMPANION_WINDOW, HUD_PC)
+    val ALL = listOf(HUD, BATTLE_BUTTONS, GAME_HOTKEYS, COMPANION_WINDOW, HUD_PC, QUICK_MENU, HUD_REPEL)
 
     private const val DAYS = 7
     private const val DAY_MS = 24 * 60 * 60 * 1000L

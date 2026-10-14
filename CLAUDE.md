@@ -678,14 +678,54 @@ above the touch pad (untouched areas fall through) and keeps clear of the pad's 
 An open, unlocked side panel closes on a tap on the game or the HUD and lets the tap through (a HUD item opens right after; `SidePanel.catchOutside`, not with the touch pad up). One screen: while it shows and the side panel is closed, the panel's open tab is a COMPANION button beside BAG / WILD (`SidePanel.closed` / `tabInHud`; the edge tab steps aside), and the side panel's views go above the HUD (`SidePanel(under = fieldHud)`). BACK (or a tap on the dim around a panel) closes its panels first (`hudBack`); the balls open the BAG on POKé BALLS. On GLASS the summary is `MonDetailScreen` under `LocalOptionLook` = `HudGlassLook`: **`OptionLook`** (GbaMenu.kt) is a scoped palette over `OptionColors` (`Live` forwards to it) that the summary screens and `OptionListWindow` read through `optionLook` - capture it before a draw lambda. Title windows' back arrow and the Library's favorite stars are pixel art (`PixelIcons.arrowBack`, `star` / `starOutline`), no Material icons. `FieldHudScreenshotTest` (+ `FieldHudCloseUpScreenshotTest`, 1:1 crops) renders it over a
 real EXPAND frame when `app/build/field-hud/{fr,em}.png` exist (mgba_dump `wideon 22` + `wideshot` on the player's own ROM and save,
 never committed), else a drawn stand-in.
+**QUICK MENU** (`companion/ui/QuickMenu.kt`, `QuickAction` / `QuickMenuStyle` in `companion/QuickMenuSettings.kt`; the QUICK MENU hotkey, L3 by
+default - the user's pick, which took L3 from SLOT PREV, migrated only where unchanged; SETTINGS > QUICK MENU on both screens: STYLE and the
+actions, `Prefs.quickMenuActions` stored as the ones switched off so a new action shows by itself, NEW tag): PC / FLY / REPEL / BIKE / ROD /
+WILD / SAVE STATE / LOAD STATE / FF / COMPANION as tiles over the game in the HUD's view (`QuickMenuState`), the HUD and BATTLE BUTTONS faded
+to 0.25 meanwhile and its open panel closed (`FieldHud(closePanels)`, bumped on open): a press opens it for the D-pad / stick + A (B / the button closes); no hold-and-release (tried, dropped - the user's
+call: a slip on letting go ran actions nobody meant).
+Every tile is the largest one's size (`UniformTiles`, a SubcomposeLayout: measured loose, then all at the max). STYLE RING (default; a tap flips
+it - an AUTO that followed a left stick was tried and dropped, the user's call) or GRID (rows evened out, 9 = 5 + 4); RING = the tiles round a circle, first at the top, clockwise, each the same gap from the last (`ringPlaces`: rectangles at equal angles meet corner to corner closer than side to side, so it walks the gap tile by tile and bisects the radius until the loop closes; an oval when too tall), the highlighted one's name (+ why it's dimmed) in the middle; LABELS (`Prefs.quickMenuLabels`, ON) = names under the icons, OFF = icons alone (a bigger icon, more padding) (the user wanted both; round tiles were tried and turned down);
+the left stick aims (`QuickMenuState.aim`, angle -> tile; each new tile a CLOCK_TICK haptic, `onAimMove` - the user asked for
+it, the one haptic outside the library's long press), the hat still steps. Its keys come from `PokeDaisyActivity.quickMenuTakes` /
+`quickMotion` (withheld from the game like the companion window's, `menuHeld`). Offered only where the game can (`QuickActions.offered`),
+dimmed with a reason when not now (`quickBlocked`). FLY becomes its destination list in the menu (not a Compose-focus page, so it works with
+a controller on both devices); REPEL too when the bag holds more than one kind (`REPEL_KINDS`: id + steps, 100 / 200 / 250), one kind is
+used at once, and it's dimmed while one works (the steps left, below). BIKE / ROD use the game's SELECT register (`KeyItems`): the item
+into `SaveBlock1.registeredItem` (= `moneyOff` + 6 in every retail layout: 0x296 / 0x496), SELECT pressed 2 frames through
+`GbaInput.setPress` (not setScript: BattleInputController rewrites that every frame), the player's own registration put back 20 frames
+later - no per-game function table; FIRERED / EMERALD kinds with a retail money offset only (`keyItemsWork`). Using a bike while riding
+gets off in every Gen 3 game (GetOnOffBike), so BIKE reads GET OFF while `EmulatorEngine.riding` (pkFieldState's AVATAR + BIKE). A stick still tilted when it closes stays away from the game until centred
+(`quickStickHold`: on the ring the stick aims, so A came while tilted and the bike rode off - and FireRed drops SELECT at full bike
+speed, GetPlayerSpeed() == FASTEST); `pressSelect` presses again only where taking it shows for sure (riding flips, or the field
+controls stay locked - getting on / off locks and frees them within a frame, and a blind retry toggled the bike 20 times). WILD
+flips WILD ENCOUNTERS to OFF and back to the value before (`Prefs.wildEncountersBeforeOff`), offered where that row works. The game's
+config reaches it through `activeNativeConfig` (the Poller's setter). The manual can't name the Repel (docs.test.js bans it): the tile
+keeps the game's word, the manual says "the keep-away spray".
+**HUD REPEL STEPS** (`FieldHudPart.REPEL`, NEW tag): VAR_REPEL_STEP_COUNT read from the snapshot's `SaveProgress` (`ItemUse.repelVar` =
+the field items' `repelVar`: FireRed 0x4020, Emerald / R/S 0x4021, so only games whose bag can USE a Repel) in its own window by the balls
+(`RepelSteps`: over them, under them in CORNERS 2, narrow in RAILS, unframed in DOCK's bar; the user picked it from four mock-ups): the
+icon, the count (1.25x, gold for the last 20) + "steps", and a bar draining green / yellow / red against the steps the kind started
+from (`repelFull`: the smallest of 100 / 200 / 250 covering the first count seen). The game doesn't keep which kind is working, so
+it's the plain Repel's icon.
 **BATTLE BUTTONS** (`companion/ui/BattleButtons.kt`, SETTINGS on either screen - one screen only; `Prefs.battleButtons` ON, NEW
 tag): one screen held sideways, a single battle whose input state has been read (`battleRead`: NONE all battle = no touch input),
 FIGHT / POKéMON / RUN at the top of the room right of the GBA's own picture - `EmulatorView.onCoreRect` (EXPAND's middle 3:2 at
 the view's height, which `onGameRect` leaves null) - in the HUD's ComposeView. They're the companion's battle buttons
 (`PlatinumButton`, a thicker `outline`; FIGHT carries the battler's party icon at 3x), the user's call over the HUD's looks. Hidden
 with no room (< 40 GBA px: STRETCH, a docked side panel); 64-76 px wide - at least 64 even past a 16:9 screen's ~22 px margin, into
-the picture's top-right corner (only background there in a battle). FIGHT / POKéMON open the companion's own `MoveGrid(compact)` /
-`PartyPicker` in a title window top right (`BattleButtonsWindow`, `BattleWindow`; the side panel's edge tab steps aside meanwhile);
+the picture's top-right corner (only background there in a battle). FIGHT / POKéMON open lists down the right side over the dimmed game,
+no window behind them (`BattleLists.kt`, the user's call after a modern game's move list): `BattleMoveList` = a row per move in the move
+cards' look (pale card, type-coloured frame) sized in the HUD's GBA pixels - name + PP, type + PWR, the SUPER 2x verdict - and
+`BattlePartyList` = FireRed's party list rows drawn from `partyPaletteFor` (ball + icon, name, Lv / status + BEST / OUT, HP bar +
+numbers; the cursor = the selected colours), each over a blue CANCEL. `BattleList` draws a list at the largest whole GBA pixel that fits the height under the buttons'
+top and 55% of the width (its own `Density`, like the HUD's SIZE; the user asked for more of the screen), and the lists' rows and
+FIGHT / POKéMON / RUN run `EDGE` (13) GBA pixels past the screen's right edge - no right border, corners or bevel band: tabs out of
+the side (the user's call). Party rows: a Poké Ball the row's height poking out of the slot's left edge, the icon at the same
+sprite pixel over it with the game's two poses (ICON_FRAME_TICKS by HP) and the cursor's bob. The buttons slide off right
+(`slide`, 260 ms) while a list is open, the game's party / bag is up (PARTY_OPEN / BAG_OPEN) or there's no battle, and the lists
+slide in from the right over a fading dim (`movesIn` / `partyIn`; snapped in Paparazzi). The buttons are out while one is open (`BattleButtonsWindow`,
+`BattleList`; the side panel's edge tab steps aside meanwhile);
 RUN = `selectAction(3)`, wild battles only. `FittedGbaText` narrows a label's letters (3 tall, 3 / 2 / 1.5 / 1 wide) before it
 shrinks - measure both ways, layoutlib's measurer ignores scaleX. `BattleButtonsScreenshotTest` (+ 1:1 close-ups, a 20:9 phone).
 **ASPECT** (SETTINGS on either screen, `Prefs.stretchGame`, ORIGINAL default / STRETCH): STRETCH fills
@@ -856,7 +896,15 @@ is INFO / SUGGESTIONS only (the user's call: `canUseControls` is false under `Lo
 game's own menu); `FoeSlot`, folder tabs, SORT have rings. A battle pick (from the HUD's BATTLE BUTTONS) or FLY closes the
 window (`PokeDaisyActivity.closeCompanionWindow`, in `battleInput` / `flyAction`). DEX rows turn white on focus, starting on
 `DexUiState.lastOpened`. The HUD keeps its COMPANION button while the window is up (`SidePanel.windowMode`).
-Left: MAP, GUIDE, STATES, CARD, ACHIEVEMENTS, the DEX entry have stops with no focused look yet.
+MAP: the map itself is a stop (the tab's start, `RegionMap` ringed): the D-pad moves its tile cursor (`cursorTile`, through
+`onTap`, so the label names each place), and off its edge on the buttons' side (top / right; bottom-row maps bottom / left)
+`focusProperties` send it to them, and they send LEFT / DOWN (UP on a bottom row) back - inside the map's own box neither finds the
+other. GUIDE: the page cursor follows focus (OptionRows `onFocused`), entries are white on focus and every one is a stop (facts too:
+else the D-pad can't scroll HERE). STATES: the thumbnail isn't a stop (LOAD is), SAVE of the current slot is the start. CARD: one
+ringed stop, never disabled mid-flip (a disabled clickable drops the focus). Rows with nothing to tap that the D-pad should walk
+use `Modifier.focusRow` (ACHIEVEMENTS, leaderboard entries); pages with nothing to tap that scroll use `Modifier.dpadScroll` (DEX INFO
+/ AREA / MOVES, the summary's matchups): one stop, UP / DOWN scroll, focus moves on at the ends, no stop while it fits, its ring just
+outside the edge (inside, it covered the rows' first letters).
 The window (not the side panel: "way too small" there, the user's call) gets `LocalTextStep` -1 on a screen >= 2.5" tall (`COMPACT_TEXT_INCHES`, the short side by xdpi /
 ydpi - the user's call, by height: the RP6 and the 4.5" RP Nova are both ~2.7"): text over 1x a font pixel smaller, never
 below 1x, GBA pixels (paddings) unchanged; `WindowRp6ScreenshotTest` renders it at the RP6's 369 dpi.

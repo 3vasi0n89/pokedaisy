@@ -57,7 +57,7 @@ Chords don't take a button away from the game. SELECT alone still works in game;
 | `UNDO SAVE` | Puts back the state your last save replaced | | F3 |
 | `UNDO LOAD` | Returns to where you were before your last load | | F4 |
 | `SLOT NEXT` | Next save state slot | | ] |
-| `SLOT PREV` | Previous save state slot | L3 (shown as `THUMBL`) | [ |
+| `SLOT PREV` | Previous save state slot | | [ |
 | `FF HOLD` | Fast-forward while held | R2 | Space |
 | `FF TOGGLE` | Fast-forward on or off | | Tab |
 | `SPEED CYCLE` | Steps the game speed through 1x, 1.5x, 2x, 3x and 4x | L2 | = |
@@ -68,6 +68,7 @@ Chords don't take a button away from the game. SELECT alone still works in game;
 | `EXIT GAME` | Leaves the game, back to the library | SELECT + START | Esc |
 | `RESTART GAME` | Starts the game again from its save, like `RESTART GAME` in the companion's `SETTINGS` | | |
 | `CLOSE APP` | Leaves the game (it saves as usual) and closes PokeDaisy completely, so it's gone from your recent apps | | |
+| `QUICK MENU` | Opens the [quick menu](#the-quick-menu), or closes it | L3 (shown as `THUMBL`) | |
 
 `RESTART GAME` and `CLOSE APP` have no buttons until you give them some.
 
@@ -95,6 +96,35 @@ If you pick exactly the buttons another hotkey already has (the same buttons in 
 ### Turning hotkeys off
 
 The `HOTKEYS` switch at the top of the page turns every hotkey off at once. The bindings stay as they are (greyed out) and every button goes straight to the game. It's handy if a game needs a combination that clashes with a hotkey, and you'd rather not rebind anything.
+
+## The quick menu
+
+The quick menu puts the things you'd otherwise dig through menus for under one button. Press L3 (the left stick, pushed in) and your actions pop up over the game, as a ring or in rows (see `STYLE` below). The rest of the HUD fades back while it's open, and any HUD panel you had open (a summary, the map, the bag, the wild list) closes:
+
+| Action | What it does |
+| --- | --- |
+| `PC` | Opens your game's own PC right where you stand, as in the [bag](bag.md). |
+| `FLY` | Lists the places you can fly to; pick one and off you go. Needs a Pokémon in your party that knows the move. |
+| The keep-away spray | Uses an item from your bag that keeps wild Pokémon away (the tile shows its icon and name). With more than one kind in your bag, it lists them with how many you have and how many steps each lasts, so you pick. While one is still working it's greyed out and says how many steps are left. |
+| `BIKE` | Gets on your bike. While you're riding it says `GET OFF` and gets you off. |
+| `ROD` | Casts your best fishing rod. Face the water first. |
+| `WILD` | Turns `WILD ENCOUNTERS` off, and back to what it was (like `50%`) the next time. An `OFF` tag on its corner says they're off. It shows in games where `WILD ENCOUNTERS` works. |
+| `SAVE STATE`, `LOAD STATE` | Saves or loads the current state slot. |
+| `FF` | Turns fast-forward on or off. |
+| `COMPANION` | Opens the companion (on a device with one screen). |
+
+Press L3 and the menu stays open: move with the D-pad or the left stick (on the ring, point the stick at an action), press `A` to use it, and `B` (or L3 again) closes it. You can also tap an action on the screen. While the menu is open your buttons work it, not the game, and the game keeps running underneath.
+
+An action you can't use right now is greyed out and says why, like a battle going on or nothing for it in your bag. `BIKE` and `ROD` use the game's own way of using a registered item, so the game decides the rest: where you can't ride or fish, it tells you so. They work in FireRed, LeafGreen, Ruby, Sapphire and Emerald, and in Emerald Kaizo and Ultra Violet, which run on those games. `PC`, `FLY` and the spray show only in games where the [bag](bag.md) and [map](map.md) offer them.
+
+Pick which actions show, and turn the rest off, in `QUICK MENU` (in the `CONTROLS` group of Settings on either screen). Its `STYLE` picks how they're laid out (tap it to switch):
+
+- `RING` (to start with): the actions round a circle, like the weapon wheel in a modern game, each the same distance from the next. Point the left stick at one, and its name shows in the middle, with a light tick of vibration each time you move onto another one. The D-pad steps round it too.
+- `GRID`: rows of tiles, all the same size. The D-pad steps through them.
+
+`LABELS` (on to start with) puts each action's name under its icon. Turn it off for icons alone, smaller and closer together: the highlighted one is then named under the row, or in the middle of the ring.
+
+To use another button, change the `QUICK MENU` hotkey.
 
 ## Touch pad
 

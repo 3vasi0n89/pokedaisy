@@ -1,5 +1,6 @@
 package com.pokedaisy.app.companion.ui
 
+import androidx.compose.ui.graphics.RectangleShape
 import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -418,7 +419,9 @@ private fun EntryPage(
 @Composable
 private fun DexInfoSection(e: DexEntry?, small: GbaTextMetrics, m: GbaTextMetrics, modifier: Modifier) {
     val u = m.u
-    Column(modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(u * 2)) {
+    // Nothing to tap: one D-pad stop that scrolls (the companion's window).
+    val scroll = rememberScrollState()
+    Column(modifier.dpadScroll(scroll, RectangleShape, m.lineHeight * 3).verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(u * 2)) {
         GbaText(e?.description ?: "", OptionColors.label, OptionColors.labelShadow, small, maxLines = 6)
         Separator(m, Modifier.fillMaxWidth())
         if (e != null) {

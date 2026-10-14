@@ -1,5 +1,7 @@
 package com.pokedaisy.app.companion.ui
 
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import androidx.compose.animation.AnimatedVisibility
@@ -358,16 +360,20 @@ private fun LeaderboardList(
                         )
                     }
                     val u = m.u
+                    val press = remember { MutableInteractionSource() }
+                    val focused by press.collectIsFocusedAsState()
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
+                            // The D-pad's cursor (the companion's window): the white row.
+                            .background(if (focused) OptionColors.rowSelected else Color.Transparent)
                             .then(
                                 if (i < boards.lastIndex && boards[i + 1].section == b.section) {
                                     Modifier.drawBehind { drawRowDivider(OptionColors.divider, u.toPx(), 4 * u.toPx()) }
                                 } else Modifier,
                             )
-                            .soundClickable { onOpen(b.id) }
+                            .soundClickable(interactionSource = press, indication = null) { onOpen(b.id) }
                             .padding(horizontal = u * 8, vertical = u * 5),
                     ) {
                         Column(Modifier.weight(1f)) {
@@ -434,7 +440,8 @@ private fun EntryRow(e: LeaderboardEntry, m: GbaTextMetrics, divider: Boolean) {
         modifier = Modifier
             .fillMaxWidth()
             .height(m.rowHeight)
-            .background(if (e.isMe) OptionColors.rowSelected else Color.Transparent)
+            // The player's own row stays white; the D-pad walks (and scrolls) the others (the companion's window).
+            .focusRow(selected = e.isMe)
             .then(if (divider) Modifier.drawBehind { drawRowDivider(OptionColors.divider, u.toPx(), 4 * u.toPx()) } else Modifier)
             .padding(horizontal = u * 8),
     ) {
@@ -451,7 +458,8 @@ private fun AchievementRow(a: Achievement, m: GbaTextMetrics, small: GbaTextMetr
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (selected) OptionColors.rowSelected else Color.Transparent)
+            // A stop for the D-pad, so the list can be walked and scrolled (the companion's window); white while focused.
+            .focusRow(selected)
             .then(if (divider) Modifier.drawBehind { drawRowDivider(OptionColors.divider, u.toPx(), 4 * u.toPx()) } else Modifier)
             .padding(horizontal = u * 6, vertical = u * 4),
     ) {

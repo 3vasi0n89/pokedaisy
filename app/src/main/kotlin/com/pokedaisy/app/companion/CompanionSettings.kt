@@ -175,6 +175,14 @@ interface CompanionSettings {
     val fieldHudStyle: com.pokedaisy.app.companion.FieldHudStyle get() = com.pokedaisy.app.companion.FieldHudStyle()
     fun setFieldHudStyle(style: com.pokedaisy.app.companion.FieldHudStyle) {}
 
+    /** SETTINGS > QUICK MENU: the actions it shows - see [Prefs.quickMenuActions]. */
+    val quickMenuActions: Set<com.pokedaisy.app.companion.QuickAction> get() = com.pokedaisy.app.companion.QuickAction.entries.toSet()
+    fun setQuickMenuActions(actions: Set<com.pokedaisy.app.companion.QuickAction>) {}
+    val quickMenuStyle: com.pokedaisy.app.companion.QuickMenuStyle get() = com.pokedaisy.app.companion.QuickMenuStyle.RING
+    fun setQuickMenuStyle(style: com.pokedaisy.app.companion.QuickMenuStyle) {}
+    val quickMenuLabels: Boolean get() = true
+    fun setQuickMenuLabels(on: Boolean) {}
+
     /** FPS / CPU over the game's corner - see [Prefs.showPerformance]. */
     val showPerformance: Boolean get() = false
     fun setShowPerformance(on: Boolean) {}

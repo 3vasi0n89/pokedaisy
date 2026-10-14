@@ -18,6 +18,10 @@ class TelemetrySampler {
 
     private var kind: GameKind? = null
     private var nativeCfg: NativeConfig? = null
+        set(v) {
+            field = v
+            activeNativeConfig = v
+        }
     // A Game Boy game's (Gen 1) addresses instead of [nativeCfg].
     private var gen1Cfg: Gen1Config? = null
     private var lastError: String? = null

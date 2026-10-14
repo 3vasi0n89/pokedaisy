@@ -1,5 +1,6 @@
 package com.pokedaisy.app.companion.ui
 
+import androidx.compose.ui.graphics.RectangleShape
 import com.pokedaisy.app.companion.i18n.tk
 import com.pokedaisy.app.companion.i18n.tr
 import androidx.compose.animation.AnimatedContent
@@ -465,7 +466,11 @@ internal fun MatchupSection(mon: MonView, small: GbaTextMetrics, modifier: Modif
 @Composable
 private fun MatchupColumn(sections: List<Pair<String, List<TypeMatchup>>>, small: GbaTextMetrics, inline: Boolean, scroll: Boolean) {
     Column(
-        Modifier.fillMaxWidth().then(if (scroll) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+        Modifier.fillMaxWidth().then(
+            if (!scroll) Modifier
+            // Nothing to tap: one D-pad stop that scrolls (the companion's window).
+            else rememberScrollState().let { s -> Modifier.dpadScroll(s, RectangleShape, small.lineHeight * 3).verticalScroll(s) },
+        ),
         verticalArrangement = Arrangement.spacedBy(small.u * 3),
     ) {
         if (sections.isEmpty()) {

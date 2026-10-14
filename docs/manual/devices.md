@@ -52,6 +52,8 @@ On a tall screen, about 2.5 inches high or more like the Retroid Pocket 6, the c
 
 In the bag, moving the cursor shows each item's description, and `A` on the item goes to its `USE` and `GIVE` buttons. In a battle, the window's `BATTLE` tab shows `INFO` and `SUGGESTIONS` only, without the battle buttons: close the window and pick your move in the game's own menu. `FLY` on the map closes the window, so you see the flight.
 
+On the `MAP`, the D-pad moves the map's own cursor from place to place and names each one, like the game's Town Map. Go past the map's edge toward its buttons to reach `PLACES`, `FLY` and the rest. In `GUIDE`, moving down the page list shows each page, and `A` on an entry shows its hint, then its answer. Pages with nothing to pick, like a Pokédex entry's `MOVES`, scroll with the D-pad once the cursor is on them. On the `CARD`, `A` flips it.
+
 The game keeps running behind the window, dimmed. It just doesn't get your button presses until you close the window, and then they go straight back to the game. A button you're still holding as the window closes doesn't count in the game until you let go of it.
 
 Small `L` and `R` keys at both ends of the tab bar remind you which buttons change tabs. You can tap them too.

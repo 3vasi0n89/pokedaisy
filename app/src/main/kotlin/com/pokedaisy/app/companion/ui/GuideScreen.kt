@@ -1,6 +1,10 @@
 package com.pokedaisy.app.companion.ui
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -209,6 +213,8 @@ fun GuideScreen(source: GuideSource, ui: GuideUiState, snapshot: SnapshotView, m
                     selected = pages.indexOf(page),
                     minRow = m.rowHeight * 1.1f,
                     labelWeight = 1f,
+                    // The D-pad (the companion's window): the cursor shows the page it's on, as a tap does.
+                    onFocused = { i -> pages.getOrNull(i)?.let { ui.page = it.title } },
                 )
             }
         }
@@ -268,7 +274,8 @@ fun GuideNotice(verified: Boolean, onAccept: () -> Unit, onBack: () -> Unit, mod
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(u * 4)) {
                         OptionButton(tk("GO BACK"), m, onClick = onBack, modifier = Modifier.weight(1f).height(m.rowHeight * 1.4f))
-                        OptionButton(tk("I UNDERSTAND"), m, onClick = onAccept, emphasis = true, modifier = Modifier.weight(1f).height(m.rowHeight * 1.4f))
+                        // Where the D-pad starts (the companion's window).
+                        OptionButton(tk("I UNDERSTAND"), m, onClick = onAccept, emphasis = true, modifier = Modifier.weight(1f).height(m.rowHeight * 1.4f).focusStart(true))
                     }
                 }
             }
@@ -291,13 +298,20 @@ private fun SectionHeading(section: GuideSection, small: GbaTextMetrics) {
 private fun EntryRow(e: GuideEntry, level: Int, owned: Boolean, m: GbaTextMetrics, small: GbaTextMetrics, onClick: () -> Unit) {
     val u = m.u
     val noRipple = remember { MutableInteractionSource() }
+    val focused by noRipple.collectIsFocusedAsState()
     val showHint = e.hint != null && level >= 1
     val showAnswer = e.steps > 0 && level >= e.steps
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            // The D-pad's cursor (the companion's window): the white row. A fact with nothing to reveal is a stop too, so
+            // the D-pad walks - and scrolls - the whole page.
+            .background(if (focused) OptionColors.rowSelected else Color.Transparent)
             .drawBehind { drawRowDivider(OptionColors.divider, u.toPx(), 4 * u.toPx()) }
-            .soundClickable(interactionSource = noRipple, indication = null, enabled = e.steps > 0, onClick = onClick)
+            .then(
+                if (e.steps > 0) Modifier.soundClickable(interactionSource = noRipple, indication = null, onClick = onClick)
+                else Modifier.focusable(interactionSource = noRipple),
+            )
             .padding(horizontal = u * 6, vertical = u * 4),
         verticalArrangement = Arrangement.spacedBy(u * 2),
     ) {

@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
@@ -160,6 +161,29 @@ class PokeDaisyActivity : Activity() {
     private lateinit var fieldHud: ComposeView
     private val hudOn = androidx.compose.runtime.mutableStateOf(true)
     private val hudStyle = androidx.compose.runtime.mutableStateOf(com.pokedaisy.app.companion.FieldHudStyle())
+    /** The QUICK MENU (companion.ui.QuickMenu, the QUICK MENU hotkey) and the actions it shows (SETTINGS > QUICK MENU). */
+    private val quickMenu = com.pokedaisy.app.companion.ui.QuickMenuState().also { q ->
+        q.onRun = { runQuickAction(it) }
+        q.onRepel = { id -> itemUse.use(id) { o -> showHud(com.pokedaisy.app.companion.ui.itemUseMessage(o)) } }
+        // The stick onto another tile: a light tick, like a game's weapon wheel (the D-pad's steps stay silent).
+        // The stick still tilted when it closes (the ring is aimed with it): kept from the game until it's let go, or the
+        // player rides off - and a bike at full speed ignores the SELECT that BIKE / ROD press.
+        q.onClose = { if (quickStickOff) quickStickHold = true }
+        q.onAimMove = { if (::fieldHud.isInitialized) fieldHud.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK) }
+        q.onFly = { mapsec, targets ->
+            flyAction.fly(mapsec, targets) { r ->
+                if (r != com.pokedaisy.app.companion.data.FlyResult.OK) showHud(com.pokedaisy.app.companion.ui.flyMessage(r))
+            }
+        }
+    }
+    private val quickShown = androidx.compose.runtime.mutableStateOf(com.pokedaisy.app.companion.QuickAction.entries.toSet())
+    /** The joystick's directions while the QUICK MENU is open, so a new one is a press. */
+    private var quickHat = 0
+    /** The stick / hat off centre at the QUICK MENU's last motion event; then, once it closed, held from the game until centred. */
+    private var quickStickOff = false
+    private var quickStickHold = false
+    /** Bumped as the QUICK MENU opens: the HUD closes its open panel (FieldHud's closePanels). */
+    private val hudCloseTick = androidx.compose.runtime.mutableIntStateOf(0)
     private val hudUpright = androidx.compose.runtime.mutableStateOf(false)
     private val hudClear = androidx.compose.runtime.mutableStateOf(0 to 0)
     private val hudFrame = androidx.compose.runtime.mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)
@@ -289,6 +313,7 @@ class PokeDaisyActivity : Activity() {
     }
 
     private val itemUse = object : com.pokedaisy.app.companion.ItemUse {
+        override val repelVar get() = fieldItemSupport()?.fns?.repelVar
         override fun canUse(itemId: Int) = fieldItemSupport()?.canUse(itemId) == true
         override fun canGive(itemId: Int) = fieldItemSupport()?.canGive(itemId) == true
         override fun marked(itemId: Int) = fieldItemSupport()?.marked(itemId) == true
@@ -354,6 +379,129 @@ class PokeDaisyActivity : Activity() {
             onGame(failed, { o -> if (o.result == com.pokedaisy.app.companion.data.ItemUseResult.USED) closeCompanionWindow(); done(o) }) { s, calls, busy ->
                 com.pokedaisy.app.companion.data.ItemUseOutcome(com.pokedaisy.app.companion.data.openPc(s.fns, busy, calls))
             }
+    }
+
+    /** What the QUICK MENU's tiles do here ([quickMenu]). */
+    private val quickActions = object : com.pokedaisy.app.companion.ui.QuickActions {
+        override fun offered(action: com.pokedaisy.app.companion.QuickAction) = when (action) {
+            com.pokedaisy.app.companion.QuickAction.PC -> itemUse.canPc()
+            com.pokedaisy.app.companion.QuickAction.FLY -> flyAction.canFly()
+            com.pokedaisy.app.companion.QuickAction.REPEL ->
+                fieldItemSupport()?.let { s -> com.pokedaisy.app.companion.data.REPEL_ITEMS.any { s.canUse(it) } } == true
+            com.pokedaisy.app.companion.QuickAction.BIKE, com.pokedaisy.app.companion.QuickAction.ROD -> keyItemsWork()
+            com.pokedaisy.app.companion.QuickAction.WILD -> companionSettings.wildEncountersSupported
+            com.pokedaisy.app.companion.QuickAction.SAVE_STATE, com.pokedaisy.app.companion.QuickAction.LOAD_STATE,
+            com.pokedaisy.app.companion.QuickAction.FF -> true
+            // One screen held sideways: the companion's window or side panel (upright, it's always open).
+            com.pokedaisy.app.companion.QuickAction.COMPANION -> hudSingleScreen.value && !hudUpright.value
+        }
+
+        override fun run(action: com.pokedaisy.app.companion.QuickAction) = runQuickAction(action)
+
+        override fun flyTo(mapsec: Int, targets: com.pokedaisy.app.companion.data.FlyTargets) = quickMenu.onFly(mapsec, targets)
+
+        override fun repel(itemId: Int) = quickMenu.onRepel(itemId)
+
+        override fun riding() = ::engine.isInitialized && engine.riding
+
+        override fun wildEncounters() = Prefs(this@PokeDaisyActivity).wildEncounters
+
+        override fun repelSteps() = itemUse.repelVar?.let { telemetry.snapshot.value.progress?.variable(it) } ?: 0
+    }
+
+    private fun runQuickAction(action: com.pokedaisy.app.companion.QuickAction) {
+        if (!::engine.isInitialized) return
+        val snap = telemetry.snapshot.value
+        when (action) {
+            com.pokedaisy.app.companion.QuickAction.PC -> itemUse.openPc { o ->
+                if (o.result != com.pokedaisy.app.companion.data.ItemUseResult.USED) showHud(com.pokedaisy.app.companion.ui.itemUseMessage(o))
+            }
+            com.pokedaisy.app.companion.QuickAction.FLY -> flyAction.targets { t ->
+                if (t.result == com.pokedaisy.app.companion.data.FlyResult.OK) quickMenu.fly = t
+                else {
+                    quickMenu.close()
+                    showHud(com.pokedaisy.app.companion.ui.flyMessage(t.result))
+                }
+            }
+            // The menu picks the kind (QuickMenuState.onRepel): here only if asked straight, the weakest one held.
+            com.pokedaisy.app.companion.QuickAction.REPEL ->
+                com.pokedaisy.app.companion.ui.repelKindsIn(snap).firstOrNull()?.let { quickMenu.onRepel(it) }
+            // OFF, or back to what it was before (NORMAL if it was never set).
+            com.pokedaisy.app.companion.QuickAction.WILD -> {
+                val prefs = Prefs(this)
+                val now = prefs.wildEncounters
+                val next = if (now != 0) { prefs.wildEncountersBeforeOff = now; 0 } else prefs.wildEncountersBeforeOff.takeIf { it > 0 } ?: 100
+                companionSettings.setWildEncounters(next)
+                showHud(com.pokedaisy.app.companion.i18n.tr("WILD ENCOUNTERS") + ": " +
+                    com.pokedaisy.app.companion.i18n.tr(com.pokedaisy.app.companion.ui.wildEncountersLabel(next)))
+            }
+            com.pokedaisy.app.companion.QuickAction.BIKE ->
+                com.pokedaisy.app.companion.data.KeyItems.firstIn(snap.items, com.pokedaisy.app.companion.data.KeyItems.BIKES)?.let(::useKeyItem)
+            com.pokedaisy.app.companion.QuickAction.ROD ->
+                com.pokedaisy.app.companion.data.KeyItems.firstIn(snap.items, com.pokedaisy.app.companion.data.KeyItems.RODS)?.let(::useKeyItem)
+            com.pokedaisy.app.companion.QuickAction.SAVE_STATE -> engine.requestSaveState(engine.currentSlot)
+            com.pokedaisy.app.companion.QuickAction.LOAD_STATE -> engine.requestLoadState(engine.currentSlot)
+            com.pokedaisy.app.companion.QuickAction.FF -> engine.toggleFastForward()
+            com.pokedaisy.app.companion.QuickAction.COMPANION -> if (::sidePanel.isInitialized) sidePanel.openPanel()
+        }
+    }
+
+    /** BIKE / ROD work here: a retail FireRed / Emerald-family game (ROM code the field items recognise) whose
+     * SaveBlock1 has the SELECT register where KeyItems expects it. */
+    private fun keyItemsWork(): Boolean {
+        val game = telemetry.snapshot.value.game
+        if (game != com.pokedaisy.app.companion.data.GameKind.FIRERED && game != com.pokedaisy.app.companion.data.GameKind.EMERALD) return false
+        val cfg = com.pokedaisy.app.companion.data.activeNativeConfig ?: return false
+        return (cfg.moneyOff == 0x290L || cfg.moneyOff == 0x490L) && fieldItemSupport() != null
+    }
+
+    /**
+     * A bike or a rod, used the way SELECT uses a registered key item (KeyItems): written into the SELECT register,
+     * SELECT pressed for the game for 2 frames ([GbaInput.setPress]: the battle controls own setScript's channel), the player's own registered item
+     * put back 20 frames later. The game does the rest: mounting, the fishing cast, or its own "can't use that here".
+     */
+    private fun useKeyItem(itemId: Int) {
+        val cfg = com.pokedaisy.app.companion.data.activeNativeConfig ?: return
+        val fns = fieldItemSupport()?.fns ?: return
+        if (!::engine.isInitialized || !engine.running) return
+        fun le16(v: Int) = byteArrayOf(v.toByte(), (v shr 8).toByte())
+        fun u16(b: ByteArray) = (b[0].toInt() and 0xFF) or ((b[1].toInt() and 0xFF) shl 8)
+        engine.requestFieldItemJob(false) { calls, busy ->
+            val ok = runCatching {
+                if (!com.pokedaisy.app.companion.data.fieldItemCodeMatches(fns, calls::read)) return@runCatching false
+                val addr = com.pokedaisy.app.companion.data.KeyItems.registerAddr(cfg, calls::read) ?: return@runCatching false
+                if (busy || calls.call(fns.fieldControlsLocked) != 0L) return@runCatching false
+                val old = u16(calls.read(addr, 2))
+                // Not a sane item id: not the register after all.
+                if (old > 0x3FF || !calls.write(addr, le16(itemId))) return@runCatching false
+                pressSelect(fns.fieldControlsLocked, SELECT_TRIES) {
+                    engine.requestFieldItemJob(false, delayFrames = 20) { c, _ -> if (u16(c.read(addr, 2)) == itemId) c.write(addr, le16(old)) }
+                }
+                true
+            }.getOrDefault(false)
+            if (!ok) runOnUiThread { showHud(com.pokedaisy.app.companion.ui.itemUseMessage(com.pokedaisy.app.companion.data.ItemUseOutcome(com.pokedaisy.app.companion.data.ItemUseResult.NOT_NOW))) }
+        }
+    }
+
+    /**
+     * SELECT for the game for 2 frames; pressed again if it was dropped (a bike rolling at full speed ignores SELECT), at most
+     * [tries] times, but only where taking it shows for sure: the riding state flips (BIKE, [EmulatorEngine.riding] - read on
+     * this game) or the field controls stay locked (ROD's cast and its messages). The lock alone isn't enough: getting on or
+     * off locks and frees them within one frame, which a check between frames misses (and a blind retry toggled the bike 20
+     * times). [done] once it took, or gave up.
+     */
+    private fun pressSelect(locked: Long, tries: Int, done: () -> Unit) {
+        val riding = engine.riding
+        val sure = engine.fieldMovesKnown
+        var took = false
+        input.setPress(MgbaCore.Key.SELECT)
+        for (f in 1..SELECT_WAIT) engine.requestFieldItemJob(false, delayFrames = f) { c, _ ->
+            if (engine.riding != riding || c.call(locked) != 0L) took = true
+        }
+        engine.requestFieldItemJob(false, delayFrames = 2) { _, _ -> input.setPress(0) }
+        engine.requestFieldItemJob(false, delayFrames = SELECT_WAIT + 1) { _, _ ->
+            if (took || !sure || tries <= 1) done() else pressSelect(locked, tries - 1, done)
+        }
     }
 
     /** FLY on the MAP tab (Fly.kt): two steps on the emu thread - the checks, controls locked and the fade to black,
@@ -641,6 +789,19 @@ class PokeDaisyActivity : Activity() {
         override fun setFieldHudStyle(style: com.pokedaisy.app.companion.FieldHudStyle) {
             Prefs(this@PokeDaisyActivity).fieldHudStyle = style
             runOnUiThread { syncGameScreen() }
+        }
+        override val quickMenuActions get() = Prefs(this@PokeDaisyActivity).quickMenuActions
+        override fun setQuickMenuActions(actions: Set<com.pokedaisy.app.companion.QuickAction>) {
+            Prefs(this@PokeDaisyActivity).quickMenuActions = actions
+            quickShown.value = actions
+        }
+        override val quickMenuStyle get() = Prefs(this@PokeDaisyActivity).quickMenuStyle
+        override fun setQuickMenuStyle(style: com.pokedaisy.app.companion.QuickMenuStyle) {
+            Prefs(this@PokeDaisyActivity).quickMenuStyle = style
+        }
+        override val quickMenuLabels get() = Prefs(this@PokeDaisyActivity).quickMenuLabels
+        override fun setQuickMenuLabels(on: Boolean) {
+            Prefs(this@PokeDaisyActivity).quickMenuLabels = on
         }
         override val showPerformance get() = Prefs(this@PokeDaisyActivity).showPerformance
         override fun setShowPerformance(on: Boolean) {
@@ -1412,6 +1573,7 @@ class PokeDaisyActivity : Activity() {
         performance.visibility = if (prefs.showPerformance) View.VISIBLE else View.GONE
         hudOn.value = prefs.fieldHud
         hudStyle.value = prefs.fieldHudStyle
+        quickShown.value = prefs.quickMenuActions
         battleButtonsOn.value = prefs.battleButtons
         battleHints.value = prefs.showHints
         hudUpright.value = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_PORTRAIT
@@ -1549,19 +1711,25 @@ class PokeDaisyActivity : Activity() {
                 com.pokedaisy.app.companion.ui.LocalClickSound provides playClick,
                 com.pokedaisy.app.companion.ui.LocalGameSilent provides { battleInput.gameSilent },
             ) {
+                // The QUICK MENU up: the HUD fades well back, so the menu is what stands out.
+                val hudAlpha by androidx.compose.animation.core.animateFloatAsState(if (quickMenu.open) 0.25f else 1f, label = "hudAlpha")
                 com.pokedaisy.app.companion.ui.FieldHud(
                     snap, shown, hudStyle.value,
+                    modifier = androidx.compose.ui.Modifier.graphicsLayer { alpha = hudAlpha },
                     clearTop = hudClear.value.first, clearBottom = hudClear.value.second,
                     itemUse = itemUse, fly = flyAction,
                     onOpenCompanion = if (panelClosed) ({ sidePanel.openPanel() }) else null,
                     frame = hudFrame.value,
+                    closePanels = hudCloseTick.intValue,
                 )
                 com.pokedaisy.app.companion.ui.BattleButtons(
                     snap, buttons, battleInput, battleHints.value,
+                    modifier = androidx.compose.ui.Modifier.graphicsLayer { alpha = hudAlpha },
                     core = coreFrame.value,
                     clearTop = hudClear.value.first, clearBottom = hudClear.value.second,
                     onWindow = { battlePicking.value = it },
                 )
+                com.pokedaisy.app.companion.ui.QuickMenu(quickMenu, snap, quickActions, quickShown.value, hudStyle.value.look)
             }
         }
     }
@@ -1625,6 +1793,7 @@ class PokeDaisyActivity : Activity() {
         }
         val down = event.action == KeyEvent.ACTION_DOWN
         menuKeyTakes(event)?.let { return it }
+        quickMenuTakes(event)?.let { return it }
         if (hotkeyTakes(event.keyCode, down)) return true
         if (input.onKey(event.keyCode, down)) {
             if (down && !physicalPadUsed && event.device?.isVirtual == false) {
@@ -1688,6 +1857,48 @@ class PokeDaisyActivity : Activity() {
         // A key held from before the window opened: its repeats aren't presses.
         if (first) menuHeld.add(code) else if (code !in menuHeld) return true
         sidePanel.menuKey(key, repeat = !first)
+        return true
+    }
+
+    /**
+     * A key while the QUICK MENU is open: the game's buttons (as bound) steer it and stay away from the game until let go
+     * ([menuHeld], like the companion window's); the hotkeys hear everything (its own button letting go runs a held pick).
+     * Null = not its business (closed, BACK, a key that's no button).
+     */
+    private fun quickMenuTakes(event: KeyEvent): Boolean? {
+        if (!quickMenu.open) return null
+        val code = event.keyCode
+        val down = event.action == KeyEvent.ACTION_DOWN
+        if (code == KeyEvent.KEYCODE_BACK) return null
+        if (::hotkeys.isInitialized && hotkeysOn) {
+            for (e in hotkeys.onKey(code, down)) handleHotkey(e)
+            if (hotkeys.consumes(code)) return true
+        }
+        val key = menuKeyFor(input.buttonFor(code) ?: 0) ?: return null
+        if (!down) {
+            menuHeld.remove(code)
+            return true
+        }
+        menuHeld.add(code)
+        if (quickMenu.open) quickMenu.key(key)
+        return true
+    }
+
+    /** A joystick's D-pad / stick while the QUICK MENU is open: each direction that comes on is a press. */
+    private fun quickMotion(event: MotionEvent): Boolean {
+        quickStickOff = GbaInput.motionBits(event)?.let { it != 0 } == true
+        // The ring: the left stick points at a tile (its D-pad hat still steps, below).
+        if (quickMenu.ring && event.isFromSource(InputDevice.SOURCE_JOYSTICK) &&
+            kotlin.math.abs(event.getAxisValue(MotionEvent.AXIS_HAT_X)) < 0.5f && kotlin.math.abs(event.getAxisValue(MotionEvent.AXIS_HAT_Y)) < 0.5f &&
+            quickMenu.aim(event.getAxisValue(MotionEvent.AXIS_X), event.getAxisValue(MotionEvent.AXIS_Y))
+        ) {
+            quickHat = 0
+            return true
+        }
+        val bits = GbaInput.motionBits(event) ?: return false
+        val pressed = bits and quickHat.inv()
+        quickHat = bits
+        menuKeyFor(pressed)?.let { quickMenu.key(it) }
         return true
     }
 
@@ -1781,11 +1992,16 @@ class PokeDaisyActivity : Activity() {
             if ((lt > 0.5f) != ltDown) { ltDown = lt > 0.5f; triggerKey(KeyEvent.KEYCODE_BUTTON_L2, ltDown) }
         }
         if (::sidePanel.isInitialized && sidePanel.windowOpen && menuMotion(event)) return true
+        if (quickMenu.open && quickMotion(event)) return true
         if (event.isFromSource(InputDevice.SOURCE_JOYSTICK)) {
             // The right stick: WIDE's look-around (WideCamera). Most pads report it as Z / RZ, some as RX / RY.
             fun axis(a: Int, b: Int) = event.getAxisValue(a).let { v -> if (kotlin.math.abs(v) > 0.05f) v else event.getAxisValue(b) }
             view.camera.stickX = axis(MotionEvent.AXIS_Z, MotionEvent.AXIS_RX)
             view.camera.stickY = axis(MotionEvent.AXIS_RZ, MotionEvent.AXIS_RY)
+        }
+        if (quickStickHold) {
+            if (GbaInput.motionBits(event)?.let { it != 0 } == true) return true
+            quickStickHold = false
         }
         if (input.onMotion(event)) return true
         return super.onGenericMotionEvent(event)
@@ -1842,6 +2058,19 @@ class PokeDaisyActivity : Activity() {
             Hotkeys.Action.EXIT_GAME -> if (e.pressed) exitGame()
             Hotkeys.Action.RESTART_GAME -> if (e.pressed) restartGame()
             Hotkeys.Action.CLOSE_APP -> if (e.pressed) closeApp()
+            Hotkeys.Action.QUICK_MENU -> {
+                val wasOpen = quickMenu.open
+                quickMenu.trigger(e.pressed)
+                // Opened: the buttons are the menu's now, so a held direction stops walking.
+                if (!wasOpen && quickMenu.open) {
+                    input.releaseAll()
+                    quickHat = 0
+                    quickStickHold = false
+                    hudCloseTick.intValue++
+                    quickMenu.labels = Prefs(this).quickMenuLabels
+                    quickMenu.ring = Prefs(this).quickMenuStyle == com.pokedaisy.app.companion.QuickMenuStyle.RING
+                }
+            }
         }
     }
 
@@ -2007,6 +2236,9 @@ class PokeDaisyActivity : Activity() {
     }
 
     companion object {
+        /** BIKE / ROD's SELECT presses before giving up, and the frames each waits to see it take (~3 s in all at 1x). */
+        private const val SELECT_TRIES = 15
+        private const val SELECT_WAIT = 10
         /** Set by [LaunchActivity]: leaving the game returns to the frontend. */
         const val EXTRA_FROM_FRONTEND = "fromFrontend"
         private val GBA_EXT = RomArchive.ROM_EXTENSIONS + RomArchive.EXTENSIONS

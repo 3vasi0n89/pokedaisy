@@ -1,5 +1,9 @@
 package com.pokedaisy.app.companion.ui
 
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.background
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.foundation.lazy.rememberLazyListState
 import com.pokedaisy.app.companion.data.typeInText
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -155,8 +159,11 @@ private fun rowsOf(t: PokedexTables, links: List<EvoLink>) =
 private fun FamilyMon(species: Int, national: Int, current: Int, m: GbaTextMetrics, onOpen: (Int) -> Unit, modifier: Modifier) {
     val here = species == current
     val noRipple = remember { MutableInteractionSource() }
+    val focused by noRipple.collectIsFocusedAsState()
     Row(
-        modifier.soundClickable(interactionSource = noRipple, indication = null, enabled = !here && national > 0) { onOpen(national) },
+        // The D-pad's cursor (the companion's window): the white row.
+        modifier.background(if (focused) OptionColors.rowSelected else Color.Transparent)
+            .soundClickable(interactionSource = noRipple, indication = null, enabled = !here && national > 0) { onOpen(national) },
         verticalAlignment = Alignment.CenterVertically,
     ) {
         SpeciesIcon(spriteAsset("pokemon", species), size = m.lineHeight * 1.5f)
@@ -269,7 +276,9 @@ internal fun DexAreaSection(g: GuideTables, species: Int, m: GbaTextMetrics, sma
         Note(tr("Not found in the wild."), small)
         return
     }
-    LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(small.u * 2)) {
+    // Nothing to tap: one D-pad stop that scrolls (the companion's window).
+    val scroll = rememberLazyListState()
+    LazyColumn(Modifier.fillMaxSize().dpadScroll(scroll, RectangleShape, small.lineHeight * 3), state = scroll, verticalArrangement = Arrangement.spacedBy(small.u * 2)) {
         items(places.size) { i ->
             val p = places[i]
             Column(Modifier.fillMaxWidth().drawBehind { drawRowDivider(OptionColors.divider, small.u.toPx(), 0f) }.padding(bottom = small.u * 3)) {
@@ -342,7 +351,9 @@ internal fun DexMovesSection(t: PokedexTables, g: GuideTables?, species: Int, m:
     }
     val expansionList = mv.teach?.all { it.label.isEmpty() } == true
     val teach = mv.teach?.let { list -> if (expansionList) list.sortedBy { lookupMove(it.move).name } else list }
-    LazyColumn(Modifier.fillMaxSize()) {
+    // Nothing to tap: one D-pad stop that scrolls (the companion's window).
+    val scroll = rememberLazyListState()
+    LazyColumn(Modifier.fillMaxSize().dpadScroll(scroll, RectangleShape, small.lineHeight * 3), state = scroll) {
         header(tr("LEVEL UP"), small)
         if (mv.levelUp.isEmpty()) item { Note(tr("NONE"), small) }
         items(mv.levelUp) { lm -> MoveLine(if (lm.level == 0) tr("EVO.") else tr("LV {0}", lm.level), lm.move, small) }

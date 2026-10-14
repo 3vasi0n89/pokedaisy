@@ -9,6 +9,21 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.composed
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.unit.dp
+import com.pokedaisy.app.companion.ui.theme.AppColors
+import kotlinx.coroutines.launch
 
 /** The game's buttons as the companion's window reads them (through the player's own GAME BUTTONS bindings). */
 enum class MenuKey { UP, DOWN, LEFT, RIGHT, A, B, L, R, START, SELECT }
@@ -83,4 +98,59 @@ fun androidx.compose.ui.Modifier.focusStart(on: Boolean): androidx.compose.ui.Mo
         }
     }
     focusRequester(requester)
+}
+
+/**
+ * A list row the D-pad stops on although a tap does nothing there (an achievement, a leaderboard entry, a guide fact):
+ * white while focused like [OptionLine], so the companion's window can walk - and scroll - a list of them. [selected]
+ * keeps it white anyway (the list's own cursor row).
+ */
+fun androidx.compose.ui.Modifier.focusRow(selected: Boolean = false): androidx.compose.ui.Modifier = composed {
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    background(if (selected || focused) OptionColors.rowSelected else androidx.compose.ui.graphics.Color.Transparent)
+        .focusable(interactionSource = interaction)
+}
+
+/**
+ * A page that scrolls with nothing on it to tap (the DEX entry's AREA and MOVES): one D-pad stop, ringed just outside
+ * its edge while it has the focus ([shape]), where UP / DOWN scroll it by [step]; at its top or bottom the key moves the focus on instead. A page
+ * that fits isn't a stop.
+ */
+fun androidx.compose.ui.Modifier.dpadScroll(
+    state: androidx.compose.foundation.gestures.ScrollableState,
+    shape: androidx.compose.ui.graphics.Shape,
+    step: androidx.compose.ui.unit.Dp,
+): androidx.compose.ui.Modifier = composed {
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val px = with(androidx.compose.ui.platform.LocalDensity.current) { step.toPx() }
+    onPreviewKeyEvent { e ->
+        if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+        val by = when (e.key) {
+            Key.DirectionDown -> if (state.canScrollForward) px else return@onPreviewKeyEvent false
+            Key.DirectionUp -> if (state.canScrollBackward) -px else return@onPreviewKeyEvent false
+            else -> return@onPreviewKeyEvent false
+        }
+        scope.launch { state.animateScrollBy(by) }
+        true
+    }
+        // The ring just outside the page's edge: inside, it covered the rows' first letters.
+        .drawWithContent {
+            drawContent()
+            if (focused) {
+                val w = 4.dp.toPx()
+                // A stroke centred on an outline grown by w and moved back by w / 2: it covers -w..0, outside the page.
+                translate(-w / 2, -w / 2) {
+                    drawOutline(
+                        shape.createOutline(androidx.compose.ui.geometry.Size(size.width + w, size.height + w), layoutDirection, this),
+                        AppColors.focusRing,
+                        style = androidx.compose.ui.graphics.drawscope.Stroke(w),
+                    )
+                }
+            }
+        }
+        // Only while there's something to scroll: a page that fits is no stop at all.
+        .focusable(enabled = state.canScrollForward || state.canScrollBackward, interactionSource = interaction)
 }

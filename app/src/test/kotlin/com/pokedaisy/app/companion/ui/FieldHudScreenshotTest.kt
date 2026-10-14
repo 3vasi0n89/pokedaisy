@@ -192,6 +192,19 @@ class FieldHudScreenshotTest {
     /** A game with BAG > PC: PC left of BAG, on one screen with COMPANION too. */
     @Test fun pcButton() = shot(FieldHudStyle(), companion = true, pc = true)
 
+    /** A REPEL working: its steps left in a window over the balls, the bar draining. */
+    @Test fun repelSteps() = shot(FieldHudStyle(), pc = true, snap = snapshot.copy(progress = repelProgress(187)))
+
+    /** The same in the other layouts: CORNERS 2 (under the balls), RAILS (narrow, in the column), the compact HUD. */
+    @Test fun repelStepsCorners2() = shot(FieldHudStyle(FieldHudLayout.CORNERS_2), pc = true, snap = snapshot.copy(progress = repelProgress(120)))
+
+    @Test fun repelStepsRails() = shot(FieldHudStyle(FieldHudLayout.RAILS), pc = true, snap = snapshot.copy(progress = repelProgress(60)))
+
+    @Test fun repelStepsCompact() = shot(FieldHudStyle(), expand = false, companion = true, pc = true, gameRect = DOCKED_GAME, snap = snapshot.copy(progress = repelProgress(187)))
+
+    /** Its last steps: gold, the bar red (DOCK's bar, no window of its own). */
+    @Test fun repelStepsLow() = shot(FieldHudStyle(FieldHudLayout.DOCK), pc = true, snap = snapshot.copy(progress = repelProgress(14)))
+
     @Test fun pcButtonCorners2() = shot(FieldHudStyle(FieldHudLayout.CORNERS_2), pc = true)
 
     @Test fun pcButtonRails() = shot(FieldHudStyle(FieldHudLayout.RAILS), companion = true, pc = true)
@@ -365,7 +378,13 @@ private object PcItemUse : com.pokedaisy.app.companion.ItemUse {
     override fun canUse(itemId: Int) = false
     override fun use(itemId: Int, done: (com.pokedaisy.app.companion.data.ItemUseOutcome) -> Unit) = Unit
     override fun canPc() = true
+    override val repelVar = 0x4020
 }
+
+/** A save whose REPEL has [steps] left (FireRed's VAR_REPEL_STEP_COUNT, 0x4020). */
+internal fun repelProgress(steps: Int) = com.pokedaisy.app.companion.data.SaveProgress(
+    ByteArray(0x120), ByteArray(0x200).also { it[0x40] = steps.toByte(); it[0x41] = (steps shr 8).toByte() },
+)
 
 /** The captured frame (284x160: EXPAND's 22 px margins), whole at EXPAND, its middle 240x160 at ORIGINAL. */
 @Composable

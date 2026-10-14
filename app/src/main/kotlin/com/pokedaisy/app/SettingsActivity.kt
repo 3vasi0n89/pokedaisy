@@ -125,7 +125,7 @@ import com.pokedaisy.app.companion.ui.drawPixelRoundRect
  */
 class SettingsActivity : ComponentActivity() {
 
-    private enum class Screen { HOME, HOTKEYS, CONTROLS, SHADERS, FIELD_HUD, OVERLAYS, FOLDERS, COVER_ART, SCREENSCRAPER, HIDDEN, ACHIEVEMENTS, CHEATS, CHEAT_ADD, LICENSES, HELP }
+    private enum class Screen { HOME, HOTKEYS, CONTROLS, SHADERS, FIELD_HUD, QUICK_MENU, OVERLAYS, FOLDERS, COVER_ART, SCREENSCRAPER, HIDDEN, ACHIEVEMENTS, CHEATS, CHEAT_ADD, LICENSES, HELP }
 
     private lateinit var prefs: Prefs
     private var screen by mutableStateOf(Screen.HOME)
@@ -314,6 +314,7 @@ class SettingsActivity : ComponentActivity() {
                         Screen.CONTROLS -> tk("GAME BUTTONS")
                         Screen.SHADERS -> tk("SHADERS")
                         Screen.FIELD_HUD -> tk("HUD")
+                        Screen.QUICK_MENU -> tk("QUICK MENU")
                         Screen.OVERLAYS -> tk("OVERLAY")
                         Screen.FOLDERS -> tk("FOLDERS")
                         Screen.COVER_ART -> tk("COVER ART")
@@ -338,6 +339,7 @@ class SettingsActivity : ComponentActivity() {
                     Screen.CONTROLS -> ControlsScreen(m, small)
                     Screen.SHADERS -> ShadersScreen(m)
                     Screen.FIELD_HUD -> FieldHudScreen(m)
+                    Screen.QUICK_MENU -> QuickMenuScreen(m)
                     Screen.OVERLAYS -> OverlaysScreen(m, small)
                     Screen.FOLDERS -> FoldersScreen(m, small)
                     Screen.COVER_ART -> CoverArtScreen(m, small)
@@ -559,6 +561,7 @@ class SettingsActivity : ComponentActivity() {
             },
             SettingRow(tk("GAME BUTTONS"), null, subtitle = "Key bindings: which button presses A, B, START...") { screen = Screen.CONTROLS },
             SettingRow(tk("HOTKEYS"), onOff(prefs.hotkeysEnabled)) { screen = Screen.HOTKEYS },
+            SettingRow(tk("QUICK MENU"), null, subtitle = "Actions on a held button", labelBadge = com.pokedaisy.app.companion.ui.quickMenuBadge()) { screen = Screen.QUICK_MENU },
             groupTitle(tk("SCREEN")),
             // Game, location, money, clock and battery: OFF, over the game, or over the companion's tabs.
             SettingRow(tk("STATUS BAR"), statusBarLabel(prefs.statusBar, prefs.statusBarOnCompanion)) {
@@ -784,6 +787,25 @@ class SettingsActivity : ComponentActivity() {
             prefs.fieldHud, prefs.fieldHudStyle,
             setOn = { prefs.fieldHud = it; revision++ },
             setStyle = { prefs.fieldHudStyle = it; revision++ },
+        )
+        Column(Modifier.fillMaxWidth()) {
+            OptionListWindow(m, Modifier.fillMaxWidth().weight(1f, fill = false)) {
+                GroupedRows(rows, m, cursor = -1, onClick = { rows[it].onClick() })
+            }
+        }
+    }
+
+    /** QUICK MENU: which actions it shows, like the companion's page; its button is HOTKEYS' QUICK MENU. */
+    @Composable
+    private fun QuickMenuScreen(m: GbaTextMetrics) {
+        @Suppress("UNUSED_EXPRESSION") revision
+        val binding = remember(revision) { Hotkeys.load(filesRoot).rawBindings[Hotkeys.Action.QUICK_MENU].orEmpty() }
+        val rows = com.pokedaisy.app.companion.ui.quickMenuRows(
+            prefs.quickMenuActions, binding.joinToString(", ") { it.replace("BUTTON_", "").replace('_', ' ') }, prefs.quickMenuStyle, prefs.quickMenuLabels,
+            setShown = { prefs.quickMenuActions = it; revision++ },
+            setStyle = { prefs.quickMenuStyle = it; revision++ },
+            setLabels = { prefs.quickMenuLabels = it; revision++ },
+            onHotkey = { screen = Screen.HOTKEYS },
         )
         Column(Modifier.fillMaxWidth()) {
             OptionListWindow(m, Modifier.fillMaxWidth().weight(1f, fill = false)) {

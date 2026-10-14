@@ -1,6 +1,12 @@
 package com.pokedaisy.app.companion.ui
 
 import androidx.compose.animation.core.animateFloatAsState
+import com.pokedaisy.app.companion.data.BATTLE_INPUT_PARTY_OPEN
+import com.pokedaisy.app.companion.data.BATTLE_INPUT_BAG_OPEN
+import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,6 +22,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -36,6 +43,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.pokedaisy.app.companion.BattleInput
@@ -47,13 +55,14 @@ import com.pokedaisy.app.companion.data.MoveView
 import com.pokedaisy.app.companion.data.SnapshotView
 import com.pokedaisy.app.companion.i18n.tr
 import com.pokedaisy.app.companion.ui.theme.AppColors
+import kotlin.math.floor
 
 /*
  * BATTLE BUTTONS (SETTINGS, on by default): with one screen and no companion beside the game, FIGHT, POKéMON and RUN
  * at the top of the room right of the game's picture - EXPAND's rebuilt background beside the battle's middle 3:2,
  * ORIGINAL's black bar - reaching a little into the picture's top-right corner where that room is narrow. They're the
- * companion's battle buttons ([PlatinumButton]), and FIGHT / POKéMON open the companion's own move grid ([MoveGrid])
- * and party picker ([PartyPicker]) in a window top right: a move is FIGHT + that move in one go
+ * companion's battle buttons ([PlatinumButton]), and FIGHT / POKéMON open lists down the right side ([BattleMoveList]:
+ * the move cards one a row; [BattlePartyList]: FireRed's party list rows): a move is FIGHT + that move in one go
  * ([BattleInput.selectMove]), a Pokémon switches in ([BattleInput.switchTo]); RUN is the action menu's (wild battles
  * only).
  *
@@ -84,20 +93,32 @@ fun BattleButtons(
     onWindow: (Boolean) -> Unit = {},
     initialWindow: BattleButtonsWindow? = null,
 ) {
-    val alpha by animateFloatAsState(if (shown) 1f else 0f, tween(if (shown) 220 else 120), label = "battle-buttons")
     var window by remember { mutableStateOf(initialWindow) }
     val state = snapshot.battleInputState
+    // The buttons slide off to the right while they're not wanted - no battle, FIGHT's / POKéMON's list open, the game's
+    // own party or bag up - and back in after; the lists slide in from the right and back out. Tests start settled.
+    val gameMenu = state == BATTLE_INPUT_PARTY_OPEN || state == BATTLE_INPUT_BAG_OPEN
+    val out = !shown || window != null || gameMenu
+    val slide by animateFloatAsState(
+        if (out) 1f else 0f, if (LocalInspectionMode.current) snap() else tween(SLIDE_MS, easing = FastOutSlowInEasing), label = "battle-buttons",
+    )
+    val movesIn by animateFloatAsState(
+        if (window == BattleButtonsWindow.MOVES) 1f else 0f, if (LocalInspectionMode.current) snap() else tween(SLIDE_MS, easing = FastOutSlowInEasing), label = "moves-list",
+    )
+    val partyIn by animateFloatAsState(
+        if (window == BattleButtonsWindow.PARTY) 1f else 0f, if (LocalInspectionMode.current) snap() else tween(SLIDE_MS, easing = FastOutSlowInEasing), label = "party-list",
+    )
     // A window closes with the action menu (a pick ran, the turn moved on) and with the buttons.
     LaunchedEffect(shown, state) {
         if (!shown || state != BATTLE_INPUT_ACTION_SELECT && !(window == BattleButtonsWindow.MOVES && state == BATTLE_INPUT_MOVE_SELECT)) window = null
     }
     LaunchedEffect(window) { onWindow(window != null) }
-    if (alpha == 0f && !shown) return
+    if (!shown && slide == 1f && movesIn == 0f && partyIn == 0f) return
     val busy = rememberBattleInputBusy(battleInput)
     val m = rememberGbaTextMetrics(1f)
     val u = m.u
     val density = LocalDensity.current
-    BoxWithConstraints(modifier.fillMaxSize().alpha(alpha)) {
+    BoxWithConstraints(modifier.fillMaxSize()) {
         val boxW = with(density) { maxWidth.toPx() }
         val boxH = with(density) { maxHeight.toPx() }
         val right = core?.right ?: ((boxW + boxH * 1.5f) / 2)
@@ -114,9 +135,13 @@ fun BattleButtons(
         BoxWithConstraints(
             // At least MIN_WIDTH: past a 16:9 screen's narrow margin into the picture's top-right corner, where a
             // battle has only its background (the user's call: larger buttons over smaller room).
-            Modifier.align(Alignment.TopEnd).width(columnW).fillMaxHeight()
+            // Out of sight while FIGHT's / POKéMON's list is over them (a greyed-out row would show them through).
+            // Running off the screen's right edge ([EDGE] GBA pixels past it): no right border or corners, a tab coming out
+            // of the side.
+            Modifier.align(Alignment.TopEnd).offset(x = u * EDGE).width(columnW + u * EDGE).fillMaxHeight()
+                .graphicsLayer { translationX = slide * size.width }
                 .padding(top = top, bottom = with(density) { clearBottom.toDp() } + u * 3)
-                .padding(horizontal = u * 2),
+                .padding(start = u * 2),
         ) {
             val h = minOf(u * MAX_BUTTON, (maxHeight - gap * 2) / 3)
             Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(gap)) {
@@ -124,34 +149,47 @@ fun BattleButtons(
                 // read - none yet (a launch's first moments) = it waits, rather than pressing the game's FIGHT blind.
                 ActionButton(
                     tr("FIGHT"), { HudSpecies(active?.iconAsset, u * 24) }, FightRed, FightRedDark, m, h,
-                    enabled = enabled && moves.isNotEmpty() && (actions || state == BATTLE_INPUT_MOVE_SELECT), pressesGame = false,
+                    enabled = enabled && moves.isNotEmpty() && (actions || state == BATTLE_INPUT_MOVE_SELECT), pressesGame = false, edge = u * EDGE,
                 ) { window = BattleButtonsWindow.MOVES }
                 ActionButton(
                     tr("POKéMON"), { PixelArt(PixelIcons.pokeBall, POKE_BALL, Modifier.size(u * 16)) }, MonGreen, MonGreenDark, m, h,
                     enabled = enabled && actions && battleInput?.canSwitch == true && snapshot.party.size > 1,
-                    pressesGame = false,
+                    pressesGame = false, edge = u * EDGE,
                 ) { window = BattleButtonsWindow.PARTY }
                 ActionButton(
                     tr("RUN"), { PixelArt(RUN_ICON, RUN_COLORS, Modifier.size(u * 16)) }, RunBlue, RunBlueDark, m, h,
-                    enabled = enabled && actions && wild,
+                    enabled = enabled && actions && wild, edge = u * EDGE,
                 ) { battleInput?.selectAction(3) }
             }
         }
         val close = { window = null }
-        when (window) {
-            BattleButtonsWindow.MOVES -> BattleWindow(u, top, close, widthShare = 0.62f, height = u * 230) {
-                MoveGrid(moves, battleInput, busy, showHints, Modifier.fillMaxSize(), onCancel = close, compact = true)
-            }
-            BattleButtonsWindow.PARTY -> BattleWindow(u, top, close, widthShare = 0.56f, height = maxHeight - top - u * 6) {
-                PartyPicker(
+        // A list down the right side, over the dimmed game (no window behind it), as big as the room allows.
+        if (movesIn > 0f) BattleList(movesIn, window == BattleButtonsWindow.MOVES, top, close, MOVE_LIST_W, 4 * MOVE_ROW + 3 * MOVE_GAP + MOVE_ROW * 0.7f) { u2 ->
+            BattleMoveList(moves, battleInput, busy, showHints, u2 * MOVE_LIST_W, u2 * MOVE_ROW, u2 * MOVE_GAP, u2 * EDGE, onCancel = close)
+        }
+        if (partyIn > 0f) {
+            val n = snapshot.party.size.coerceAtLeast(1)
+            BattleList(partyIn, window == BattleButtonsWindow.PARTY, top, close, PARTY_LIST_W, n * PARTY_ROW + n * PARTY_GAP + PARTY_ROW * 0.7f) { u2 ->
+                BattlePartyList(
                     snapshot.party, snapshot.battleOpponent.getOrNull(0), snapshot.battlePlayer, battleInput, busy, showHints,
-                    onBack = close,
+                    u2 * PARTY_LIST_W, u2 * PARTY_ROW, u2 * PARTY_GAP, u2, u2 * EDGE, onBack = close,
                 )
             }
-            null -> Unit
         }
     }
 }
+
+/** How far (GBA pixels) the buttons and the lists' rows run past the screen's right edge: their right border, corners and
+ * bevel band out of sight. */
+private const val EDGE = 13
+
+// FIGHT's / POKéMON's lists, in GBA pixels at the scale [BattleList] picks: list width (with [EDGE]), row height, gap.
+private const val MOVE_LIST_W = 196
+private const val MOVE_ROW = 34
+private const val MOVE_GAP = 3
+private const val PARTY_LIST_W = 192
+private const val PARTY_ROW = 34
+private const val PARTY_GAP = 3
 
 /** Below this much room (GBA pixels) right of the picture, no buttons. */
 private const val MIN_ROOM = 40
@@ -169,14 +207,17 @@ private const val MAX_BUTTON = 56
 @Composable
 private fun ActionButton(
     label: String, icon: @Composable () -> Unit, fill: Color, frame: Color, m: GbaTextMetrics, h: Dp,
-    enabled: Boolean, pressesGame: Boolean = true, onClick: () -> Unit,
+    enabled: Boolean, pressesGame: Boolean = true,
+    /** How far it runs past the screen's right edge: its content keeps clear of that part. */
+    edge: Dp = 0.dp,
+    onClick: () -> Unit,
 ) {
     val u = m.u
     PlatinumButton(
         fill = fill, frame = frame, modifier = Modifier.fillMaxWidth().height(h),
         enabled = enabled, pressesGame = pressesGame, outline = u + 1.dp,
         // Clear of the bevel's side bands.
-        contentPadding = PaddingValues(horizontal = u * 3, vertical = u * 2), onClick = onClick,
+        contentPadding = PaddingValues(start = u * 3, end = u * 3 + edge, top = u * 2, bottom = u * 2), onClick = onClick,
     ) {
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly, horizontalAlignment = Alignment.CenterHorizontally) {
             icon()
@@ -188,28 +229,42 @@ private fun ActionButton(
 private val ButtonShadow = Color(0xFF383838)
 
 /**
- * A window over the game, top right below the buttons' top edge: the companion's battle panes inside the game's
- * title window, [widthShare] of the screen wide and [height] tall. A tap outside closes it, as BACK does.
+ * FIGHT's / POKéMON's list, top right from the buttons' top edge down, over the dimmed game; a tap outside closes it, as
+ * BACK does. Drawn at the largest whole GBA pixel at which [listW] x [listH] (GBA pixels) fits under [top] and in 55% of
+ * the screen's width (its own [Density], as the HUD's SIZE does), so it uses the room and its pixels stay square;
+ * [content] gets that pixel. It runs [EDGE] pixels off the right edge. [shown] 0..1: how far it has slid in from the right
+ * (the dim fades with it); [open]: it's the one open (taps and BACK reach it only then, not while it slides out).
  */
 @Composable
-private fun BattleWindow(
-    u: Dp, top: Dp, onClose: () -> Unit, widthShare: Float, height: Dp, content: @Composable () -> Unit,
-) {
-    HudPanelScrim(onClose, Alignment.TopEnd) { window ->
-        BoxWithConstraints(Modifier.fillMaxSize()) {
+private fun BattleList(shown: Float, open: Boolean, top: Dp, onClose: () -> Unit, listW: Int, listH: Float, content: @Composable (u: Dp) -> Unit) {
+    val base = LocalDensity.current
+    if (open) CompanionBackHandler(onBack = onClose)
+    BoxWithConstraints(
+        Modifier.fillMaxSize().background(Color(0x66000000).copy(alpha = 0.4f * shown))
+            .then(
+                if (open) Modifier.soundClickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClose)
+                else Modifier,
+            ),
+    ) {
+        val topPx = with(base) { top.toPx() }
+        val hPx = with(base) { maxHeight.toPx() } - topPx - with(base) { 6.dp.toPx() }
+        val wPx = with(base) { maxWidth.toPx() } * 0.55f
+        val k = floor(minOf(hPx / listH, wPx / listW)).toInt().coerceAtLeast(1)
+        val scaled = remember(k, base.fontScale) { Density(k * 16f / 20f, base.fontScale) }
+        // A tap on the list's empty parts does nothing (the dim around it closes it).
+        val keep = Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, enabled = open, onClick = {})
+        CompositionLocalProvider(LocalDensity provides scaled) {
+            val u = rememberGbaTextMetrics(1f).u
             Box(
-                Modifier.padding(top = top, end = u * 2).align(Alignment.TopEnd)
-                    .size(maxWidth * widthShare, height.coerceAtMost(maxHeight - top))
-                    .then(window)
-                    .drawBehind {
-                        val px = u.toPx()
-                        drawLayeredBox(OptionColors.titleLayers.inPx(px), OptionColors.titleFill, radius = 4 * px)
-                    }
-                    .padding(u * 6),
-            ) { content() }
+                Modifier.align(Alignment.TopEnd).padding(top = with(scaled) { topPx.toDp() })
+                    .offset(x = u * EDGE).graphicsLayer { translationX = (1f - shown) * size.width }.then(keep),
+            ) { content(u) }
         }
     }
 }
+
+/** How long the buttons and the lists take to slide (ms). */
+private const val SLIDE_MS = 260
 
 /**
  * [text] on one line at [m]'s height, its letters narrowed as far as it needs (3 screen pixels a font pixel wide, then

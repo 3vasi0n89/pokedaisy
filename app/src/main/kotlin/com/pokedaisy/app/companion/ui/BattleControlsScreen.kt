@@ -450,7 +450,7 @@ private fun BackOnlyButton(battleInput: BattleInput?, busy: Boolean) {
 }
 
 @Composable
-private fun MoveCard(
+internal fun MoveCard(
     mv: MoveView?,
     battleInput: BattleInput?,
     moveIndex: Int,
@@ -715,7 +715,7 @@ private fun Gen1MoveList(
 }
 
 /** A Game Boy game's buttons are plain text boxes ([PlatinumButton]). */
-private val gen1Buttons get() = com.pokedaisy.app.companion.data.activeGame == com.pokedaisy.app.companion.data.GameKind.YELLOW
+internal val gen1Buttons get() = com.pokedaisy.app.companion.data.activeGame == com.pokedaisy.app.companion.data.GameKind.YELLOW
 
 /** [text] on one line at the largest whole size from [maxSize] down to [minSize] (sp) that fits the
  * width it's given; still too long at [minSize], it ends in an ellipsis. */
@@ -746,8 +746,8 @@ internal val RunBlue = Color(0xFF4890D8)
 internal val RunBlueDark = Color(0xFF2860A0)
 internal val MonGreen = Color(0xFF58A840)
 internal val MonGreenDark = Color(0xFF307020)
-private val MoveCardFill = Color(0xFFE8E8B0)
-private val MoveTextShadow = Color(0xFFC0C088)
+internal val MoveCardFill = Color(0xFFE8E8B0)
+internal val MoveTextShadow = Color(0xFFC0C088)
 internal val InfoPurple = Color(0xFF9068D0)
 internal val InfoPurpleDark = Color(0xFF5C3C98)
 internal val SuggestGold = Color(0xFFE8B830)

@@ -1,5 +1,6 @@
 package com.pokedaisy.app.companion.ui
 
+import androidx.compose.ui.focus.focusProperties
 import com.pokedaisy.app.companion.i18n.tr
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -160,6 +161,8 @@ private fun SlotCard(
                     .height(thumbHeight)
                     .clip(PixelRoundedShape(u * 3))
                     .background(OptionColors.imageWell)
+                    // A tap loads, as LOAD does; not a D-pad stop of its own (the companion's window): LOAD is one.
+                    .focusProperties { canFocus = false }
                     .soundClickable(enabled = slot.present, onClick = onLoad)
                     // Frame on top of the screenshot: the list window's dark + blue lines.
                     .drawWithContent {
@@ -208,7 +211,8 @@ private fun SlotCard(
             )
             Spacer(Modifier.height(u * 3))
             Row(horizontalArrangement = Arrangement.spacedBy(u * 3)) {
-                OptionButton(tr("SAVE"), buttons, onClick = onSave, emphasis = true, modifier = Modifier.weight(1f))
+                // The D-pad starts on the slot the hotkeys target (the companion's window).
+                OptionButton(tr("SAVE"), buttons, onClick = onSave, emphasis = true, modifier = Modifier.weight(1f).focusStart(isCurrent))
                 OptionButton(tr("LOAD"), buttons, onClick = onLoad, enabled = slot.present, modifier = Modifier.weight(1f))
             }
         }

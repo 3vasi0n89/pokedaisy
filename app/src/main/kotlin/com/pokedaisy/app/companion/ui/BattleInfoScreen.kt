@@ -503,7 +503,7 @@ internal fun VerdictPill(text: String, color: Color) {
 }
 
 /** Darker than [AppColors.multiplierColor]'s bar colors, so white text reads on them. */
-private fun verdictColor(pct: Int): Color = when {
+internal fun verdictColor(pct: Int): Color = when {
     pct == 0 -> Color(0xFF585048)
     pct > 100 -> Color(0xFF389830)
     pct < 100 -> Color(0xFFD04030)

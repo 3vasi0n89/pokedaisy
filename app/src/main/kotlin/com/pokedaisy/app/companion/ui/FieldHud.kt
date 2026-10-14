@@ -171,7 +171,11 @@ fun fieldHudRows(
         },
         groupTitle(tk("SHOW")),
     ) + FieldHudPart.entries.map { p ->
-        SettingRow(p.label, onOff(style.shows(p)), enabled = on, labelBadge = if (p == FieldHudPart.PC) NewFeatures.badge(NewFeatures.HUD_PC) else null) {
+        SettingRow(p.label, onOff(style.shows(p)), enabled = on, labelBadge = when (p) {
+            FieldHudPart.PC -> NewFeatures.badge(NewFeatures.HUD_PC)
+            FieldHudPart.REPEL -> NewFeatures.badge(NewFeatures.HUD_REPEL)
+            else -> null
+        }) {
             setStyle(style.copy(hidden = if (style.shows(p)) style.hidden + p else style.hidden - p))
         }
     }
@@ -294,6 +298,8 @@ fun FieldHud(
     frame: Rect? = null,
     wild: List<HudWild>? = null,
     initialPanel: FieldHudPanel? = null,
+    /** Bumped to close whatever panel is open (the QUICK MENU opening over it). */
+    closePanels: Int = 0,
 ) {
     var panel by remember { mutableStateOf(initialPanel) }
     var summary by remember { mutableStateOf(0) }
@@ -304,6 +310,7 @@ fun FieldHud(
     // Gone (the game closed): SETTINGS no longer hears of a screen too small for it.
     DisposableEffect(Unit) { onDispose { FieldHudFit.tight = false } }
     LaunchedEffect(shown) { if (!shown) panel = null }
+    LaunchedEffect(closePanels) { if (closePanels != 0) panel = null }
     val alpha by animateFloatAsState(if (shown) 1f else 0f, tween(if (shown) 220 else 120), label = "field-hud")
     if (alpha == 0f && !shown) return
 
@@ -344,7 +351,13 @@ fun FieldHud(
                         use.openPc { o -> pcNotice = if (o.result == ItemUseResult.USED) null else ItemNotice(0, itemUseMessage(o), ok = false) }
                     }
                 }
-                val parts = HudParts(snapshot, style, wildHere, m, onOpenCompanion, pc) { p, i ->
+                // REPEL's steps left (the game's VAR_REPEL_STEP_COUNT), where the game's var is known.
+                val repel = if (style.shows(FieldHudPart.REPEL)) itemUse?.repelVar?.let { snapshot.progress?.variable(it) } ?: 0 else 0
+                // What a full one lasted, for the bar: the kind whose steps cover what's left, kept while it counts down.
+                var repelFull by remember { mutableStateOf(0) }
+                if (repel <= 0) repelFull = 0
+                else if (repel > repelFull) repelFull = com.pokedaisy.app.companion.REPEL_KINDS.firstOrNull { it.second >= repel }?.second ?: repel
+                val parts = HudParts(snapshot, style, wildHere, m, onOpenCompanion, pc, repel, repelFull) { p, i ->
                     if (p == FieldHudPanel.SUMMARY) summary = i
                     if (p == FieldHudPanel.BAG) bagPocket = i
                     panel = p
@@ -445,6 +458,10 @@ private class HudParts(
     val companion: (() -> Unit)?,
     /** Opens the game's PC (ItemUse.openPc); null = this game has none. */
     pcOpen: (() -> Unit)?,
+    /** Steps left on the REPEL in effect (0 = none, or not shown): its own window by the balls ([RepelSteps]). */
+    val repel: Int,
+    /** The steps it started from (the bar's whole). */
+    val repelFull: Int,
     /** Opens a panel; the index is the party member for SUMMARY, the pocket for BAG (-1: the first). */
     val open: (FieldHudPanel, Int) -> Unit,
 ) {
@@ -454,6 +471,8 @@ private class HudParts(
     val wildButton = style.shows(FieldHudPart.WILD) && wild != null
     val map = style.shows(FieldHudPart.MAP)
     val pc = pcOpen?.takeIf { style.shows(FieldHudPart.PC) }
+    /** The balls' window shows. */
+    val ballsRow = balls.isNotEmpty()
 }
 
 // ---- Layouts ------------------------------------------------------------------------------------
@@ -476,8 +495,11 @@ private fun CornersLayout(p: HudParts, swapped: Boolean) {
             horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(u * 4),
         ) {
             // The buttons toward the screen's edge: under the balls at the bottom, over them at the top.
+            // The REPEL's steps on the far side of the balls from the buttons.
             if (swapped) HudButtons(p, vertical = false)
-            if (p.balls.isNotEmpty()) HudBalls(p, vertical = false)
+            if (!swapped) RepelSteps(p)
+            if (p.ballsRow) HudBalls(p, vertical = false)
+            if (swapped) RepelSteps(p)
             if (!swapped) HudButtons(p, vertical = false)
         }
     }
@@ -498,7 +520,8 @@ private fun PartyRow(p: HudParts, modifier: Modifier) {
 @Composable
 private fun BallsAndButtons(p: HudParts, modifier: Modifier = Modifier, alignment: Alignment.Horizontal = Alignment.End, mapButton: Boolean = false) {
     Column(modifier, horizontalAlignment = alignment, verticalArrangement = Arrangement.spacedBy(p.m.u * 4)) {
-        if (p.balls.isNotEmpty()) HudBalls(p, vertical = false)
+        RepelSteps(p)
+        if (p.ballsRow) HudBalls(p, vertical = false)
         HudButtons(p, vertical = false, mapButton = mapButton)
     }
 }
@@ -553,7 +576,8 @@ private fun RailsLayout(p: HudParts, left: Dp, right: Dp) {
             val inner = (side / u).toInt() - 4 - 8
             if (p.map) HudMiniMap(p.snapshot, mapW = inner, mapH = inner, m = p.m, nameLines = 2) { p.open(FieldHudPanel.MAP, 0) }
             Spacer(Modifier.weight(1f))
-            if (p.balls.isNotEmpty()) HudBalls(p, vertical = true)
+            RepelSteps(p, narrow = true)
+            if (p.ballsRow) HudBalls(p, vertical = true)
             HudButtons(p, vertical = true)
         }
     }
@@ -584,19 +608,23 @@ private fun DockBar(p: HudParts, party: Boolean, modifier: Modifier) {
     val u = p.m.u
     val mons = if (party) p.party else emptyList()
     val buttons = p.bag || p.wildButton || p.companion != null || p.pc != null
-    if (mons.isEmpty() && p.balls.isEmpty() && !buttons) return
+    if (mons.isEmpty() && !p.ballsRow && p.repel <= 0 && !buttons) return
     Row(
         modifier.hudPanel(u).padding(horizontal = u * 5, vertical = u * 4),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(u * 3),
     ) {
         mons.forEachIndexed { i, mon -> HudMonTile(mon, p.m, lead = i == 0) { p.open(FieldHudPanel.SUMMARY, i) } }
-        if (p.balls.isNotEmpty()) {
+        if (p.ballsRow) {
             if (mons.isNotEmpty()) DockDivider(p.m)
             HudBallsInline(p)
         }
+        if (p.repel > 0) {
+            if (mons.isNotEmpty() || p.ballsRow) DockDivider(p.m)
+            RepelSteps(p, framed = false)
+        }
         if (buttons) {
-            if (mons.isNotEmpty() || p.balls.isNotEmpty()) DockDivider(p.m)
+            if (mons.isNotEmpty() || p.ballsRow || p.repel > 0) DockDivider(p.m)
             HudButtons(p, vertical = false, framed = false)
         }
     }
@@ -736,7 +764,9 @@ private fun HudBalls(p: HudParts, vertical: Boolean) {
     val balls = p.balls.sortedByDescending { it.quantity }.take(3)
     if (vertical) {
         val small = rememberGbaTextMetrics(0.75f)
-        Column(mod) { balls.forEach { BallCount(it, p.m, small) } }
+        Column(mod) {
+            balls.forEach { BallCount(it, p.m, small) }
+        }
     } else {
         Row(mod, horizontalArrangement = Arrangement.spacedBy(u * 4)) { balls.forEach { BallCount(it, p.m, p.m) } }
     }
@@ -749,6 +779,58 @@ private fun HudBallsInline(p: HudParts) {
         p.balls.sortedByDescending { it.quantity }.take(3).forEach { BallCount(it, p.m, p.m) }
     }
 }
+
+private val REPEL_GREEN = Color(0xFF58D080)
+private val REPEL_YELLOW = Color(0xFFF8C030)
+private val REPEL_RED = Color(0xFFE84838)
+
+/** What's left of the REPEL as a bar [w] wide, its colour by how much (an HP bar's way). */
+@Composable
+private fun RepelBar(p: HudParts, w: Dp) {
+    val u = p.m.u
+    val left = if (p.repelFull > 0) (p.repel / p.repelFull.toFloat()).coerceIn(0f, 1f) else 0f
+    val fill = when {
+        left > 0.5f -> REPEL_GREEN
+        left > 0.2f -> REPEL_YELLOW
+        else -> REPEL_RED
+    }
+    Box(Modifier.width(w).height(u * 4).background(ink.cell, PixelRoundedShape(u)).padding(u)) {
+        Box(Modifier.fillMaxHeight().fillMaxWidth(left).background(fill))
+    }
+}
+
+/**
+ * REPEL's steps left while one works (nothing otherwise): its own window by the balls - the spray's icon, the count (gold
+ * for the last 20 steps) with "steps", and a bar draining from green to yellow to red as it runs out. [framed] false: no
+ * window (the DOCK's bar); [narrow]: the count over the bar beside a smaller icon (RAILS' column). A tap opens the BAG.
+ */
+@Composable
+private fun RepelSteps(p: HudParts, framed: Boolean = true, narrow: Boolean = false) {
+    if (p.repel <= 0) return
+    val u = p.m.u
+    val low = p.repel <= 20
+    val count = rememberGbaTextMetrics(1.25f)
+    val small = rememberGbaTextMetrics(0.75f)
+    Row(
+        (if (framed) Modifier.hudPanel(u) else Modifier).soundClickable { p.open(FieldHudPanel.BAG, -1) }
+            .padding(horizontal = if (framed) u * 4 else 0.dp, vertical = if (framed) u * 3 else 0.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(u * if (narrow) 2 else 3),
+    ) {
+        ItemIcon(spriteAsset("items", REPEL_ICON_ITEM), hudItemSize(p.m) * if (narrow) 1f else 1.25f)
+        Column(verticalArrangement = Arrangement.spacedBy(u)) {
+            Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(u * 2)) {
+                GbaText("${p.repel}", if (low) ink.accent else ink.text, if (low) ink.accentShadow else ink.shadow, count)
+                // "steps" alone: the translated "{0} steps" without its number.
+                if (!narrow) GbaText(tr("{0} steps", "").trim(), ink.muted, ink.shadow, small, modifier = Modifier.padding(bottom = u))
+            }
+            RepelBar(p, u * if (narrow) 30 else 46)
+        }
+    }
+}
+
+/** The plain REPEL's icon for the counter (the game doesn't keep which kind is working). */
+private const val REPEL_ICON_ITEM = 86
 
 @Composable
 private fun BallCount(item: ItemView, m: GbaTextMetrics, text: GbaTextMetrics) {
@@ -1268,7 +1350,7 @@ private val MAP_COLORS = mapOf(
 )
 
 /** A PC: K outline, L its light grey case, D the darker shade, S the blue screen with an H glint, G the power light. */
-private val PC_ICON = listOf(
+internal val PC_ICON = listOf(
     "................",
     ".KKKKKKKKKKKKKK.",
     ".KLLLLLLLLLLLLK.",
@@ -1286,13 +1368,13 @@ private val PC_ICON = listOf(
     "...KLLLLLLLLK...",
     "...KKKKKKKKKK...",
 )
-private val PC_COLORS = mapOf(
+internal val PC_COLORS = mapOf(
     'K' to Color(0xFF202838), 'L' to Color(0xFFD8D8E0), 'D' to Color(0xFF9098A8),
     'S' to Color(0xFF3070C8), 'H' to Color(0xFF90C8F8), 'G' to Color(0xFF40D040),
 )
 
 /** The side panel's open arrow (PixelIcons.panelOpen) a size down, its strokes 2 thick: COMPANION. */
-private val COMPANION_ICON = listOf(
+internal val COMPANION_ICON = listOf(
     "......11",
     ".....11.",
     "....11..",
@@ -1309,7 +1391,7 @@ private val COMPANION_ICON = listOf(
 )
 
 /** A tuft of tall grass: K outline, G dark blades, L light ones. */
-private val GRASS_ICON = listOf(
+internal val GRASS_ICON = listOf(
     "................",
     "...K......K.....",
     "..KGK....KGK..K.",
@@ -1327,4 +1409,4 @@ private val GRASS_ICON = listOf(
     "KKKKKKKKKKKKKKKK",
     "................",
 )
-private val GRASS_COLORS = mapOf('K' to Color(0xFF183818), 'G' to Color(0xFF389838), 'L' to Color(0xFF78D058))
+internal val GRASS_COLORS = mapOf('K' to Color(0xFF183818), 'G' to Color(0xFF389838), 'L' to Color(0xFF78D058))

@@ -464,7 +464,7 @@ fun partySlotStyleFor(game: GameKind): PartySlotStyle? = when (game) {
 }
 
 // FireRed's closed party Poke Ball (partyfr/pokeball.png, 20x20 of its 32x32 cell).
-private val PartyBall = listOf(
+internal val PartyBall = listOf(
     ".......KKKKKK.......",
     ".....KKKKKKKKKK.....",
     "....KKKRRRRRRKKK....",
@@ -488,7 +488,7 @@ private val PartyBall = listOf(
 )
 
 // The "HP" label's letters, 5 rows (the top 3 in hpLabel, the rest in hpLabelShade).
-private val HpLetters = listOf(
+internal val HpLetters = listOf(
     "1001.1110",
     "1001.1001",
     "1111.1110",
@@ -663,7 +663,7 @@ private fun DrawScope.drawHpBar(g: SlotGeometry, p: PartyPalette, hp: Int, maxHp
 }
 
 /** [bitmap] rows with each character colored by [palette] (others transparent), [cell] px per pixel. */
-private fun DrawScope.drawPixelBitmap(bitmap: List<String>, palette: Map<Char, Color>, x: Float, y: Float, cell: Float) {
+internal fun DrawScope.drawPixelBitmap(bitmap: List<String>, palette: Map<Char, Color>, x: Float, y: Float, cell: Float) {
     bitmap.forEachIndexed { row, line ->
         line.forEachIndexed { col, ch ->
             palette[ch]?.let { drawRect(it, Offset(x + col * cell, y + row * cell), Size(cell, cell)) }

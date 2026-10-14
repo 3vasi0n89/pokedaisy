@@ -80,6 +80,15 @@ class GbaInput {
         recompute()
     }
 
+    /** One-off presses for the game (the QUICK MENU's SELECT for a bike or a rod): pressed on top of everything else,
+     * apart from [setScript]'s channel, which the battle controls send every frame (they'd wipe it). */
+    @Volatile private var pressBits = 0
+
+    fun setPress(bits: Int) {
+        pressBits = bits
+        recompute()
+    }
+
     fun onMotion(event: MotionEvent): Boolean {
         hatBits = motionBits(event) ?: return false
         recompute()
@@ -87,7 +96,7 @@ class GbaInput {
     }
 
     private fun recompute() {
-        mask = if (scriptExclusive) scriptBits else buttonBits or hatBits or touchBits or scriptBits
+        mask = (if (scriptExclusive) scriptBits else buttonBits or hatBits or touchBits or scriptBits) or pressBits
     }
 
     private fun keyToBit(keyCode: Int): Int? = when (keyCode) {

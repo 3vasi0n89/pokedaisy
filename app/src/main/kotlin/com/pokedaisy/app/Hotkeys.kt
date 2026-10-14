@@ -30,13 +30,16 @@ class Hotkeys private constructor(
         SLOWMO_HOLD(tk("SLOWMO HOLD")), REWIND_HOLD(tk("REWIND HOLD")), ZOOM(tk("ZOOM")),
         SOFT_RESET(tk("SOFT RESET")), EXIT_GAME(tk("EXIT GAME")),
         // No default keys (not in DEFAULTS): the player binds them.
-        RESTART_GAME(tk("RESTART GAME")), CLOSE_APP(tk("CLOSE APP"));
+        RESTART_GAME(tk("RESTART GAME")), CLOSE_APP(tk("CLOSE APP")),
+        // Pressed: the QUICK MENU opens or closes (companion.ui.QuickMenu); L3 by default.
+        QUICK_MENU(tk("QUICK MENU"));
 
         val prop get() = name.lowercase()
 
         /** The NEW tag on its row in HOTKEYS (both screens). */
         val badge: String? get() = when (this) {
             RESTART_GAME, CLOSE_APP -> NewFeatures.badge(NewFeatures.GAME_HOTKEYS)
+            QUICK_MENU -> NewFeatures.badge(NewFeatures.QUICK_MENU)
             else -> null
         }
         val label get() = name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
@@ -82,9 +85,9 @@ class Hotkeys private constructor(
             "load_state" to "BUTTON_SELECT+BUTTON_L1, F2",
             "undo_save" to "F3",
             "undo_load" to "F4",
-            // R3 is ZOOM's (the right stick looks around); L3 stays SLOT PREV.
+            // R3 is ZOOM's (the right stick looks around), L3 the QUICK MENU's (it was SLOT PREV's).
             "slot_next" to "RIGHT_BRACKET",
-            "slot_prev" to "BUTTON_THUMBL, LEFT_BRACKET",
+            "slot_prev" to "LEFT_BRACKET",
             "ff_hold" to "BUTTON_R2, SPACE",
             "ff_toggle" to "TAB",
             "speed_cycle" to "BUTTON_L2, EQUALS",
@@ -96,6 +99,8 @@ class Hotkeys private constructor(
             // RetroArch's keyboard reset key; on a pad A + B + SELECT + START already is the game's own.
             "soft_reset" to "H",
             "exit_game" to "BUTTON_SELECT+BUTTON_START, ESCAPE",
+            // The QUICK MENU (the user's pick, L3: no GBA button, so nothing in the game loses it).
+            "quick_menu" to "BUTTON_THUMBL",
         )
 
         /** Earlier defaults (X / Y saved and loaded states, R3 the next slot), swapped for [DEFAULTS]' where a file still
@@ -104,6 +109,8 @@ class Hotkeys private constructor(
             "save_state" to "BUTTON_SELECT+BUTTON_R1, BUTTON_Y, F1",
             "load_state" to "BUTTON_SELECT+BUTTON_L1, BUTTON_X, F2",
             "slot_next" to "BUTTON_THUMBR, RIGHT_BRACKET",
+            // L3 went to the QUICK MENU.
+            "slot_prev" to "BUTTON_THUMBL, LEFT_BRACKET",
         )
 
         private fun file(filesDir: File) = File(filesDir, "hotkeys.properties")

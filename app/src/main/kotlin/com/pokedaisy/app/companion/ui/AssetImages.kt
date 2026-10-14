@@ -94,7 +94,7 @@ private suspend fun loadMonIconSheet(context: Context, asset: String?): Bitmap? 
 }
 
 /** The icon sheet if [DecompIconSource] / [UnboundIconSource] already has it decoded. */
-private fun peekMonIcon(asset: String?): Bitmap? {
+internal fun peekMonIcon(asset: String?): Bitmap? {
     if (asset == null) return null
     GameArt.peek(asset)?.let { return it }   // rom-art sheets (a Game Boy game's own icons)
     val id = asset.substringAfterLast('/').substringBefore('.').toIntOrNull() ?: return null

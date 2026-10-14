@@ -70,7 +70,7 @@ private val PICKABLE_KEYS = listOf(
     "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
 )
 
-internal enum class Page(val title: String) { HOME(tk("SETTINGS")), TABS(tk("TAB BAR")), BUTTONS(tk("GAME BUTTONS")), HOTKEYS(tk("HOTKEYS")), SHADERS(tk("SHADERS")), FIELD_HUD(tk("HUD")), SCENES(tk("SCENE SPEEDS")), CHEATS(tk("CHEATS")), TWEAKS(tk("TWEAKS")), HELP(tk("HELP")) }
+internal enum class Page(val title: String) { HOME(tk("SETTINGS")), TABS(tk("TAB BAR")), BUTTONS(tk("GAME BUTTONS")), HOTKEYS(tk("HOTKEYS")), SHADERS(tk("SHADERS")), FIELD_HUD(tk("HUD")), QUICK_MENU(tk("QUICK MENU")), SCENES(tk("SCENE SPEEDS")), CHEATS(tk("CHEATS")), TWEAKS(tk("TWEAKS")), HELP(tk("HELP")) }
 
 /**
  * The bottom-screen SETTINGS tab, laid out like FireRed's OPTION screen over
@@ -201,6 +201,14 @@ fun CompanionSettingsScreen(
                         settings.fieldHud, settings.fieldHudStyle,
                         setOn = { settings.setFieldHud(it); tick++ },
                         setStyle = { settings.setFieldHudStyle(it); tick++ },
+                    ) + SettingRow(tk("CANCEL"), null) { page = Page.HOME }
+                    Page.QUICK_MENU -> quickMenuRows(
+                        settings.quickMenuActions, keysLabel(settings.hotkeyBindings()[Hotkeys.Action.QUICK_MENU]), settings.quickMenuStyle,
+                        settings.quickMenuLabels,
+                        setShown = { settings.setQuickMenuActions(it); tick++ },
+                        setStyle = { settings.setQuickMenuStyle(it); tick++ },
+                        setLabels = { settings.setQuickMenuLabels(it); tick++ },
+                        onHotkey = { page = Page.HOTKEYS },
                     ) + SettingRow(tk("CANCEL"), null) { page = Page.HOME }
                     Page.SCENES -> sceneRows(settings, { tick++ }, { selector = it }) + SettingRow(tk("CANCEL"), null) { page = Page.HOME }
                     Page.CHEATS -> cheatRows(settings) { tick++ } + SettingRow(tk("CANCEL"), null) { page = Page.HOME }
@@ -432,6 +440,8 @@ private fun homeRows(
         },
         SettingRow(tk("GAME BUTTONS"), null, subtitle = "Key bindings: which button presses A, B, START...") { navigate(Page.BUTTONS) },
         SettingRow(tk("HOTKEYS"), onOff(s.hotkeysEnabled)) { navigate(Page.HOTKEYS) },
+        // PC, FLY, a Repel, the bike, a rod, states, FF... on a held button (L3 by default): its own page.
+        SettingRow(tk("QUICK MENU"), null, subtitle = "Actions on a held button", labelBadge = quickMenuBadge()) { navigate(Page.QUICK_MENU) },
         groupTitle(tk("COMPANION")),
         // AUTO: the ROM's own language. Applies at once, both screens.
         SettingRow("LANGUAGE", L10n.settingLabel(s.appLanguage)) {

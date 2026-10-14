@@ -45,6 +45,8 @@ enum class FieldHudPart(val label: String) {
     PARTY(tk("PARTY")),
     MAP(tk("MINIMAP")),
     BALLS(tk("POKé BALLS")),
+    /** The steps left on a REPEL in effect, counting down, beside the balls. */
+    REPEL(tk("REPEL STEPS")),
     /** The game's own PC on the spot (ItemUse.openPc), where the BAG tab has PC. */
     PC(tk("PC")),
     BAG(tk("BAG")),
