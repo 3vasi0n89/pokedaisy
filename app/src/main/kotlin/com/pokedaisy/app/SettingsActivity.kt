@@ -1408,14 +1408,14 @@ class SettingsActivity : ComponentActivity() {
     @Composable
     private fun CaptureRow(
         label: String, keys: List<String>, isCapturing: Boolean, prompt: String, m: GbaTextMetrics,
-        divider: Boolean, enabled: Boolean = true, onClick: () -> Unit,
+        divider: Boolean, enabled: Boolean = true, labelBadge: String? = null, onClick: () -> Unit,
     ) {
         val value = when {
             isCapturing && captured.isEmpty() -> prompt
             isCapturing -> captured.joinToString(" + ") { keyLabel(Hotkeys.keyName(it)) }
             else -> keys.joinToString(" / ") { keyLabel(it) }.ifEmpty { "-" }
         }
-        OptionLine(label, value, selected = isCapturing, m, height = m.rowHeight * 1.2f, labelWeight = 0.5f, divider = divider, enabled = enabled, onClick = onClick)
+        OptionLine(label, value, selected = isCapturing, m, height = m.rowHeight * 1.2f, labelWeight = 0.5f, divider = divider, enabled = enabled, labelBadge = labelBadge, onClick = onClick)
     }
 
     @Composable
@@ -1452,7 +1452,7 @@ class SettingsActivity : ComponentActivity() {
                         CaptureRow(
                             action.title, hotkeys.rawBindings[action].orEmpty(),
                             isCapturing = capturing == action, prompt = tk("PRESS KEYS…"), m = m,
-                            divider = i < Hotkeys.Action.entries.lastIndex, enabled = on,
+                            divider = i < Hotkeys.Action.entries.lastIndex, enabled = on, labelBadge = action.badge,
                         ) {
                             if (capturing == action) cancelCapture() else { cancelCapture(); capturing = action }
                         }

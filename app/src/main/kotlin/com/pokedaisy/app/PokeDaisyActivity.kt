@@ -1,5 +1,6 @@
 package com.pokedaisy.app
 
+import android.app.ActivityManager
 import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -576,25 +577,7 @@ class PokeDaisyActivity : Activity() {
             else Hotkeys.setBinding(dir, action, listOf(keyCodeForName(keyName) ?: return), takeFrom)
             hotkeys = Hotkeys.load(getExternalFilesDir(null) ?: filesDir)
         }
-        override fun restartGame() {
-            val r = rom ?: return
-            if (!::engine.isInitialized) return
-            // Unbind the GL view from the current framebuffer FIRST and wait for
-            // it to take — engine.stop() frees the native buffer the GL thread
-            // (continuous render mode, its own clock) may still be reading; skip
-            // this and it's a use-after-free race that crashes the process. See
-            // EmulatorView.unbindCoreBlocking().
-            view.unbindCoreBlocking()
-            engine.stop()
-            states?.resumeFile?.let {
-                if (it.exists()) it.delete()
-                com.pokedaisy.app.companion.data.SnapshotCache.fileFor(it).delete()
-            }
-            val save = SavesLocation.saveFor(this@PokeDaisyActivity, Prefs(this@PokeDaisyActivity), r)
-            syncCheats()
-            engine.start(romData ?: r, save, null)
-            showHud(com.pokedaisy.app.companion.i18n.tr("Game restarted"))
-        }
+        override fun restartGame() = this@PokeDaisyActivity.restartGame()
         override fun closeGame() {
             exitGame()   // drives the normal onPause()/onStop() lifecycle, which already suspends+saves
         }
@@ -1747,6 +1730,8 @@ class PokeDaisyActivity : Activity() {
                 showHud(com.pokedaisy.app.companion.i18n.tr("Soft reset"))
             }
             Hotkeys.Action.EXIT_GAME -> if (e.pressed) exitGame()
+            Hotkeys.Action.RESTART_GAME -> if (e.pressed) restartGame()
+            Hotkeys.Action.CLOSE_APP -> if (e.pressed) closeApp()
         }
     }
 
@@ -1829,12 +1814,44 @@ class PokeDaisyActivity : Activity() {
         null
     }
 
+    /** RESTART GAME (SETTINGS, and its hotkey): the game booted again from its save, the resume state dropped. */
+    private fun restartGame() {
+        val r = rom ?: return
+        if (!::engine.isInitialized) return
+        // Unbind the GL view from the current framebuffer FIRST and wait for
+        // it to take — engine.stop() frees the native buffer the GL thread
+        // (continuous render mode, its own clock) may still be reading; skip
+        // this and it's a use-after-free race that crashes the process. See
+        // EmulatorView.unbindCoreBlocking().
+        view.unbindCoreBlocking()
+        engine.stop()
+        states?.resumeFile?.let {
+            if (it.exists()) it.delete()
+            com.pokedaisy.app.companion.data.SnapshotCache.fileFor(it).delete()
+        }
+        val save = SavesLocation.saveFor(this, Prefs(this), r)
+        syncCheats()
+        engine.start(romData ?: r, save, null)
+        showHud(com.pokedaisy.app.companion.i18n.tr("Game restarted"))
+    }
+
     /**
      * Leaves the game. Opened by a frontend, the whole task goes, so the
      * frontend comes back rather than a library left underneath from earlier.
      */
     private fun exitGame() {
         if (fromFrontend) finishAndRemoveTask() else finish()
+    }
+
+    /**
+     * CLOSE APP (a hotkey): the game left the normal way - onPause writes the resume state once a save the game is
+     * writing has finished, and the core lets go of the save file - then every task of the app goes, the library
+     * under the game included, so nothing is left in recents to be swiped away mid-way.
+     */
+    private fun closeApp() {
+        val am = getSystemService(ActivityManager::class.java)
+        runCatching { am.appTasks.forEach { it.finishAndRemoveTask() } }
+            .onFailure { finishAndRemoveTask() }
     }
 
     private fun toastNoRom() {

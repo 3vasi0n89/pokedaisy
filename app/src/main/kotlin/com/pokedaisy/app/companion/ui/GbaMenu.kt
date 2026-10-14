@@ -473,6 +473,8 @@ fun OptionRows(
     valueBadge: (Int) -> String? = { null },
     /** False greys row i out ([OptionLine]'s enabled). */
     enabled: (Int) -> Boolean = { true },
+    /** An [OptionBadge] after row i's label (NEW). */
+    labelBadge: (Int) -> String? = { null },
 ) {
     BoxWithConstraints(modifier) {
         val rowHeight = if (rows.isEmpty() || maxHeight == Dp.Infinity) minRow
@@ -481,7 +483,8 @@ fun OptionRows(
             rows.forEachIndexed { i, (label, value, onClick) ->
                 OptionLine(
                     label, value, selected = i == selected, m, height = rowHeight, labelWeight = labelWeight,
-                    divider = dividers && i < rows.lastIndex, valueBadge = valueBadge(i), enabled = enabled(i), onClick = onClick,
+                    divider = dividers && i < rows.lastIndex, valueBadge = valueBadge(i), enabled = enabled(i), labelBadge = labelBadge(i),
+                    onClick = onClick,
                 )
             }
         }

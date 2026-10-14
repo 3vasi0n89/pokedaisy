@@ -1142,6 +1142,11 @@ fun main(args: Array<String>) {
         Shot("$g-settings-hotkeys", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText("HOTKEYS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
+        // The list's end: RESTART GAME / CLOSE APP with their NEW tags, no keys.
+        Shot("$g-settings-hotkeys-end", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText("HOTKEYS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithText("CLOSE APP").performScrollTo()
+        },
         Shot("$g-settings-buttons", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText("GAME BUTTONS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
@@ -1634,6 +1639,10 @@ fun main(args: Array<String>) {
         Shot("settings-hotkeys-capture", tw, th, td, activity { SettingsActivity() }) {
             onNodeWithText("HOTKEYS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
             onNodeWithText("SAVE STATE").performSemanticsAction(SemanticsActions.OnClick)
+        },
+        Shot("settings-hotkeys-end", tw, th, td, activity { SettingsActivity() }) {
+            onNodeWithText("HOTKEYS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithText("CLOSE APP").performScrollTo()
         },
         // The list's end: LIBRARY / ONLINE (RetroAchievements' BETA tag) / APP.
         Shot("settings-home-bottom", tw, th, td, activity { SettingsActivity() }) { onNodeWithText("RUN SETUP").performScrollTo() },

@@ -209,6 +209,7 @@ internal val trSettings: Map<String, Tr> = mapOf(
     "ZOOM" to Tr(ja = "ズーム", fr = "ZOOM", de = "ZOOM", it = "ZOOM", es = "ZOOM", br = "ZOOM", pt = "ZOOM"),
     "SOFT RESET" to Tr(ja = "ソフトリセット", fr = "RÉINIT. DOUCE", de = "SOFT-RESET", it = "RESET SOFT", es = "REINICIO SUAVE", br = "RESET SUAVE", pt = "RESET SUAVE"),
     "EXIT GAME" to Tr(ja = "ゲーム しゅうりょう", fr = "QUITTER LE JEU", de = "SPIEL BEENDEN", it = "ESCI DAL GIOCO", es = "SALIR DEL JUEGO", br = "SAIR DO JOGO", pt = "SAIR DO JOGO"),
+    "CLOSE APP" to Tr(ja = "アプリを とじる", fr = "FERMER L'APPLI", de = "APP BEENDEN", it = "CHIUDI APP", es = "CERRAR APP", br = "FECHAR APP", pt = "FECHAR APP"),
 
     // Folders
     "GAME SAVES (.SAV / .SRM)" to Tr(ja = "セーブデータ (.SAV / .SRM)", fr = "SAUVEGARDES (.SAV / .SRM)", de = "SPEICHERDATEN (.SAV / .SRM)", it = "SALVATAGGI (.SAV / .SRM)", es = "PARTIDAS GUARDADAS (.SAV / .SRM)", br = "SAVES (.SAV / .SRM)", pt = "JOGOS GUARDADOS (.SAV / .SRM)"),

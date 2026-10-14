@@ -1,5 +1,6 @@
 package com.pokedaisy.app
 
+import com.pokedaisy.app.companion.NewFeatures
 import android.util.Log
 import android.view.KeyEvent
 import com.pokedaisy.app.companion.i18n.tk
@@ -27,9 +28,17 @@ class Hotkeys private constructor(
         UNDO_LOAD(tk("UNDO LOAD")), SLOT_NEXT(tk("SLOT NEXT")), SLOT_PREV(tk("SLOT PREV")),
         FF_HOLD(tk("FF HOLD")), FF_TOGGLE(tk("FF TOGGLE")), SPEED_CYCLE(tk("SPEED CYCLE")),
         SLOWMO_HOLD(tk("SLOWMO HOLD")), REWIND_HOLD(tk("REWIND HOLD")), ZOOM(tk("ZOOM")),
-        SOFT_RESET(tk("SOFT RESET")), EXIT_GAME(tk("EXIT GAME"));
+        SOFT_RESET(tk("SOFT RESET")), EXIT_GAME(tk("EXIT GAME")),
+        // No default keys (not in DEFAULTS): the player binds them.
+        RESTART_GAME(tk("RESTART GAME")), CLOSE_APP(tk("CLOSE APP"));
 
         val prop get() = name.lowercase()
+
+        /** The NEW tag on its row in HOTKEYS (both screens). */
+        val badge: String? get() = when (this) {
+            RESTART_GAME, CLOSE_APP -> NewFeatures.badge(NewFeatures.GAME_HOTKEYS)
+            else -> null
+        }
         val label get() = name.lowercase().replace('_', ' ').replaceFirstChar { it.uppercase() }
     }
 

@@ -183,7 +183,7 @@ fun CompanionSettingsScreen(
                         },
                     ) + Hotkeys.Action.entries.map { action ->
                         val title = action.title
-                        SettingRow(title, keysLabel(settings.hotkeyBindings()[action]), enabled = settings.hotkeysEnabled) {
+                        SettingRow(title, keysLabel(settings.hotkeyBindings()[action]), enabled = settings.hotkeysEnabled, labelBadge = action.badge) {
                             picking = title to { name ->
                                 // NONE unbinds; a key another hotkey already has exactly moves only on MOVE.
                                 val taken = if (name == null) emptyList() else Hotkeys.clashes(settings.hotkeyBindings(), action, listOf(name))
@@ -276,6 +276,7 @@ fun CompanionSettingsScreen(
                         labelWeight = if (page == Page.CHEATS) 0.75f else 0.58f,
                         valueBadge = { rows[it].badge },
                         enabled = { rows[it].enabled },
+                        labelBadge = { rows[it].labelBadge },
                     )
                 }
             }

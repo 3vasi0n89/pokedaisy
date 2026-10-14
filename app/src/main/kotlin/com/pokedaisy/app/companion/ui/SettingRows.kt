@@ -90,7 +90,7 @@ val SETTING_KEYWORDS: Map<String, String> = mapOf(
     "REWIND" to "rewind undo go back time",
     "TOUCH PAD" to "on screen controls virtual gamepad overlay touch buttons",
     "GAME BUTTONS" to "key bindings keybinds keybinding controls remap remapping rebind mapping input controller gamepad buttons turbo",
-    "HOTKEYS" to "shortcuts combos save state load state slot rewind fast forward key bindings",
+    "HOTKEYS" to "shortcuts combos save state load state slot rewind fast forward key bindings restart close quit exit app",
     "STATUS BAR" to "clock time battery money location top bar",
     "BATTLE BUTTONS" to "battle buttons moves fight switch run flee side touch single screen one screen expand widescreen",
     "HUD" to "field hud heads up display overlay party minimap mini map balls bag wild encounters overworld legends single screen",

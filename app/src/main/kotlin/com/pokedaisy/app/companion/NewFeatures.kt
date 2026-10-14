@@ -16,8 +16,11 @@ object NewFeatures {
     /** SETTINGS > BATTLE BUTTONS (companion.ui.BattleButtons). */
     const val BATTLE_BUTTONS = "battle_buttons"
 
+    /** HOTKEYS > RESTART GAME and CLOSE APP (Hotkeys.Action.badge). */
+    const val GAME_HOTKEYS = "game_hotkeys"
+
     /** Every feature that gets the tag. */
-    val ALL = listOf(HUD, BATTLE_BUTTONS)
+    val ALL = listOf(HUD, BATTLE_BUTTONS, GAME_HOTKEYS)
 
     private const val DAYS = 7
     private const val DAY_MS = 24 * 60 * 60 * 1000L
