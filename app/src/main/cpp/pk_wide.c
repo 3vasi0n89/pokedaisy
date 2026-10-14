@@ -95,6 +95,7 @@ static const struct PkWideRom* lookupField(uint32_t crc) {
 }
 
 static int32_t C[PK_WIDE_CONFIG_SIZE];
+static bool mapPreviews;   // the game has FireRed's map preview (map_preview_screen.c): the FireRed engine only
 static bool configured;
 static int lastFault;   // the signal that switched WIDE off (0 = none: pk_wide_view's fault guard)
 
@@ -1711,6 +1712,7 @@ int pk_wide_configure(uint32_t crc) {
     if (configured) {
         memcpy(C, rom->a, sizeof(rom->a));
         memcpy(C + PK_WIDE_ADDRS, FAMILIES[rom->family], sizeof(FAMILIES[0]));
+        mapPreviews = rom->family == PK_WIDE_FAMILY_FR || rom->family == PK_WIDE_FAMILY_FR_EX;
         if (C[PK_WIDE_TEMPLATE_KIND_AT]) C[PK_WIDE_TEMPLATE_KIND] = C[PK_WIDE_TEMPLATE_KIND_AT];
         if (C[PK_WIDE_SB1_OFFSETS]) {   // a hack's own SaveBlock1: flags follow the 64 templates, then the vars
             C[PK_WIDE_SB1_TEMPLATES] = C[PK_WIDE_SB1_OFFSETS] & 0xFFFF;
@@ -1943,7 +1945,8 @@ static bool effectsUp(void) {
 //   BATTLE_START  battle_transition.c's sTransitionData (PK_WIDE_TRANSITION_PTR) is set: the flashes are starting,
 //                 the wipe follows ~50 frames later
 //   TEXT          the field with its controls locked and a text box or a line effect up (a sign, a script)
-//   OVERLAY       a picture on BG0 over most of the field (FireRed's map preview on entering a forest or a cave):
+//   OVERLAY       a picture on BG0 over most of the field (FireRed's map preview on entering a forest or a cave;
+//                 FireRed-engine games only, never during a battle transition):
 //                 the map around it - the frame's own and the margins' - is dimmed while it's up (overlayDim),
 //                 so the picture reads as a card over the world instead of a box with the map going on around it
 //   OFF           not the map at all: a battle, a menu screen, the title
@@ -2204,7 +2207,10 @@ static int viewInner(struct mCore* core, const uint32_t* frame, uint32_t* out, s
     lastMode = valid ? PK_WIDE_MODE_MAP : battle ? PK_WIDE_MODE_BATTLE : menu ? PK_WIDE_MODE_MENU : PK_WIDE_MODE_NONE;
     bool locked = C[PK_WIDE_CONTROLS_LOCKED] && r8((uint32_t) C[PK_WIDE_CONTROLS_LOCKED]);
     bool transition = transitionRunning();
-    bool overlay = valid && overlayUp();
+    // Only a FireRed-engine game has the map preview: anywhere else a BG0 that fills the screen is something else -
+    // SoulGold's item description over its message box, a trainer's mugshot sliding in (GitHub #100) - and its
+    // pixels carry no layer tags there (it keeps the window registers on), so the dim darkened the windows too.
+    bool overlay = valid && mapPreviews && !transition && overlayUp();
     lastClose = !valid || transition || overlay || (locked && (textUp() || effectsUp()));
     // Between two maps (a door, a connection building) the screen is black for a few frames with no map to check:
     // the camera holds through it (it used to pull in to 1x and zoom back out on the other side).
