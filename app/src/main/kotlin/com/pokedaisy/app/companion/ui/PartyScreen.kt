@@ -52,6 +52,7 @@ import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import com.pokedaisy.app.companion.data.isCrystalFamily
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -370,6 +371,13 @@ val SwordShieldPartyPalette = FireRedPartyPalette.copy(
     ball = mapOf('K' to Color.Transparent, 'R' to Color.Transparent, 'H' to Color.Transparent, 'W' to Color.Transparent),
 )
 
+/**
+ * GS Chronicles' party menu (headless): CFRU's shared slots, grid and colours, which RomArt finds in
+ * its ROM, no Poké Ball, and Odyssey's status icons (its FRZ icon matched Odyssey's pixels, not
+ * Unbound's, with a frozen lead poked in). Its text is mixed case, so the egg reads "Egg".
+ */
+val GsChroniclesPartyStyle = OdysseyPartyStyle.copy(eggName = "Egg")
+
 /** A slot in one [fill] inside an [outline]: no separate edge, band or shade. */
 private fun flatSlot(outline: Color, fill: Color, text: Color? = null) =
     PartySlotColors(outline, fill, fill, fill, text = text, textShadow = if (text != null) Color.Transparent else null)
@@ -401,6 +409,21 @@ private val YellowPartyPaletteLight = yellowPartyPalette(G1_BLACK, Color.White, 
 private val YellowPartyPaletteNight = yellowPartyPalette(Color(0xFFE8E8E8), Color(0xFF181818), Color(0xFF3A3A3A))
 val YellowPartyPalette: PartyPalette get() = if (OptionColors.dark) YellowPartyPaletteNight else YellowPartyPaletteLight
 
+/**
+ * Pokémon Crystal (Game Boy Color): Yellow's black-on-white slots with Crystal's own party-menu HP bar,
+ * sampled headless - the cream "HP:" box, a black frame, the bar green / amber / red on white.
+ */
+private fun crystalPartyPalette(base: PartyPalette, paper: Color) = base.copy(
+    hpLabel = Color(0xFFF7D67B), hpLabelShade = Color(0xFFF7D67B),
+    hpGreen = HpBarColors(Color(0xFF00BD00), Color(0xFF00BD00)),
+    hpYellow = HpBarColors(Color(0xFFFFBD00), Color(0xFFFFBD00)),
+    hpRed = HpBarColors(Color(0xFFFF0000), Color(0xFFFF0000)),
+    hpEmpty = HpBarColors(paper, paper),
+)
+private val CrystalPartyPaletteLight = crystalPartyPalette(YellowPartyPaletteLight, Color.White)
+private val CrystalPartyPaletteNight = crystalPartyPalette(YellowPartyPaletteNight, Color(0xFF181818))
+val CrystalPartyPalette: PartyPalette get() = if (OptionColors.dark) CrystalPartyPaletteNight else CrystalPartyPaletteLight
+
 /** The generic slot's palette for [game] - add a palette here to restyle a game. */
 fun partyPaletteFor(game: GameKind): PartyPalette = when (game) {
     GameKind.EMERALD_ROGUE -> RoguePartyPalette
@@ -410,6 +433,7 @@ fun partyPaletteFor(game: GameKind): PartyPalette = when (game) {
     GameKind.ROWE -> RowePartyPalette
     GameKind.SOULGOLD -> SoulGoldPartyPalette
     GameKind.YELLOW -> YellowPartyPalette
+    GameKind.CRYSTAL, GameKind.CRYSTAL_CLEAR, GameKind.PRISM -> CrystalPartyPalette
     GameKind.GLAZED, GameKind.QUETZAL -> GlazedPartyPalette
     GameKind.IMPERIUM -> ImperiumPartyPalette
     GameKind.SWORD_SHIELD -> SwordShieldPartyPalette
@@ -442,10 +466,30 @@ private fun localPartyStyle(base: PartySlotStyle, fireRed: Boolean): PartySlotSt
 
 private val localStyles = java.util.concurrent.ConcurrentHashMap<String, PartySlotStyle>()
 
+/**
+ * Recharged Emerald's slot: Emerald's party_menu.c with its own art (RomArt's partyre/: its slot frames, status icons and
+ * FONT_SMALL; the Poké Ball Emerald's, partyem/). Its font widened glyphs 0x30-0x33 to 5 and the 0xF9 0x18 symbol to 8
+ * (its gFontSmallLatinGlyphWidths, 0x08869844 in v2.2.8; the rest Emerald's).
+ */
+private val RechargedEmeraldPartyStyle: PartySlotStyle by lazy {
+    val dir = com.pokedaisy.app.companion.data.RomArt.RE_PARTY_DIR
+    EmeraldPartyStyle.copy(
+        frameDir = dir, fontAsset = "$dir/font_small.png", statusAsset = "$dir/status_icons.png",
+        glyphWidths = EmeraldPartyStyle.glyphWidths.copyOf().also { w ->
+            for (g in 0x30..0x33) w[g] = 5
+            w[0x118] = 8
+        },
+    )
+}
+
 /** The in-game party-slot look for [game], or null for games that don't have one yet. */
 fun partySlotStyleFor(game: GameKind): PartySlotStyle? = when (game) {
     GameKind.FIRERED -> if (romGameCode.isEmpty()) FireRedPartyStyle else localPartyStyle(FireRedPartyStyle, fireRed = true)
-    GameKind.EMERALD -> if (romGameCode.isEmpty()) EmeraldPartyStyle else localPartyStyle(EmeraldPartyStyle, fireRed = false)
+    GameKind.EMERALD -> when {
+        com.pokedaisy.app.companion.data.runningEmeraldHack != null -> RechargedEmeraldPartyStyle
+        romGameCode.isEmpty() -> EmeraldPartyStyle
+        else -> localPartyStyle(EmeraldPartyStyle, fireRed = false)
+    }
     GameKind.HEART_AND_SOUL -> HeartAndSoulPartyStyle
     GameKind.UNBOUND -> UnboundPartyStyle
     GameKind.RADICAL_RED -> RadicalRedPartyStyle
@@ -453,6 +497,8 @@ fun partySlotStyleFor(game: GameKind): PartySlotStyle? = when (game) {
     GameKind.AMETHYST -> AmethystPartyStyle
     // CFRU's slot in its own palette (RomArt's partyswsh/); SwordShieldPartyPalette until a scan has made it.
     GameKind.SWORD_SHIELD -> SwordShieldPartyStyle
+    // CFRU's own slots and grid (RomArt's partycfru/, found in its ROM), no Poké Ball.
+    GameKind.GS_CHRONICLES -> GsChroniclesPartyStyle
     // Orange Islands kept FireRed's party menu art (its own backdrop: theme's backdropColors).
     GameKind.ORANGE_ISLANDS -> FireRedPartyStyle
     // Recharged Yellow's party menu is FireRed's, slots and teal backdrop alike (sampled headless: 216B63
@@ -679,9 +725,17 @@ internal fun HeldItemMarker(itemId: Int, u: Int, x: Float, y: Float) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val gen = rememberArtGeneration()
     val icons = androidx.compose.runtime.remember(gen) {
-        GameArt.get(context, RomArt.HOLD_ICONS)?.asImageBitmap()
+        // Crystal's and Crystal Clear's own marks (Gen2Art), the GBA games' from RomArt.
+        GameArt.get(context, when (com.pokedaisy.app.companion.data.activeGame) {
+            com.pokedaisy.app.companion.data.GameKind.CRYSTAL -> com.pokedaisy.app.companion.data.Gen2Art.CRYSTAL_HOLD_ICONS
+            com.pokedaisy.app.companion.data.GameKind.CRYSTAL_CLEAR -> com.pokedaisy.app.companion.data.Gen2Art.CRYSTAL_CLEAR_HOLD_ICONS
+            com.pokedaisy.app.companion.data.GameKind.PRISM -> com.pokedaisy.app.companion.data.Gen2Art.PRISM_HOLD_ICONS
+            else -> RomArt.HOLD_ICONS
+        })?.asImageBitmap()
     } ?: return
-    val mail = itemId in com.pokedaisy.app.companion.data.MAIL_ITEMS
+    val mail = if (com.pokedaisy.app.companion.data.activeGame.isCrystalFamily) {
+        itemId in com.pokedaisy.app.companion.data.activeGen2.mailItems
+    } else itemId in com.pokedaisy.app.companion.data.MAIL_ITEMS
     Canvas(Modifier.fillMaxSize()) {
         drawImage(
             icons, srcOffset = IntOffset(0, if (mail) 8 else 0), srcSize = androidx.compose.ui.unit.IntSize(8, 8),

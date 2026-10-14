@@ -33,6 +33,12 @@ Want the bottom screen for something else while you play, like a video or a chat
 
 It's there on two-screen devices while `SWAP SCREENS` is off.
 
+### SINGLE SCREEN
+
+Rather play on one screen, so the other is free for good? Turn on `SINGLE SCREEN` (in the `SCREEN` group of Settings on the top screen and of the companion's `SETTINGS`; it only shows on a device with a second screen). The game stays on its screen, the second screen goes back to Android for any app you like, and the companion opens as a window over the game, the way it does on a one-screen handheld (see below). Tap `BACK` to open or close it.
+
+Flipped from the companion, it switches right away and the window opens so you can see where it went. Turn it off and the companion goes back to the second screen. While it's on, `SWAP SCREENS` and `CLOSE COMPANION` step aside, and `COMPANION VIEW` and `BATTLE BUTTONS` show up, as on a one-screen device.
+
 ## Single-screen handhelds
 
 On a handheld with one screen, like the Retroid Pocket 6, the companion shares the game's screen. The `COMPANION VIEW` setting (in the `SCREEN` group of Settings and of the companion's `SETTINGS`) picks how:
@@ -80,7 +86,7 @@ Hold a phone upright and the game sits across the top of the screen, with the co
 - **Step through sizes:** tap the grip to go from small, to the default, to everything under the game, and round again.
 - **Touch controls:** when there's enough room between the game and the companion, the on-screen buttons go in that gap. When there isn't, they lie over the game as usual.
 
-The `COMPANION` setting (in the `SCREEN` group of Settings on single-screen devices) picks where the companion sits on a phone held upright:
+The `COMPANION` setting (on the `DISPLAY OPTIONS` page of the `SCREEN` group, on single-screen devices) picks where the companion sits on a phone held upright:
 
 - `AT BOTTOM` (the default): along the bottom of the screen, with the touch controls in any gap above it.
 - `UNDER GAME`: right under the game, with the touch controls at the bottom of the screen.

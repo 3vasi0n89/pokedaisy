@@ -38,6 +38,8 @@ class SettingRow(
     val subtitle: String? = null,
     /** Hidden words Settings' search also matches (English, space-separated): the terms players use elsewhere. */
     val keywords: String = "",
+    /** The row opens a page of its own (not a pick-list): a pixel chevron at its right end. */
+    val opensPage: Boolean = false,
     val onClick: () -> Unit,
 )
 
@@ -103,6 +105,9 @@ val SETTING_KEYWORDS: Map<String, String> = mapOf(
     "COMPANION" to "portrait phone bottom position layout",
     "COMPANION VIEW" to "single screen one screen window modal popup middle center side panel docked layout",
     "SWAP SCREENS" to "dual screen display switch top bottom",
+    "SINGLE SCREEN" to "one screen single screen dual screen multitask multitasking second screen free other apps window modal popup",
+    "SPEED OPTIONS" to "scene speeds battle speed text speed menu speed ff mode ff music fast forward smart steady",
+    "DISPLAY OPTIONS" to "status bar shaders filter overlay border frame companion position portrait",
     "THEME" to "colors look background skin style",
     "FPS / CPU" to "fps frame rate framerate cpu usage performance speed overlay counter 60",
     "DARK MODE" to "dark night black theme light colors appearance auto system",
@@ -190,6 +195,7 @@ fun GroupedRows(
                     height = if (row.subtitle != null) m.rowHeight * 1.2f + m.lineHeight else m.rowHeight * 1.2f,
                     divider = rows.getOrNull(i + 1)?.header == false, labelBadge = row.labelBadge, labelIcon = row.labelIcon,
                     valueBadge = row.badge, enabled = row.enabled, subtitle = row.subtitle, labelWeight = labelWeight,
+                    chevron = row.opensPage,
                     onFocus = onFocused?.let { f -> { f(i) } },
                 ) { onClick(i) }
             }

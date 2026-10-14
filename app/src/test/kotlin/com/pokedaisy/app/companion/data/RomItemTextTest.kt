@@ -41,47 +41,57 @@ class RomItemTextTest {
         Case("emerald-multilang/Pokemon - Version Emeraude (France).gba", GameKind.EMERALD, NATIVE_EMERALD_FR, mapOf(13 to "de 20 points")),
         Case("emerald-multilang/Pokemon - Versione Smeraldo (Italy).gba", GameKind.EMERALD, NATIVE_EMERALD_IT, mapOf(13 to "20 PS")),
         Case("emerald-multilang/Pocket Monsters - Emerald (Japan).gba", GameKind.EMERALD, NATIVE_EMERALD_JA, mapOf(13 to "20　かいふく")),
-        Case("Pokémon Unbound (v2.1.1.1).gba", GameKind.UNBOUND, NATIVE_UNBOUND_WITH_DEX, mapOf(16 to "frostbite")),
-        Case("Pokemon - Gaia (v3.2).gba", GameKind.GAIA, NATIVE_GAIA_V3_2, mapOf(13 to "20 points")),
-        Case("Pokémon Odyssey (English) (v4.1.1).gba", GameKind.ODYSSEY, NATIVE_ODYSSEY, mapOf(13 to "restores 50 HP")),
+        Case("Pokemon Unbound (v2.1.1.1).gba", GameKind.UNBOUND, NATIVE_UNBOUND_WITH_DEX, mapOf(16 to "frostbite")),
+        Case("Pokemon Gaia (v3.2).gba", GameKind.GAIA, NATIVE_GAIA_V3_2, mapOf(13 to "20 points")),
+        Case("Pokemon Odyssey (v4.1.1).gba", GameKind.ODYSSEY, NATIVE_ODYSSEY, mapOf(13 to "restores 50 HP")),
         Case("Pokemon Amethyst (v1.4.1).gba", GameKind.AMETHYST, NATIVE_AMETHYST_V1_4_1, mapOf(13 to "20 points")),
         // By slot, as the game looks it up (slots 192 / 193 carry a stale itemId 255).
-        Case("Pokemon - Radical Red (v4.1).gba", GameKind.RADICAL_RED, NATIVE_RADICAL_RED_V4_1,
+        Case("Pokemon Radical Red (v4.1).gba", GameKind.RADICAL_RED, NATIVE_RADICAL_RED_V4_1,
             mapOf(13 to "20 points", 675 to "special moves", 255 to "Beauty condition")),
         Case("Pokemon Celia's Stupid Romhack (v1.1.4).gba", GameKind.CELIA, NATIVE_CELIA, mapOf(28 to "80 points")),
         Case("Pokemon Too Many Types 2 (v1.5.2).gba", GameKind.TMT2, NATIVE_TMT2, mapOf(28 to "20 points")),
-        Case("Pokémon Heart and Soul (v2.0.6).gba", GameKind.HEART_AND_SOUL, NATIVE_HEART_AND_SOUL, mapOf(28 to "by 20 points")),
+        Case("Pokemon Heart and Soul (v2.0.6).gba", GameKind.HEART_AND_SOUL, NATIVE_HEART_AND_SOUL, mapOf(28 to "by 20 points")),
         Case("Pokemon Lazarus (v2.0).gba", GameKind.LAZARUS, NATIVE_LAZARUS, mapOf(28 to "by 20 points")),
-        Case("Pokemon-SoulGold-v1.1.4.gba", GameKind.SOULGOLD, NATIVE_SOULGOLD, mapOf(28 to "by 20 points", SOULGOLD_V12_TM75 to "Attack")),
+        Case("Pokemon SoulGold (v1.1.4).gba", GameKind.SOULGOLD, NATIVE_SOULGOLD, mapOf(28 to "by 20 points", SOULGOLD_V12_TM75 to "Attack")),
         // v1.2's TM75 is Agility, with its own text.
-        Case("Soulgold (v1.2).gba", GameKind.SOULGOLD, NATIVE_SOULGOLD_V1_2, mapOf(28 to "by 20 points", SOULGOLD_V12_TM75 to "Speed")),
-        Case("Pokemon-SoulGold-v1.2.gba", GameKind.SOULGOLD, NATIVE_SOULGOLD_V1_2B, mapOf(SOULGOLD_V12_TM75 to "Speed")),
-        Case("Soulgold (v1.2) (1).gba", GameKind.SOULGOLD, NATIVE_SOULGOLD_V1_2C, mapOf(28 to "by 20 points", SOULGOLD_V12_TM75 to "Speed")),
+        Case("Pokemon SoulGold (v1.2).gba", GameKind.SOULGOLD, NATIVE_SOULGOLD_V1_2, mapOf(28 to "by 20 points", SOULGOLD_V12_TM75 to "Speed")),
+        Case("Pokemon SoulGold (v1.2) (Alt 1).gba", GameKind.SOULGOLD, NATIVE_SOULGOLD_V1_2B, mapOf(SOULGOLD_V12_TM75 to "Speed")),
+        Case("Pokemon SoulGold (v1.2) (Alt 2).gba", GameKind.SOULGOLD, NATIVE_SOULGOLD_V1_2C, mapOf(28 to "by 20 points", SOULGOLD_V12_TM75 to "Speed")),
         // Rogue's own items (827+) are in a second table.
         Case("Pokemon Emerald Rogue (v2.2.1-EX).gba", GameKind.EMERALD_ROGUE, NATIVE_EMERALD_ROGUE,
             mapOf(39 to "by 20 points", 827 to "species of Pokémon evolve")),
         Case("Pokemon Emerald Seaglass (v3.0).gba", GameKind.EMERALD_SEAGLASS, NATIVE_EMERALD_SEAGLASS, mapOf(28 to "by 20 points")),
-        Case("Glazed (9.2.0).gba", GameKind.GLAZED, NATIVE_GLAZED, mapOf(168 to "donut")),
-        Case("Emerald Imperium (v1.3.1).gba", GameKind.IMPERIUM, NATIVE_IMPERIUM, mapOf(28 to "by 20 points")),
-        Case("PokemonQuetzalEnglishAlpha9v0.gba", GameKind.QUETZAL, NATIVE_QUETZAL, mapOf(28 to "by 20 points")),
+        Case("Pokemon Glazed (v9.2.0).gba", GameKind.GLAZED, NATIVE_GLAZED, mapOf(168 to "donut")),
+        Case("Pokemon Emerald Imperium (v1.3.1).gba", GameKind.IMPERIUM, NATIVE_IMPERIUM, mapOf(28 to "by 20 points")),
+        Case("Pokemon Quetzal (Alpha 9.0) (English).gba", GameKind.QUETZAL, NATIVE_QUETZAL, mapOf(28 to "by 20 points")),
         // Its Spanish release has its own (Spanish) descriptions; Unbound's French translation rewrote them in place.
-        Case("QuetzalDaisy/PokemonQuetzalSpanishAlpha9v0.gba", GameKind.QUETZAL, NATIVE_QUETZAL_ES, mapOf(28 to "Restaura 20 PS")),
-        Case("Pokémon Unbound v2.1.1.1 FR.gba", GameKind.UNBOUND, NATIVE_UNBOUND_FR, mapOf(13 to "Rend 20 PV")),
+        Case("Pokemon Quetzal (Alpha 9.0) (Spanish).gba", GameKind.QUETZAL, NATIVE_QUETZAL_ES, mapOf(28 to "Restaura 20 PS")),
+        Case("Pokemon Quetzal (Alpha 0.8.4) (English).gba", GameKind.QUETZAL, NATIVE_QUETZAL_V084, mapOf(28 to "by 20 points")),
+        Case("Pokemon Quetzal (Alpha 0.8.4) (Spanish).gba", GameKind.QUETZAL, NATIVE_QUETZAL_V084_ES, mapOf(28 to "Restaura 20 PS")),
+        Case("Moemon Quetzal (Alpha 0.8.4 Hotfix) (English).gba", GameKind.QUETZAL, NATIVE_QUETZAL_MOEMON_V084, mapOf(28 to "by 20 points")),
+        Case("Moemon Quetzal (Alpha 0.8.4 Hotfix) (Spanish).gba", GameKind.QUETZAL, NATIVE_QUETZAL_MOEMON_V084_ES, mapOf(28 to "Restaura 20 PS")),
+        Case("Pokemon Unbound (v2.1.1.1) (French).gba", GameKind.UNBOUND, NATIVE_UNBOUND_FR, mapOf(13 to "Rend 20 PV")),
         Case("Pokemon Orange Islands.gba", GameKind.ORANGE_ISLANDS, NATIVE_ORANGE_ISLANDS, mapOf(13 to "20 points")),
-        Case("ultra-violet-v1.22.gba", GameKind.FIRERED, NATIVE_ULTRA_VIOLET, mapOf(13 to "20 points")),
-        Case("Sword and Shield Ultimate Plus (1.2.1.2).gba", GameKind.SWORD_SHIELD, NATIVE_SWORD_SHIELD, mapOf(13 to "by 20 points")),
+        Case("Pokemon Ultra Violet (v1.22).gba", GameKind.FIRERED, NATIVE_ULTRA_VIOLET, mapOf(13 to "20 points")),
+        Case("Pokemon FireRed Rocket Edition.gba", GameKind.FIRERED, NATIVE_ROCKET_EDITION, mapOf(13 to "20 points")),
+        Case("Pokemon Ash Gray (v4.5.3).gba", GameKind.FIRERED, NATIVE_ASH_GRAY, mapOf(13 to "20 points")),
+        Case("Pokemon Sword and Shield Ultimate Plus (v1.2.1.2).gba", GameKind.SWORD_SHIELD, NATIVE_SWORD_SHIELD, mapOf(13 to "by 20 points")),
+        Case("Pokemon GS Chronicles (v2.7.6).gba", GameKind.GS_CHRONICLES, NATIVE_GS_CHRONICLES, mapOf(13 to "by 20 points")),
         // Recharged Yellow: 48-byte records, the text at +0x18; its own items past FireRed's (the LINKING CORD, 61).
-        Case("Recharged Yellow v1.8.0.gba", GameKind.RECHARGED_YELLOW, NATIVE_RECHARGED_YELLOW_V1_8_0, mapOf(13 to "by 20 points", 61 to "sense of connection", 407 to "categorized by encounter type")),
-        Case("Recharged Yellow v1.9.0.gba", GameKind.RECHARGED_YELLOW, NATIVE_RECHARGED_YELLOW_V1_9_0, mapOf(13 to "by 20 points")),
-        Case("Recharged Yellow v1.9.4.gba", GameKind.RECHARGED_YELLOW, NATIVE_RECHARGED_YELLOW_V1_9_4, mapOf(13 to "by 20 points")),
-        Case("Recharged Yellow v1.9.7.gba", GameKind.RECHARGED_YELLOW, NATIVE_RECHARGED_YELLOW_V1_9_7, mapOf(13 to "by 20 points")),
-        Case("Pokémon R.O.W.E. (v2.1.9.1 Experimental).gba", GameKind.ROWE, NATIVE_ROWE, mapOf(28 to "by 20 points")),
+        Case("Pokemon Recharged Yellow (v1.8.0).gba", GameKind.RECHARGED_YELLOW, NATIVE_RECHARGED_YELLOW_V1_8_0, mapOf(13 to "by 20 points", 61 to "sense of connection", 407 to "categorized by encounter type")),
+        Case("Pokemon Recharged Yellow (v1.9.0).gba", GameKind.RECHARGED_YELLOW, NATIVE_RECHARGED_YELLOW_V1_9_0, mapOf(13 to "by 20 points")),
+        Case("Pokemon Recharged Yellow (v1.9.4).gba", GameKind.RECHARGED_YELLOW, NATIVE_RECHARGED_YELLOW_V1_9_4, mapOf(13 to "by 20 points")),
+        Case("Pokemon Recharged Yellow (v1.9.7).gba", GameKind.RECHARGED_YELLOW, NATIVE_RECHARGED_YELLOW_V1_9_7, mapOf(13 to "by 20 points")),
+        Case("Pokemon Recharged Emerald (v2.2.5).gba", GameKind.EMERALD, NATIVE_RECHARGED_EMERALD_V2_2_5, mapOf(13 to "by 20 points")),
+        Case("Pokemon Recharged Emerald (v2.2.8).gba", GameKind.EMERALD, NATIVE_RECHARGED_EMERALD_V2_2_8, mapOf(13 to "by 20 points")),
+        Case("Pokemon Recharged Emerald Rebalanced (v2.2.8).gba", GameKind.EMERALD, NATIVE_RECHARGED_EMERALD_REBALANCED_V2_2_8, mapOf(13 to "by 20 points")),
+        Case("Pokemon R.O.W.E. (v2.1.9.1 Experimental).gba", GameKind.ROWE, NATIVE_ROWE, mapOf(28 to "by 20 points")),
         // Its MUSHROOM (POTION) and PLUMBER CAP (POKé BALL); v1.5 added the VS. RECORDER (823).
-        Case("Super Mariomon v1.5.2-Anniversary.gba", GameKind.MARIOMON, NATIVE_MARIOMON_V1_5_2, mapOf(28 to "fun fungus", 1 to "Gadd Science")),
-        Case("Super Mariomon v1.5.1-Anniversary.gba", GameKind.MARIOMON, NATIVE_MARIOMON_V1_5_1, mapOf(28 to "by 20 points", 802 to "wooden")),
-        Case("Super Mariomon v1.3.gba", GameKind.MARIOMON, NATIVE_MARIOMON_V1_3, mapOf(28 to "by 20 points", 802 to "wooden")),
-        Case("Super Mariomon v1.2.2.gba", GameKind.MARIOMON, NATIVE_MARIOMON_V1_2_2, mapOf(28 to "by 20 points")),
-        Case("Super Mariomon v1.2.1.gba", GameKind.MARIOMON, NATIVE_MARIOMON_V1_2_1, mapOf(28 to "by 20 points")),
+        Case("Super Mariomon (v1.5.2 Anniversary).gba", GameKind.MARIOMON, NATIVE_MARIOMON_V1_5_2, mapOf(28 to "fun fungus", 1 to "Gadd Science")),
+        Case("Super Mariomon (v1.5.1 Anniversary).gba", GameKind.MARIOMON, NATIVE_MARIOMON_V1_5_1, mapOf(28 to "by 20 points", 802 to "wooden")),
+        Case("Super Mariomon (v1.3).gba", GameKind.MARIOMON, NATIVE_MARIOMON_V1_3, mapOf(28 to "by 20 points", 802 to "wooden")),
+        Case("Super Mariomon (v1.2.2).gba", GameKind.MARIOMON, NATIVE_MARIOMON_V1_2_2, mapOf(28 to "by 20 points")),
+        Case("Super Mariomon (v1.2.1).gba", GameKind.MARIOMON, NATIVE_MARIOMON_V1_2_1, mapOf(28 to "by 20 points")),
     )
 
     /** What the Poller does on detecting [cfg]'s game: its table, or the vanilla one found by shape. */
@@ -138,7 +148,7 @@ class RomItemTextTest {
 
     /** Every item in a later Radical Red save's bag has its description (they're past vanilla's ids). */
     @Test fun `radical red's bag`() {
-        val file = File(RETAIL_ROM_DIR + "Pokemon - Radical Red (v4.1).gba")
+        val file = File(RETAIL_ROM_DIR + "Pokemon Radical Red (v4.1).gba")
         assumeTrue(file.isFile)
         select(file, GameKind.RADICAL_RED, NATIVE_RADICAL_RED_V4_1)
         decodeNative("radical_red_1636", NATIVE_RADICAL_RED_V4_1).items.forEach {

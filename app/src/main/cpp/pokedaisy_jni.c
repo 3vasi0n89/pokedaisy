@@ -950,6 +950,23 @@ static void pk_read_range(struct mCore* core, uint32_t addr, uint8_t* dst, int l
     }
 }
 
+// Game Boy Color: WRAM bank B's D000-DFFF read by its own address, (B << 16) | addr, whatever SVBK maps
+// at D000 right now - Crystal keeps its state in bank 1 but switches D000 to other banks mid-frame
+// (Gen2Reader's wramx). False for any other address, which reads over the bus as before.
+static bool pk_gb_read_banked(struct mCore* core, uint32_t addr, uint8_t* dst, int len) {
+    if (addr < 0x10000u || core->platform(core) != mPLATFORM_GB) {
+        return false;
+    }
+    struct GB* gb = core->board;
+    uint32_t bank = addr >> 16, off = addr & 0xFFFFu;
+    if (bank > 7 || off < 0xD000u || off + (uint32_t) len > 0xE000u || !gb->memory.wram) {
+        memset(dst, 0, (size_t) len);
+    } else {
+        memcpy(dst, gb->memory.wram + bank * GB_SIZE_WORKING_RAM_BANK0 + (off - 0xD000u), (size_t) len);
+    }
+    return true;
+}
+
 JNIEXPORT jbyteArray JNICALL
 Java_com_pokedaisy_app_MgbaCore_pkReadBytes(JNIEnv* env, jobject thiz, jlong addr, jint len) {
     if (len <= 0 || len > (1 << 24)) {
@@ -961,7 +978,9 @@ Java_com_pokedaisy_app_MgbaCore_pkReadBytes(JNIEnv* env, jobject thiz, jlong add
     }
     pthread_rwlock_rdlock(&pk_coreLock);
     bool ok = g.core != NULL;
-    if (ok) {
+    if (ok && pk_gb_read_banked(g.core, (uint32_t) addr, tmp, len)) {
+        // a Color cart's WRAM bank, read by bank
+    } else if (ok) {
         pk_read_range(g.core, (uint32_t) addr, tmp, len);
         // The ROM as the file has it, under any cheat's hook or ROM patch: the
         // Poller identifies hacks by hashing it (see pk_cheats.c).

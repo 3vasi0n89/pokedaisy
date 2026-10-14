@@ -54,11 +54,11 @@ def map_run(code, margin, extra=(), boot_file=None):
     return out + ["keys NONE", "widestats"]
 
 
-def battle_run(code, script, margin, extra=(), boot_file=None):
+def battle_run(code, script, margin, extra=(), boot_file=None, script_ram=SCRIPT_RAM):
     slow = code[:3] in ("BPE", "AXV", "AXP")   # Emerald and Ruby / Sapphire print their battle text slower
     out = [f"wideon {margin}"] + boot_lines(code, extra, boot_file) + ["wait 60", "layers 0x18", "wait 2", "widecheck all"]
-    out += [f"poke8 {SCRIPT_RAM + i:#x} {b:#x}" for i, b in enumerate(BATTLE)]
-    out += [f"call {script} {SCRIPT_RAM:#x}", f"wait {520 if slow else 420}", "press A", f"wait {480 if slow else 330}",
+    out += [f"poke8 {script_ram + i:#x} {b:#x}" for i, b in enumerate(BATTLE)]
+    out += [f"call {script} {script_ram:#x}", f"wait {520 if slow else 420}", "press A", f"wait {480 if slow else 330}",
             "press RIGHT", "wait 12", "press DOWN", "wait 12", "press A", "wait 90", "press A", "wait 300", "widestats"]
     return out
 
@@ -100,7 +100,8 @@ def main():
         shutil.copy(save, os.path.join(work, "save.sav"))
         shutil.copy(tool, os.path.join(work, "mgba_dump"))
         mm, moff = run(work, map_run(e["code"], margin, e.get("boot", []), e.get("boot_file")))
-        bm, boff = run(work, battle_run(e["code"], e["script"], margin, e.get("boot", []), e.get("boot_file"))) if e["script"] else (None, [])
+        bm, boff = run(work, battle_run(e["code"], e["script"], margin, e.get("boot", []), e.get("boot_file"),
+                                        int(e.get("script_ram") or SCRIPT_RAM))) if e["script"] else (None, [])
         # The map run checks map frames only; the battle run (BG3 + sprites) checks its battle frames.
         maps = f"{mm.group(5)}/{mm.group(4)}" if mm else "?"
         battle_off = [l for l in boff if "(battle)" in l]

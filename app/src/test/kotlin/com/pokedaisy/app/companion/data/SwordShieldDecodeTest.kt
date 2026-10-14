@@ -89,10 +89,10 @@ class SwordShieldDecodeTest {
 
     private companion object {
         val ROMS = listOf(
-            "Sword and Shield Ultimate Plus (1.2.1.2).gba",
-            "Sword and Shield Ultimate Plus (1.2.1.2 - Casual Patch).gba",
-            "Sword and Shield Ultimate Plus (1.2.1.2 - Performance Patch).gba",
-            "Sword and Shield Ultimate Plus (1.2.1,2 - Casual and Performance Patch).gba",
+            "Pokemon Sword and Shield Ultimate Plus (v1.2.1.2).gba",
+            "Pokemon Sword and Shield Ultimate Plus (v1.2.1.2) (Casual Patch).gba",
+            "Pokemon Sword and Shield Ultimate Plus (v1.2.1.2) (Performance Patch).gba",
+            "Pokemon Sword and Shield Ultimate Plus (v1.2.1.2) (Casual and Performance Patch).gba",
         )
     }
 }

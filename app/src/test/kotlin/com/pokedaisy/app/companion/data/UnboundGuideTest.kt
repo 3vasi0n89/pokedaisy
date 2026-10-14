@@ -14,7 +14,7 @@ import org.junit.Test
 class UnboundGuideTest {
     private val t = GUIDE_TABLES_UNBOUND
 
-    private fun rom(): RomFileReader? = RomFileReader.load(RETAIL_ROM_DIR + "Pokémon Unbound (v2.1.1.1).gba")?.also {
+    private fun rom(): RomFileReader? = RomFileReader.load(RETAIL_ROM_DIR + "Pokemon Unbound (v2.1.1.1).gba")?.also {
         activeGame = GameKind.UNBOUND
         PokedexSource.reader = it
     }

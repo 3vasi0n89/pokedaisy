@@ -1,6 +1,7 @@
 package com.pokedaisy.app.companion.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,6 +51,23 @@ class GbaTextMetrics(
  * text shrinks - one font pixel, never below that size - so the pixel font stays crisp; GBA pixels (paddings) don't change.
  */
 val LocalTextStep = androidx.compose.runtime.staticCompositionLocalOf { 0 }
+
+/**
+ * The top screen's activities (Library, Settings, setup) on a small window - a phone held upright (narrower than
+ * [COMPACT_WINDOW_WIDTH_DP]) or sideways (shorter than [COMPACT_WINDOW_HEIGHT_DP]): their main text a step smaller
+ * ([LocalTextStep]), so paragraphs wrap less and a pop-up's buttons stay on screen. The Thor's top screen is neither.
+ */
+@Composable
+fun CompactTextOnSmallWindows(content: @Composable () -> Unit) {
+    // The room the activity's content gets (its window, less the system bars), measured: ui-preview has no Configuration.
+    androidx.compose.foundation.layout.BoxWithConstraints(androidx.compose.ui.Modifier.fillMaxSize()) {
+        val small = maxWidth < COMPACT_WINDOW_WIDTH_DP.dp || maxHeight < COMPACT_WINDOW_HEIGHT_DP.dp
+        androidx.compose.runtime.CompositionLocalProvider(LocalTextStep provides if (small) -1 else LocalTextStep.current, content = content)
+    }
+}
+
+const val COMPACT_WINDOW_WIDTH_DP = 500
+const val COMPACT_WINDOW_HEIGHT_DP = 380
 
 /** [textScale]: text size relative to the frame's GBA pixel - 1.25 for the
  * main lists, 1 for denser secondary text (timestamps, paths, captions).

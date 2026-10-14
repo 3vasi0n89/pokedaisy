@@ -137,7 +137,10 @@ object BestEffort {
             Candidate("CELIA", GameKind.CELIA, NATIVE_CELIA, FIRERED, "Celia's Stupid Romhack"),
             Candidate("ORANGE_ISLANDS", GameKind.ORANGE_ISLANDS, NATIVE_ORANGE_ISLANDS, FIRERED, "Pokémon Orange Islands"),
             Candidate("ULTRA_VIOLET", GameKind.FIRERED, NATIVE_ULTRA_VIOLET, ULTRA_VIOLET, "Pokémon Ultra Violet"),
+            Candidate("ROCKET_EDITION", GameKind.FIRERED, NATIVE_ROCKET_EDITION, FIRERED, "Pokémon FireRed Rocket Edition"),
+            Candidate("ASH_GRAY", GameKind.FIRERED, NATIVE_ASH_GRAY, FIRERED, "Pokémon Ash Gray"),
             Candidate("SWORD_SHIELD", GameKind.SWORD_SHIELD, NATIVE_SWORD_SHIELD, FIRERED, "Sword and Shield Ultimate Plus"),
+            Candidate("GS_CHRONICLES", GameKind.GS_CHRONICLES, NATIVE_GS_CHRONICLES, FIRERED, "Pokémon GS Chronicles"),
             Candidate("RECHARGED_YELLOW_V1_8_0", GameKind.RECHARGED_YELLOW, NATIVE_RECHARGED_YELLOW_V1_8_0, FIRERED, "Pokémon Recharged Yellow v1.8"),
             Candidate("RECHARGED_YELLOW_V1_9_0", GameKind.RECHARGED_YELLOW, NATIVE_RECHARGED_YELLOW_V1_9_0, FIRERED, "Pokémon Recharged Yellow v1.9.0"),
             Candidate("RECHARGED_YELLOW_V1_9_4", GameKind.RECHARGED_YELLOW, NATIVE_RECHARGED_YELLOW_V1_9_4, FIRERED, "Pokémon Recharged Yellow v1.9.4"),
@@ -480,13 +483,14 @@ object BestEffort {
     /** The globals the decoders read the running game's tables by ([activeGame] and friends). */
     private object Globals {
         class Saved(
-            val game: GameKind, val lang: Char, val code: String, val sg12: Boolean, val am141: Boolean, val mm13: Boolean, val uv: Boolean,
+            val game: GameKind, val lang: Char, val code: String, val sg12: Boolean, val am141: Boolean, val mm13: Boolean, val frHack: HackText?,
+            val q084: Boolean, val emHack: HackText?,
         )
 
-        fun save() = Saved(activeGame, romLanguage, romGameCode, soulGoldV12, amethystV141, mariomonV13, ultraViolet)
+        fun save() = Saved(activeGame, romLanguage, romGameCode, soulGoldV12, amethystV141, mariomonV13, fireRedHack, quetzalV084, emeraldHack)
         fun restore(s: Saved) {
             activeGame = s.game; romLanguage = s.lang; romGameCode = s.code; soulGoldV12 = s.sg12; amethystV141 = s.am141
-            mariomonV13 = s.mm13; ultraViolet = s.uv
+            mariomonV13 = s.mm13; fireRedHack = s.frHack; quetzalV084 = s.q084; emeraldHack = s.emHack
         }
         fun set(c: Candidate) {
             activeGame = c.kind
@@ -494,8 +498,10 @@ object BestEffort {
             romGameCode = c.cfg.gameCode
             soulGoldV12 = c.cfg === NATIVE_SOULGOLD_V1_2 || c.cfg === NATIVE_SOULGOLD_V1_2B || c.cfg === NATIVE_SOULGOLD_V1_2C
             amethystV141 = c.cfg === NATIVE_AMETHYST_V1_4_1
-            ultraViolet = c.cfg === NATIVE_ULTRA_VIOLET
+            fireRedHack = fireRedHackFor(c.cfg)
+            emeraldHack = emeraldHackFor(c.cfg)
             mariomonV13 = c.cfg === NATIVE_MARIOMON_V1_3 || c.cfg === NATIVE_MARIOMON_V1_2_2 || c.cfg === NATIVE_MARIOMON_V1_2_1
+            quetzalV084 = c.cfg.quetzalV084
         }
     }
 }

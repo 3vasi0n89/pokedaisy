@@ -77,12 +77,14 @@ import com.pokedaisy.app.companion.data.POCKET_TM_HM
 import com.pokedaisy.app.companion.data.activeGame
 import com.pokedaisy.app.companion.data.itemNamesEmeraldGame
 import com.pokedaisy.app.companion.data.itemNamesFireRedGame
-import com.pokedaisy.app.companion.data.itemNamesUltraVioletGame
-import com.pokedaisy.app.companion.data.ultraViolet
+import com.pokedaisy.app.companion.data.runningEmeraldHack
+import com.pokedaisy.app.companion.data.runningFireRedHack
 import com.pokedaisy.app.companion.data.localText
 import com.pokedaisy.app.companion.data.pocketLabel
 import com.pokedaisy.app.companion.data.pocketOrder
 import com.pokedaisy.app.companion.ui.theme.pixelFontFamily
+import com.pokedaisy.app.companion.data.isGameBoyGame
+import com.pokedaisy.app.companion.data.isCrystalFamily
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -105,8 +107,9 @@ private enum class ItemSort(val label: String) { DEFAULT(tk("Default")), NAME(tk
  */
 private fun gameItemNames(game: GameKind): Map<Int, String>? = when (game) {
     // A localized game's own (GameText), already in its casing.
-    GameKind.FIRERED -> localText?.items ?: if (ultraViolet) itemNamesUltraVioletGame else itemNamesFireRedGame
-    GameKind.EMERALD -> localText?.items ?: itemNamesEmeraldGame
+    GameKind.FIRERED -> localText?.items ?: runningFireRedHack?.itemsGame ?: itemNamesFireRedGame
+    // Recharged Emerald: its own whole table, in its mixed case.
+    GameKind.EMERALD -> localText?.items ?: runningEmeraldHack?.items ?: itemNamesEmeraldGame
     else -> null
 }
 
@@ -115,7 +118,8 @@ private fun gameItemNames(game: GameKind): Map<Int, String>? = when (game) {
 internal fun bagItemName(id: Int): String = gameItemNames(activeGame)?.get(id) ?: itemName(id)
 
 private fun capsBagLabels(game: GameKind): Boolean =
-    gameItemNames(game) != null || game == GameKind.HEART_AND_SOUL || game == GameKind.ORANGE_ISLANDS
+    gameItemNames(game) != null || game == GameKind.HEART_AND_SOUL || game == GameKind.ORANGE_ISLANDS ||
+        (game.isCrystalFamily && game != GameKind.PRISM)   // Prism's bag is mixed case ("Poké Ball")
 
 /** The FAVORITES tab's id among the pocket tabs (pocket ids are 0 and up): the starred items. */
 private const val FAVORITES_TAB = -1
@@ -335,6 +339,25 @@ private val SwordShieldBag = BagPalette(
 )
 
 /**
+ * Sampled from GS Chronicles' bag screen (headless): its rows are light blue-grey pills in a
+ * charcoal line with a grey inner edge, the vanilla grey text, the pocket title the same pill,
+ * the navy description box with white text, a light icon box with a slate edge, the orange
+ * pocket arrows (underline) and blue 2px stripes.
+ */
+private val GsChroniclesBag = BagPalette(
+    panelLayers = listOf(Color(0xFF292929) to 1, Color(0xFFB5B5B5) to 1, Color(0xFF292929) to 1, Color(0xFFC6CEDE) to 1),
+    tabLayerCount = 3,
+    fill = Color(0xFFC6CEDE), divider = Color(0xFF292929),
+    text = Color(0xFF636363), textShadow = Color(0xFFD6D6CE),
+    tabText = Color(0xFF636363), tabTextShadow = Color(0xFFD6D6CE), tabUnderline = Color(0xFFFF5200),
+    descLayers = listOf(Color(0xFF29394A) to 1), descFill = Color(0xFF001031),
+    descText = Color(0xFFFFFFFF), descTextShadow = Color(0xFF636363),
+    iconBox = Color(0xFFC6CEDE), iconBoxEdge = Color(0xFF29394A),
+    backdrop = Color(0xFF08397B) to Color(0xFF004AA5),
+    dividerDash = null, dividerWidth = 1, dividerShadow = Color(0xFFB5B5B5),
+)
+
+/**
  * Sampled from Odyssey's bag screen: light grey-cream rows split by solid
  * gold lines on a gold ground, the vanilla grey text, the dark pocket-title
  * box (the tabs: dark with white text, gold edge), the dark description bar,
@@ -452,6 +475,24 @@ private val YellowBag = BagPalette(
     backdrop = Color.White to Color.White,
 )
 
+/**
+ * Pokémon Crystal (Game Boy Color): its PACK, sampled headless - Yellow's black-on-white text boxes,
+ * the cursor's red under the pocket, and the PACK screen's blue checks (two blues) behind it.
+ */
+private val CrystalBag = YellowBag.copy(
+    tabUnderline = Color(0xFFFF0000),
+    backdrop = Color(0xFF7B7BFF) to Color(0xFF0000FF),
+)
+
+/**
+ * Pokémon Crystal Clear: the same text boxes in its PACK's red (the player picks the PACK's colour at the start; red is
+ * the default, sampled headless): the cursor, and the red checks of the PACK's side panel behind it.
+ */
+private val CrystalClearBag = YellowBag.copy(
+    tabUnderline = Color(0xFFFF0000),
+    backdrop = Color(0xFFFF0000) to Color(0xFFAD0000),
+)
+
 /** Whether [ItemsBackdrop] replaces the party backdrop behind this game's Items tab. */
 fun hasItemsBackdrop(game: GameKind): Boolean = bagPaletteFor(game).backdrop != null
 
@@ -499,7 +540,7 @@ fun ItemsBackdrop(game: GameKind, modifier: Modifier = Modifier) {
 /** Same grouping as the companion backdrop (rememberGameBackground). */
 private fun bagPaletteFor(game: GameKind): BagPalette =
     // Gen 1's white goes nearly black, like its party backdrop (GameBackdrop).
-    lightBagFor(game).let { if (OptionColors.dark) nightBags.getOrPut(it) { it.night(if (game == GameKind.YELLOW) 0.9f else OptionColors.backdropScrim) } else it }
+    lightBagFor(game).let { if (OptionColors.dark) nightBags.getOrPut(it) { it.night(if (game.isGameBoyGame) 0.9f else OptionColors.backdropScrim) } else it }
 
 private fun lightBagFor(game: GameKind): BagPalette = when (game) {
     GameKind.EMERALD -> EmeraldBag
@@ -509,11 +550,16 @@ private fun lightBagFor(game: GameKind): BagPalette = when (game) {
     GameKind.RADICAL_RED -> RadicalRedBag
     GameKind.ODYSSEY -> OdysseyBag
     GameKind.SWORD_SHIELD -> SwordShieldBag
+    GameKind.GS_CHRONICLES -> GsChroniclesBag
     GameKind.EMERALD_ROGUE -> RogueBag
     GameKind.LAZARUS, GameKind.EMERALD_SEAGLASS -> PlainExpansionBag
     GameKind.ROWE -> RoweBag
     GameKind.SOULGOLD -> SoulGoldBag
     GameKind.YELLOW -> YellowBag
+    GameKind.CRYSTAL -> CrystalBag
+    GameKind.CRYSTAL_CLEAR -> CrystalClearBag
+    // Prism's PACK: Crystal's blue checks and text boxes.
+    GameKind.PRISM -> CrystalBag
     GameKind.MARIOMON -> MariomonBag
     // Too Many Types 2's, Glazed's, Imperium's and Quetzal's bags are Emerald's; Gaia's and Celia's are FireRed's.
     GameKind.TMT2, GameKind.GLAZED, GameKind.IMPERIUM, GameKind.QUETZAL -> EmeraldBag

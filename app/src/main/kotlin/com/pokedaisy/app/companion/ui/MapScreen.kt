@@ -247,11 +247,18 @@ internal enum class MapLabelStyle(val width: Int, val height: Int) {
     val cursorColor: Color get() = if (this == GEN1) Color(0xFF181818) else Color.White
 
     /** The player's 16x16 head on the map (regionmap/player_*.png, from the ROM by RomArt). */
-    fun headAsset(gender: Int, game: GameKind? = null): String = when (this) {
+    fun headAsset(gender: Int, game: GameKind? = null): String? = when (this) {
         FIRERED -> if (gender == 1) "player_leaf" else "player_red"
         // Super Mariomon drew MARIO in Brendan's slot.
-        EMERALD -> if (gender == 1) "player_may" else if (game == GameKind.MARIOMON) "player_mario" else "player_brendan"
-        GEN1 -> "player_yellow"   // Red's standing sprite, from the ROM (Gen1Art)
+        // Recharged Emerald redrew both heads for its map.
+        EMERALD -> if (com.pokedaisy.app.companion.data.runningEmeraldHack != null) { if (gender == 1) "player_may_re" else "player_brendan_re" }
+            else if (gender == 1) "player_may" else if (game == GameKind.MARIOMON) "player_mario" else "player_brendan"
+        // Red's standing sprite (Gen1Art), or Crystal's CHRIS / KRIS (Gen2Art), from the ROM.
+        // Crystal Clear's player is the player's own (model, skin, colours): none drawn.
+        GEN1 -> if (game == GameKind.CRYSTAL_CLEAR || game == GameKind.PRISM) null   // Prism's too (six models)
+            else if (game != GameKind.CRYSTAL) "player_yellow"
+            else if (gender == 1) com.pokedaisy.app.companion.data.Gen2Art.CRYSTAL_PLAYER_F
+            else com.pokedaisy.app.companion.data.Gen2Art.CRYSTAL_PLAYER
     }
 
     companion object {
@@ -263,7 +270,7 @@ internal enum class MapLabelStyle(val width: Int, val height: Int) {
 
         fun of(game: GameKind?) = when (game) {
             in EMERALD_FAMILY -> EMERALD
-            GameKind.YELLOW -> GEN1
+            GameKind.YELLOW, GameKind.CRYSTAL, GameKind.CRYSTAL_CLEAR, GameKind.PRISM -> GEN1   // Crystal's POKéGEAR map: the same black name on light
             else -> FIRERED
         }
     }
@@ -275,6 +282,16 @@ private fun regionName(images: Array<String>, i: Int): String = when (images[i])
     "sevii123" -> "SEVII 1-3"
     "sevii45" -> "SEVII 4-5"
     "sevii67" -> "SEVII 6-7"
+    "crystal_johto" -> "JOHTO"
+    "crystal_kanto" -> "KANTO"
+    "crystal_clear_johto" -> "JOHTO"
+    "crystal_clear_kanto" -> "KANTO"
+    "prism_naljo" -> "NALJO"
+    "prism_rijon" -> "RIJON"
+    "prism_johto" -> "JOHTO"
+    "prism_kanto" -> "KANTO"
+    "prism_sevii" -> "SEVII"
+    "prism_tunod" -> "TUNOD"
     else -> tr("MAP {0}", i + 1)
 }
 

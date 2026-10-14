@@ -673,7 +673,7 @@ fun quickMenuRows(
 ): List<SettingRow> {
     fun onOff(b: Boolean) = if (b) tk("ON") else tk("OFF")
     return listOf(
-        SettingRow(tk("BUTTON"), binding.ifEmpty { tk("NONE") }, subtitle = "Press it for the menu; change it in HOTKEYS") { onHotkey() },
+        SettingRow(tk("BUTTON"), binding.ifEmpty { tk("NONE") }, subtitle = "Press it for the menu; change it in HOTKEYS", opensPage = true) { onHotkey() },
         // Two values: a tap flips it.
         SettingRow(tk("STYLE"), style.label) {
             setStyle(if (style == QuickMenuStyle.RING) QuickMenuStyle.GRID else QuickMenuStyle.RING)

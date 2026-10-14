@@ -59,6 +59,7 @@ import com.pokedaisy.app.companion.data.MonView
 import com.pokedaisy.app.companion.data.MoveView
 import com.pokedaisy.app.companion.ui.theme.AppColors
 import com.pokedaisy.app.companion.ui.theme.pixelFontFamily
+import com.pokedaisy.app.companion.data.isCrystalFamily
 import com.pokedaisy.app.companion.ui.theme.gbaFocusRing
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -642,14 +643,19 @@ private fun Gen1ActionButtons(
             GbaText(label, buttonContent, Color.Transparent, m, bold = true)
         }
     }
+    // Prism's menu is mixed case (Fight / PkMn / Pack / Run); Yellow's in each language's own words.
+    val words = if (com.pokedaisy.app.companion.data.activeGame == com.pokedaisy.app.companion.data.GameKind.PRISM)
+        listOf("Fight", "PkMn", "Pack", "Run")
+        else com.pokedaisy.app.companion.data.gen1BattleMenuWords(com.pokedaisy.app.companion.data.romLanguage)
     Column(modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            cell("FIGHT", 0, Modifier.weight(1f).fillMaxHeight(), icon = true)
-            cell("PkMn", 2, Modifier.weight(1f).fillMaxHeight())
+            cell(words[0], 0, Modifier.weight(1f).fillMaxHeight(), icon = true)
+            cell(words[1], 2, Modifier.weight(1f).fillMaxHeight())
         }
         Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            cell("ITEM", 1, Modifier.weight(1f).fillMaxHeight())
-            cell("RUN", 3, Modifier.weight(1f).fillMaxHeight())
+            // Crystal calls the bag PACK.
+            cell(if (com.pokedaisy.app.companion.data.activeGame.isCrystalFamily && words[2] != "Pack") "PACK" else words[2], 1, Modifier.weight(1f).fillMaxHeight())
+            cell(words[3], 3, Modifier.weight(1f).fillMaxHeight())
         }
     }
 }
@@ -715,7 +721,8 @@ private fun Gen1MoveList(
 }
 
 /** A Game Boy game's buttons are plain text boxes ([PlatinumButton]). */
-internal val gen1Buttons get() = com.pokedaisy.app.companion.data.activeGame == com.pokedaisy.app.companion.data.GameKind.YELLOW
+internal val gen1Buttons get() = com.pokedaisy.app.companion.data.activeGame == com.pokedaisy.app.companion.data.GameKind.YELLOW ||
+    com.pokedaisy.app.companion.data.activeGame.isCrystalFamily   // Gen 2's menu is laid out the same
 
 /** [text] on one line at the largest whole size from [maxSize] down to [minSize] (sp) that fits the
  * width it's given; still too long at [minSize], it ends in an ellipsis. */

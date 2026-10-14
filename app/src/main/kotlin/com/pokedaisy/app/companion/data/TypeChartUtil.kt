@@ -120,6 +120,8 @@ fun itemName(id: Int): String = activeItemNames[id]?.let(::gameCase) ?: "Item#$i
 fun gameCase(name: String): String = when {
     // A localized game's names come from its ROM, already in its casing.
     localText != null -> name
+    // A mixed-case hack (Rocket Edition, Recharged Emerald): its own tables, already in the game's casing.
+    runningFireRedHack?.ownCase == true || runningEmeraldHack?.ownCase == true -> name
     activeGame == GameKind.FIRERED || activeGame == GameKind.EMERALD -> buildString(name.length) {
         for (c in name) append(if (c == 'é') c else c.uppercaseChar())
     }
@@ -132,7 +134,11 @@ fun gameCase(name: String): String = when {
  */
 fun itemDescription(id: Int): String = when (activeGame) {
     // Gen 1 items have no descriptions of their own: ours, and what each TM / HM teaches.
-    GameKind.YELLOW -> itemDescriptionsYellow[id] ?: tmDescriptionsYellow[id] ?: ""
+    // ... in English: the German / French / Italian / Spanish carts get none rather than English under their names.
+    GameKind.YELLOW -> if (romLanguage != 'E') "" else itemDescriptionsYellow[id] ?: tmDescriptionsYellow[id] ?: ""
+    // Crystal's own text, from the cart (a TM's: its move's), like the GBA games'.
+    // (Prism's are compressed: none.)
+    GameKind.CRYSTAL, GameKind.CRYSTAL_CLEAR, GameKind.PRISM -> activeGen2.pokedex?.gen2?.let { Gen2Dex.itemDescription(it, id) }.orEmpty()
     else -> RomItemText.description(id)
 }
 

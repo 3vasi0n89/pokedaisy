@@ -126,7 +126,7 @@ import com.pokedaisy.app.companion.ui.drawPixelRoundRect
  */
 class SettingsActivity : ComponentActivity() {
 
-    private enum class Screen { HOME, HOTKEYS, CONTROLS, SHADERS, FIELD_HUD, QUICK_MENU, OVERLAYS, FOLDERS, COVER_ART, SCREENSCRAPER, HIDDEN, ACHIEVEMENTS, CHEATS, CHEAT_ADD, LICENSES, HELP }
+    private enum class Screen { HOME, SPEED, DISPLAY, HOTKEYS, CONTROLS, SHADERS, FIELD_HUD, QUICK_MENU, OVERLAYS, FOLDERS, COVER_ART, SCREENSCRAPER, HIDDEN, ACHIEVEMENTS, CHEATS, CHEAT_ADD, LICENSES, HELP }
 
     private lateinit var prefs: Prefs
     private var screen by mutableStateOf(Screen.HOME)
@@ -185,6 +185,9 @@ class SettingsActivity : ComponentActivity() {
     /** SWAP SCREENS only means something with two. */
     private val hasSecondScreen by lazy { Screens.hasSecond(this) }
 
+    /** The companion goes on the second screen: there is one, and SINGLE SCREEN is off. */
+    private val usesSecondScreen get() = hasSecondScreen && !prefs.singleScreen
+
     private val updates by lazy { AppUpdateFlow(this) }
 
     /** HELP: the manual (DocsScreen.kt), its place kept while Settings is open. */
@@ -214,9 +217,9 @@ class SettingsActivity : ComponentActivity() {
             screen = Screen.HELP
         }
         setContent {
-            AppTheme {
+            AppTheme { com.pokedaisy.app.companion.ui.CompactTextOnSmallWindows {
                 androidx.compose.runtime.CompositionLocalProvider(com.pokedaisy.app.companion.ui.LocalOverlayStack provides overlays) { Root() }
-            }
+            } }
         }
     }
 
@@ -260,6 +263,8 @@ class SettingsActivity : ComponentActivity() {
                 OptionTitleWindow(
                     title = when (screen) {
                         Screen.HOME -> tk("SETTINGS")
+                        Screen.SPEED -> tk("SPEED OPTIONS")
+                        Screen.DISPLAY -> tk("DISPLAY OPTIONS")
                         Screen.HOTKEYS -> tk("HOTKEYS")
                         Screen.CONTROLS -> tk("GAME BUTTONS")
                         Screen.SHADERS -> tk("SHADERS")
@@ -285,6 +290,8 @@ class SettingsActivity : ComponentActivity() {
                 Spacer(Modifier.height(m.u * 4))
                 when (screen) {
                     Screen.HOME -> HomeScreen(m)
+                    Screen.SPEED -> SubRowsScreen(m) { speedRows() }
+                    Screen.DISPLAY -> SubRowsScreen(m) { displayRows() }
                     Screen.HOTKEYS -> HotkeysScreen(m, small)
                     Screen.CONTROLS -> ControlsScreen(m, small)
                     Screen.SHADERS -> ShadersScreen(m)
@@ -446,6 +453,8 @@ class SettingsActivity : ComponentActivity() {
             screen == Screen.HELP && docsUi.back() -> {}
             screen == Screen.HELP && helpOnly -> finish()
             screen == Screen.HOME || (screen == Screen.CHEATS && cheatsOnly) -> finish()
+            // SHADERS and OVERLAY open from DISPLAY OPTIONS.
+            screen == Screen.SHADERS || screen == Screen.OVERLAYS -> { overlayRemoveMode = false; screen = Screen.DISPLAY }
             else -> { cheatRemoveMode = false; overlayRemoveMode = false; screen = Screen.HOME }
         }
     }
@@ -470,6 +479,56 @@ class SettingsActivity : ComponentActivity() {
 
     // ---- hub --------------------------------------------------------------
 
+    /** A sub-page that's only rows (SPEED OPTIONS, DISPLAY OPTIONS), drawn like the hub's. */
+    @Composable
+    private fun SubRowsScreen(m: GbaTextMetrics, rows: () -> List<SettingRow>) {
+        @Suppress("UNUSED_EXPRESSION") revision
+        val list = rows()
+        Column(Modifier.fillMaxWidth()) {
+            OptionListWindow(m, Modifier.fillMaxWidth().weight(1f, fill = false)) {
+                GroupedRows(list, m, cursor = -1, onClick = { list[it].onClick() })
+            }
+        }
+    }
+
+    /** SPEED OPTIONS: how fast-forward behaves and sounds (SCENE SPEEDS is the companion's: it needs the game). */
+    private fun speedRows(): List<SettingRow> = listOf(
+            // SMART: menus and the region map at 1x; NORMAL: fast everywhere.
+            SettingRow(tk("FF MODE"), prefs.ffMode.label, subtitle = "SMART slows down for menus and the map") {
+                val modes = FfMode.entries
+                selector = Selector(tk("FF MODE"), modes.map { it.label }, prefs.ffMode.label) { l -> prefs.ffMode = modes.first { it.label == l } }
+            },
+            // STEADY / SPED-UP / OFF (FfMusicMode's order).
+            SettingRow(tk("FF MUSIC"), prefs.ffMusicMode.label, subtitle = "What you hear while fast-forwarding") {
+                val modes = FfMusicMode.entries
+                selector = Selector(tk("FF MUSIC"), modes.map { it.label }, prefs.ffMusicMode.label) { l -> prefs.ffMusicMode = modes.first { it.label == l } }
+            },
+    )
+
+    /** DISPLAY OPTIONS: what's around the game (the status bar, the shaders, an overlay) and an upright phone's companion. */
+    private fun displayRows(): List<SettingRow> {
+        fun onOff(on: Boolean) = if (on) tk("ON") else tk("OFF")
+        return listOfNotNull(
+            // Game, location, money, clock and battery: OFF, over the game, or over the companion's tabs.
+            SettingRow(tk("STATUS BAR"), statusBarLabel(prefs.statusBar, prefs.statusBarOnCompanion), subtitle = "Place, money, clock and battery") {
+                selector = Selector(tk("STATUS BAR"), STATUS_BAR_PLACES, statusBarLabel(prefs.statusBar, prefs.statusBarOnCompanion)) {
+                    val i = STATUS_BAR_PLACES.indexOf(it)
+                    if (i > 0) prefs.statusBarOnCompanion = i == 2
+                    prefs.statusBar = i > 0
+                }
+            },
+            // FILTER (LCD / LCD PAPER / SCANLINES / CRT) and GBA COLORS, on their own page.
+            SettingRow(tk("SHADERS"), prefs.screenFilter.label, opensPage = true, subtitle = "LCD, CRT and scanline looks, smoothing") { screen = Screen.SHADERS },
+            // A frame around the game: the built-in ones and imported RetroArch overlays, on their own page.
+            SettingRow(tk("OVERLAY"), overlayLabel(overlayChoices(overlayStore), prefs.overlay), opensPage = true, subtitle = "A frame around the game") { screen = Screen.OVERLAYS },
+            // One screen held upright: the companion along the bottom, or right under the game (the touch pad below it).
+            SettingRow(tk("COMPANION"), portraitPlaceLabel(prefs.portraitCompanionUnderGame), subtitle = "Where it sits with the phone upright") {
+                prefs.portraitCompanionUnderGame = !prefs.portraitCompanionUnderGame
+                revision++
+            }.takeIf { !usesSecondScreen },
+        )
+    }
+
     /** Like the companion's SETTINGS tab: `LABEL  VALUE` rows; on/off rows
      * flip on tap, multi-choice rows open a pick-one list, the rest open
      * their own page. */
@@ -484,46 +543,20 @@ class SettingsActivity : ComponentActivity() {
         fun onOff(on: Boolean) = if (on) tk("ON") else tk("OFF")
         // The same groups and order as the bottom screen's SETTINGS where they overlap.
         val rows = listOfNotNull(
-            groupTitle(tk("FAST-FORWARD")),
-            SettingRow(tk("FF SPEED"), rateLabel(prefs.ffMaxSpeed)) {
+            groupTitle(tk("FF / SPEED")),
+            SettingRow(tk("FF SPEED"), rateLabel(prefs.ffMaxSpeed), subtitle = "How fast FF runs") {
                 selector = Selector(tk("FF SPEED"), rateLabels, rateLabel(prefs.ffMaxSpeed)) {
                     prefs.ffMaxSpeed = RATES[rateLabels.indexOf(it)]
                 }
             },
-            // SMART: menus and the region map at 1x; NORMAL: fast everywhere.
-            SettingRow(tk("FF MODE"), prefs.ffMode.label) {
-                val modes = FfMode.entries
-                selector = Selector(tk("FF MODE"), modes.map { it.label }, prefs.ffMode.label) { l -> prefs.ffMode = modes.first { it.label == l } }
-            },
-            // STEADY / SPED-UP / OFF (FfMusicMode's order).
-            SettingRow(tk("FF MUSIC"), prefs.ffMusicMode.label) {
-                val modes = FfMusicMode.entries
-                selector = Selector(tk("FF MUSIC"), modes.map { it.label }, prefs.ffMusicMode.label) { l -> prefs.ffMusicMode = modes.first { it.label == l } }
-            },
             // Keeps the last ~20 s; the REWIND HOLD hotkey plays them backwards.
-            SettingRow(tk("REWIND"), if (prefs.rewind) tk("ON") else tk("OFF")) { prefs.rewind = !prefs.rewind; revision++ },
-            groupTitle(tk("CONTROLS")),
-            // Takes effect the next time a game is opened.
-            SettingRow(tk("TOUCH PAD"), TOUCH_NAMES[prefs.touchControlsMode]) {
-                selector = Selector(tk("TOUCH PAD"), TOUCH_NAMES, TOUCH_NAMES[prefs.touchControlsMode]) {
-                    prefs.touchControlsMode = TOUCH_NAMES.indexOf(it)
-                }
-            },
-            SettingRow(tk("GAME BUTTONS"), null, subtitle = "Key bindings: which button presses A, B, START...") { screen = Screen.CONTROLS },
-            SettingRow(tk("HOTKEYS"), onOff(prefs.hotkeysEnabled)) { screen = Screen.HOTKEYS },
-            SettingRow(tk("QUICK MENU"), null, subtitle = "Actions on a held button", labelBadge = com.pokedaisy.app.companion.ui.quickMenuBadge()) { screen = Screen.QUICK_MENU },
+            SettingRow(tk("REWIND"), if (prefs.rewind) tk("ON") else tk("OFF"), subtitle = "Keeps the last 20 s to play backwards") { prefs.rewind = !prefs.rewind; revision++ },
+            // FF MODE and FF MUSIC: set once and rarely touched, on their own page (the companion's has SCENE SPEEDS too).
+            SettingRow(tk("SPEED OPTIONS"), null, subtitle = "FF mode and FF music", opensPage = true) { screen = Screen.SPEED },
             groupTitle(tk("SCREEN")),
-            // Game, location, money, clock and battery: OFF, over the game, or over the companion's tabs.
-            SettingRow(tk("STATUS BAR"), statusBarLabel(prefs.statusBar, prefs.statusBarOnCompanion)) {
-                selector = Selector(tk("STATUS BAR"), STATUS_BAR_PLACES, statusBarLabel(prefs.statusBar, prefs.statusBarOnCompanion)) {
-                    val i = STATUS_BAR_PLACES.indexOf(it)
-                    if (i > 0) prefs.statusBarOnCompanion = i == 2
-                    prefs.statusBar = i > 0
-                }
-            },
             // The game at 3:2, stretched to fill the screen, or WIDE (more of the map, BETA); picked by preview.
             SettingRow(tk("ASPECT"), aspectLabel(prefs.gameAspect),
-                       badge = tk("BETA").takeIf { prefs.gameAspect == com.pokedaisy.app.companion.GameAspect.WIDE }) { aspectPicker = true },
+                       badge = tk("BETA").takeIf { prefs.gameAspect == com.pokedaisy.app.companion.GameAspect.WIDE }, subtitle = "Original shape, stretched, or more of the map") { aspectPicker = true },
             // EXPAND only: whether a conversation, sign, menu or picture over the field pulls the zoom in (battles always do).
             SettingRow(tk("AUTO ZOOM IN"), onOff(prefs.expandZoomOnText),
                        subtitle = "1x on dialogue, signs, menus") {
@@ -531,7 +564,7 @@ class SettingsActivity : ComponentActivity() {
                 revision++
             }.takeIf { prefs.gameAspect == com.pokedaisy.app.companion.GameAspect.WIDE },
             // The party, a minimap, the balls and BAG / WILD over the game on the field: its own page (layout, look, size, parts).
-            SettingRow(tk("HUD"), onOff(prefs.fieldHud), labelBadge = com.pokedaisy.app.companion.NewFeatures.badge(com.pokedaisy.app.companion.NewFeatures.HUD)) { screen = Screen.FIELD_HUD },
+            SettingRow(tk("HUD"), onOff(prefs.fieldHud), labelBadge = com.pokedaisy.app.companion.NewFeatures.badge(com.pokedaisy.app.companion.NewFeatures.HUD), opensPage = true, subtitle = "Party, minimap and bag over the game") { screen = Screen.FIELD_HUD },
             // One screen: FIGHT, POKéMON and RUN in the room beside a battle (BattleButtons).
             SettingRow(
                 tk("BATTLE BUTTONS"), onOff(prefs.battleButtons), subtitle = "FIGHT, POKéMON and RUN beside a battle",
@@ -539,33 +572,37 @@ class SettingsActivity : ComponentActivity() {
             ) {
                 prefs.battleButtons = !prefs.battleButtons
                 revision++
-            }.takeIf { !hasSecondScreen },
-            // FILTER (LCD / LCD PAPER / SCANLINES / CRT) and GBA COLORS, on their own page.
-            SettingRow(tk("SHADERS"), prefs.screenFilter.label) { screen = Screen.SHADERS },
-            // A frame around the game: the built-in ones and imported RetroArch overlays, on their own page.
-            SettingRow(tk("OVERLAY"), overlayLabel(overlayChoices(overlayStore), prefs.overlay)) { screen = Screen.OVERLAYS },
-            // One screen held upright: the companion along the bottom, or right under the game (the touch pad below it).
-            SettingRow(tk("COMPANION"), portraitPlaceLabel(prefs.portraitCompanionUnderGame)) {
-                prefs.portraitCompanionUnderGame = !prefs.portraitCompanionUnderGame
-                revision++
-            }.takeIf { !hasSecondScreen },
+            }.takeIf { !usesSecondScreen },
+            // STATUS BAR, SHADERS, OVERLAY (and an upright phone's COMPANION): on their own page.
+            SettingRow(tk("DISPLAY OPTIONS"), null, subtitle = "Status bar, shaders, overlay", opensPage = true) { screen = Screen.DISPLAY },
             // One screen sideways: the companion as a window in the middle over the game, or the side panel.
             SettingRow(
                 tk("COMPANION VIEW"), com.pokedaisy.app.companion.ui.companionViewLabel(prefs.companionWindow),
-                labelBadge = com.pokedaisy.app.companion.NewFeatures.badge(com.pokedaisy.app.companion.NewFeatures.COMPANION_WINDOW),
+                labelBadge = com.pokedaisy.app.companion.NewFeatures.badge(com.pokedaisy.app.companion.NewFeatures.COMPANION_WINDOW), subtitle = "A window over the game, or a side panel",
             ) {
                 prefs.companionWindow = !prefs.companionWindow
                 revision++
-            }.takeIf { !hasSecondScreen },
+            }.takeIf { !usesSecondScreen },
             // Game and companion trade screens; the game picks it up on resume.
-            SettingRow(tk("SWAP SCREENS"), onOff(prefs.swapScreens)) {
+            SettingRow(tk("SWAP SCREENS"), onOff(prefs.swapScreens), subtitle = "Game and companion trade screens") {
                 prefs.swapScreens = !prefs.swapScreens
                 revision++
-            }.takeIf { hasSecondScreen },
-            // The game's frames per second and the app's CPU share, in the game's corner.
-            SettingRow(tk("FPS / CPU"), onOff(prefs.showPerformance)) {
-                prefs.showPerformance = !prefs.showPerformance
+            }.takeIf { usesSecondScreen },
+            // Two screens played on one: the second is free for other apps, the companion opens over the game.
+            SettingRow(
+                tk("SINGLE SCREEN"), onOff(prefs.singleScreen), subtitle = "Frees the second screen; the companion opens over the game",
+                labelBadge = com.pokedaisy.app.companion.NewFeatures.badge(com.pokedaisy.app.companion.NewFeatures.SINGLE_SCREEN),
+            ) {
+                prefs.singleScreen = !prefs.singleScreen
                 revision++
+            }.takeIf { hasSecondScreen },
+            // Changes the colors immediately, everywhere — the companion screen too.
+            SettingRow(tk("THEME"), themeLabels[themeIdx], subtitle = "The backdrop of the library and Settings") {
+                selector = Selector(tk("THEME"), themeLabels, themeLabels[themeIdx]) {
+                    val spec = APP_THEMES[themeLabels.indexOf(it)]
+                    prefs.appTheme = spec.id
+                    AppColors.applyTheme(spec)
+                }
             },
             // OFF / ON / AUTO (the device's): both screens switch at once.
             SettingRow(tk("DARK MODE"), DarkMode.setting.label) {
@@ -574,44 +611,60 @@ class SettingsActivity : ComponentActivity() {
                     DarkMode.set(this@SettingsActivity, modes.first { it.label == l })
                 }
             },
-            // Changes the colors immediately, everywhere — the companion screen too.
-            SettingRow(tk("THEME"), themeLabels[themeIdx]) {
-                selector = Selector(tk("THEME"), themeLabels, themeLabels[themeIdx]) {
-                    val spec = APP_THEMES[themeLabels.indexOf(it)]
-                    prefs.appTheme = spec.id
-                    AppColors.applyTheme(spec)
-                }
+            // The game's frames per second and the app's CPU share, in the game's corner.
+            SettingRow(tk("FPS / CPU"), onOff(prefs.showPerformance), subtitle = "Speed and CPU use in the game's corner") {
+                prefs.showPerformance = !prefs.showPerformance
+                revision++
             },
             groupTitle(tk("LIBRARY")),
             // On: a game opens where it was left. Off: at its title screen, from the save.
-            SettingRow(tk("RESUME GAMES"), onOff(prefs.autoResume)) {
+            SettingRow(tk("RESUME GAMES"), onOff(prefs.autoResume), subtitle = "Open a game right where you left it") {
                 prefs.autoResume = !prefs.autoResume
                 revision++
             },
-            SettingRow(tk("FOLDERS"), null) { screen = Screen.FOLDERS },
-            // Every game's media (box art, screenshots, logos, videos, facts): first for covers, and the launcher's other screen.
-            SettingRow("ScreenScraper", prefs.screenScraperAccount?.user?.uppercase() ?: tk("OFF")) {
-                ssLogin.refresh(prefs) { r -> runOnUiThread { r() } }
-                screen = Screen.SCREENSCRAPER
-            }.takeIf { ScreenScraperClient.enabled },
-            SettingRow(tk("COVER ART"), onOff(prefs.steamGridDbApiKey != null || prefs.raWebApiKey != null)) { screen = Screen.COVER_ART },
             // Two screens: the game list on one, the game you're on (its media) on the other. X swaps them.
-            SettingRow(tk("DUAL-SCREEN LAUNCHER"), onOff(prefs.dualScreenLauncher)) {
+            SettingRow(tk("DUAL-SCREEN LAUNCHER"), onOff(prefs.dualScreenLauncher), subtitle = "Game list on one screen, its art on the other") {
                 prefs.dualScreenLauncher = !prefs.dualScreenLauncher
                 revision++
             }.takeIf { hasSecondScreen },
-            SettingRow(tk("HIDDEN GAMES"), RomFolder.hiddenRoms(this@SettingsActivity, prefs).size.takeIf { it > 0 }?.toString() ?: tk("NONE")) { screen = Screen.HIDDEN },
+            SettingRow(tk("COVER ART"), onOff(prefs.steamGridDbApiKey != null || prefs.raWebApiKey != null), opensPage = true, subtitle = "Box art from RetroAchievements and SteamGridDB") { screen = Screen.COVER_ART },
+            // Every game's media (box art, screenshots, logos, videos, facts): first for covers, and the launcher's other screen.
+            SettingRow("ScreenScraper", prefs.screenScraperAccount?.user?.uppercase() ?: tk("OFF"), opensPage = true) {
+                ssLogin.refresh(prefs) { r -> runOnUiThread { r() } }
+                screen = Screen.SCREENSCRAPER
+            }.takeIf { ScreenScraperClient.enabled },
+            SettingRow(tk("FOLDERS"), null, opensPage = true, subtitle = "Where ROMs, saves and states live") { screen = Screen.FOLDERS },
+            SettingRow(tk("HIDDEN GAMES"), RomFolder.hiddenRoms(this@SettingsActivity, prefs).size.takeIf { it > 0 }?.toString() ?: tk("NONE"), opensPage = true) { screen = Screen.HIDDEN },
             // A game's GameShark / Action Replay / CodeBreaker codes, on their own page.
-            SettingRow(tk("CHEATS"), onOff(prefs.cheatsEnabled)) { screen = Screen.CHEATS },
+            SettingRow(tk("CHEATS"), onOff(prefs.cheatsEnabled), opensPage = true, subtitle = "GameShark, Action Replay and CodeBreaker codes") { screen = Screen.CHEATS },
             groupTitle(tk("ONLINE")),
             // Signed in = on; the account's name, else OFF.
             SettingRow(
                 "RetroAchievements", prefs.raUsername?.uppercase() ?: tk("OFF"), labelBadge = tk("BETA"),
-                labelIcon = { GoldTrophy() },
+                labelIcon = { GoldTrophy() }, opensPage = true,
             ) { screen = Screen.ACHIEVEMENTS },
+            groupTitle(tk("CONTROLS")),
+            SettingRow(tk("GAME BUTTONS"), null, subtitle = "Key bindings: which button presses A, B, START...", opensPage = true) { screen = Screen.CONTROLS },
+            SettingRow(tk("HOTKEYS"), onOff(prefs.hotkeysEnabled), opensPage = true, subtitle = "Button combos for states, FF and more") { screen = Screen.HOTKEYS },
+            SettingRow(tk("QUICK MENU"), null, subtitle = "Actions on a held button", labelBadge = com.pokedaisy.app.companion.ui.quickMenuBadge(), opensPage = true) { screen = Screen.QUICK_MENU },
+            // Takes effect the next time a game is opened.
+            SettingRow(tk("TOUCH PAD"), TOUCH_NAMES[prefs.touchControlsMode], subtitle = "The on-screen buttons") {
+                selector = Selector(tk("TOUCH PAD"), TOUCH_NAMES, TOUCH_NAMES[prefs.touchControlsMode]) {
+                    prefs.touchControlsMode = TOUCH_NAMES.indexOf(it)
+                }
+            },
             groupTitle(tk("APP")),
-            // The manual (docs/manual, served by the website), readable offline once fetched.
-            SettingRow(tk("HELP"), null, subtitle = "The manual: how every screen and setting works") { screen = Screen.HELP },
+            // Tap: look for a newer release on GitHub now.
+            SettingRow(tk("VERSION"), if (updates.checking) tk("CHECKING…") else BuildConfig.VERSION_NAME) { updates.check(manual = true) },
+            // Back to the library, which opens the first-time setup again.
+            SettingRow(tk("RUN SETUP"), null, subtitle = "First-time setup again: folders, buttons, art") { prefs.setupRequested = true; finish() },
+            // Opt-in crash reports (CrashReports.kt); only in builds that can send them.
+            SettingRow(tk("CRASH REPORTS"), onOff(prefs.crashReportsEnabled), subtitle = "Send a report if the app crashes") {
+                CrashReports.setEnabled(prefs, !prefs.crashReportsEnabled)
+                revision++
+            }.takeIf { CrashReports.available },
+            // The GPL's notices and every bundled component's license.
+            SettingRow(tk("LICENSES"), null, opensPage = true) { screen = Screen.LICENSES },
             // AUTO: the ROM's language in game, the device's here. Applies at once, both screens.
             SettingRow("LANGUAGE", L10n.settingLabel(prefs.appLanguage)) {
                 val opts = L10n.options
@@ -620,17 +673,8 @@ class SettingsActivity : ComponentActivity() {
                     L10n.apply(prefs.appLanguage, null)
                 }
             },
-            // Opt-in crash reports (CrashReports.kt); only in builds that can send them.
-            SettingRow(tk("CRASH REPORTS"), onOff(prefs.crashReportsEnabled)) {
-                CrashReports.setEnabled(prefs, !prefs.crashReportsEnabled)
-                revision++
-            }.takeIf { CrashReports.available },
-            // Tap: look for a newer release on GitHub now.
-            SettingRow(tk("VERSION"), if (updates.checking) tk("CHECKING…") else BuildConfig.VERSION_NAME) { updates.check(manual = true) },
-            // The GPL's notices and every bundled component's license.
-            SettingRow(tk("LICENSES"), null) { screen = Screen.LICENSES },
-            // Back to the library, which opens the first-time setup again.
-            SettingRow(tk("RUN SETUP"), null) { prefs.setupRequested = true; finish() },
+            // The manual (docs/manual, served by the website), readable offline once fetched.
+            SettingRow(tk("HELP"), null, subtitle = "The manual: how every screen and setting works", opensPage = true) { screen = Screen.HELP },
         )
         // Search: every row whose name, value or keywords (SETTING_KEYWORDS: "rebind", "keybinds"...) match.
         val shown = filterRows(rows, searchQuery)

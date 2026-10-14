@@ -7,6 +7,7 @@ import com.pokedaisy.app.companion.data.BATTLE_INPUT_MOVE_SELECT
 import com.pokedaisy.app.companion.data.BATTLE_INPUT_NONE
 import com.pokedaisy.app.companion.data.BATTLE_INPUT_PARTY_OPEN
 import com.pokedaisy.app.companion.data.BATTLE_INPUT_TARGET_SELECT
+import com.pokedaisy.app.companion.data.GbPartySwitch
 import com.pokedaisy.app.companion.data.Gfx
 import com.pokedaisy.app.companion.data.InProcessReader
 import com.pokedaisy.app.companion.data.MemoryReader
@@ -42,8 +43,16 @@ class BattleInputController(
      * FireRed / Emerald and the hacks [PokeDaisyActivity] lists (Lazarus...). [partyMenu] is gPartyMenu (`slotId` at +9), [party] gPlayerParty.
      * [grid]: the slots sit in two columns (0 2 4 | 1 3 5, Lazarus), where
      * DOWN stays in its column - else one list that DOWN walks through.
+     * [gb]: a Game Boy game (Yellow, Crystal and its hacks), whose party menu is read through it instead
+     * ([driveGbSwitchLocked]); the addresses above go unused then.
      */
-    data class SwitchAddrs(val partyMenu: Long, val party: Long, val monStride: Int = 100, val grid: Boolean = false)
+    data class SwitchAddrs(
+        val partyMenu: Long = 0,
+        val party: Long = 0,
+        val monStride: Int = 100,
+        val grid: Boolean = false,
+        val gb: GbPartySwitch? = null,
+    )
 
     /**
      * A Gen 1 game (Yellow): its battle menu is FIGHT / PkMn over ITEM / RUN, two one-column
@@ -111,6 +120,12 @@ class BattleInputController(
     private var switchFrames = 0
     private var switchPresses = 0
     private var switchLastSlot = -1
+    // A Game Boy switch ([driveGbSwitchLocked]): the menu is the pick after a faint (no SWITCH menu follows), SWITCH's
+    // A went out, the frame of the last A (pressed again only while the menu still waits GB_REPRESS_FRAMES later).
+    private var gbForced = false
+    private var gbSwitchPressed = false
+    private var gbLastA = 0
+    private var gbAPresses = 0
 
     // RUN's follow-up: B presses left to close "Got away safely!" (or "Can't
     // escape!"), the frames until the next one, and whether the game has left
@@ -239,10 +254,19 @@ class BattleInputController(
      */
     fun switchTo(personality: Long) {
         synchronized(lock) {
-            if (switchAddrs == null || personality == 0L) return
+            val addrs = switchAddrs
+            if (addrs == null || personality == 0L) return
             log("switchTo(pid=0x${personality.toString(16)}) lastKnownState=$lastKnownState")
+            // A Game Boy game: refused before anything is pressed if the mon can't go in (not in the party, fainted,
+            // already out) - the game would only say why and wait in its party menu.
+            addrs.gb?.let { gb -> gbRefusal(gb, personality)?.let { why -> log("switch refused: $why"); return } }
             pendingMoveIndex = null
-            if (lastKnownState == BATTLE_INPUT_ACTION_SELECT) pickCellLocked(2, move = false) // POKéMON
+            if (lastKnownState == BATTLE_INPUT_ACTION_SELECT) {
+                if (gen1) queueGen1ActionLocked(2) else pickCellLocked(2, move = false) // POKéMON (PkMn / PKMN)
+            }
+            gbForced = false
+            gbSwitchPressed = false
+            gbAPresses = 0
             switchTarget = personality
             switchPhase = SwitchPhase.WAIT_MENU
             switchFrames = 0
@@ -255,6 +279,7 @@ class BattleInputController(
         val target = switchTarget ?: return
         val addrs = switchAddrs ?: return endSwitchLocked("no addresses")
         switchFrames++
+        addrs.gb?.let { return driveGbSwitchLocked(it, target) }
         when (switchPhase) {
             // The party menu takes a moment to fade in after the controller
             // starts waiting on it; presses before then are dropped.
@@ -302,25 +327,128 @@ class BattleInputController(
     /** The press that moves the party cursor from [slot] toward [want]: in a list, the shorter way round
      * ([count] mons, then CANCEL; DOWN and UP both wrap through it). */
     private fun cursorKey(addrs: SwitchAddrs, slot: Int, want: Int, count: Int): Int = when {
-        !addrs.grid -> {
-            val ring = (0 until count) + PARTY_MENU_CANCEL
-            val i = ring.indexOf(slot)
-            val j = ring.indexOf(want)
-            val down = (j - i + ring.size) % ring.size
-            if (i < 0 || j < 0 || down <= ring.size - down) MgbaCore.Key.DOWN else MgbaCore.Key.UP
-        }
+        !addrs.grid -> listKey(slot, want, count, cancel = true)
         slot !in 0 until 6 -> MgbaCore.Key.UP     // CANCEL: back into the grid
         slot % 2 != want % 2 -> if (want % 2 == 1) MgbaCore.Key.RIGHT else MgbaCore.Key.LEFT
         else -> if (want > slot) MgbaCore.Key.DOWN else MgbaCore.Key.UP
     }
 
-    /** gPlayerParty's slot holding [personality] (the menu's slot while it's open), or null. */
+    /** DOWN or UP, the shorter way from [slot] to [want] round a wrapping list of [count] mons (then CANCEL, with [cancel]). */
+    private fun listKey(slot: Int, want: Int, count: Int, cancel: Boolean): Int {
+        val ring = (0 until count) + (if (cancel) listOf(PARTY_MENU_CANCEL) else emptyList())
+        val i = ring.indexOf(slot)
+        val j = ring.indexOf(want)
+        val down = (j - i + ring.size) % ring.size
+        return if (i < 0 || j < 0 || down <= ring.size - down) MgbaCore.Key.DOWN else MgbaCore.Key.UP
+    }
+
+    /**
+     * A Game Boy game's switch (Yellow, Crystal and its hacks): the same closed loop, on its own party menu
+     * ([GbPartySwitch]), which lists the party in its own order. The mon is found by its key
+     * ([com.pokedaisy.app.companion.data.gbMonKey]) at every step; A on it, then A on SWITCH (the first item of the
+     * menu that opens; none after a faint). The games drop presses for a few frames after drawing a menu's cursor
+     * (Yellow's Delay3, Crystal's SWITCH menu for ~30), so a press the menu didn't follow is pressed again - never
+     * before it could have been taken: a taken pick turns the cursor hollow at once.
+     */
+    private fun driveGbSwitchLocked(gb: GbPartySwitch, target: Long) {
+        val menu = runCatching { gb.menu(reader) }.getOrNull()
+        when (switchPhase) {
+            SwitchPhase.WAIT_MENU ->
+                if (menu != null) {
+                    switchPhase = SwitchPhase.NAVIGATE
+                    switchFrames = 0
+                    switchLastSlot = -1
+                } else if (switchFrames > MENU_TIMEOUT_FRAMES) {
+                    endSwitchLocked("party menu never opened")
+                }
+            SwitchPhase.NAVIGATE -> {
+                if (switchFrames > MENU_TIMEOUT_FRAMES) return endSwitchLocked("cursor didn't reach the mon")
+                if (menu == null) return                                   // being drawn
+                if (menu.submenu) {                                        // a SWITCH menu we didn't open: back to the list
+                    pressGbLocked(MgbaCore.Key.B)
+                    waitFramesLocked(GB_REPRESS_FRAMES)
+                    return
+                }
+                gbRefusal(gb, target)?.let { return endSwitchLocked(it) }
+                val party = runCatching { gb.party(reader) }.getOrNull() ?: return endSwitchLocked("party unreadable")
+                val want = party.indexOfFirst { it.key == target }
+                val slot = menu.cursor
+                // Steps the cursor really took (dropped presses don't count).
+                if (slot != switchLastSlot) {
+                    if (switchLastSlot >= 0) switchPresses++
+                    switchLastSlot = slot
+                }
+                if (slot == want) {
+                    pressGbLocked(MgbaCore.Key.A)                            // the mon -> SWITCH / STATS / CANCEL, or out after a faint
+                    waitFramesLocked(GB_SETTLE_FRAMES)
+                    gbForced = menu.forced
+                    gbLastA = 0
+                    gbAPresses = 0
+                    switchPhase = SwitchPhase.CONFIRM
+                    switchFrames = 0
+                } else if (switchPresses > MAX_CURSOR_PRESSES) {
+                    endSwitchLocked("cursor didn't reach slot $want")
+                } else {
+                    pressGbLocked(listKey(slot, want, party.size, gb.hasCancel))
+                    waitFramesLocked(CURSOR_FRAMES)
+                }
+            }
+            SwitchPhase.CONFIRM -> when {
+                // The pick was taken: the cursor went hollow and the game moves on.
+                menu == null ->
+                    if (gbForced || gbSwitchPressed) {
+                        switchPhase = SwitchPhase.WAIT_CLOSE
+                        switchFrames = 0
+                    } else if (switchFrames > MENU_TIMEOUT_FRAMES) {
+                        endSwitchLocked("SWITCH menu never opened")
+                    }
+                menu.submenu ->
+                    if (menu.cursor != 0) {
+                        pressGbLocked(MgbaCore.Key.UP)                       // SWITCH is the first item
+                        waitFramesLocked(CURSOR_FRAMES)
+                    } else if (!gbSwitchPressed || switchFrames - gbLastA >= GB_REPRESS_FRAMES) {
+                        if (++gbAPresses > MAX_GB_A_PRESSES) return endSwitchLocked("SWITCH never took A")
+                        pressGbLocked(MgbaCore.Key.A)
+                        waitFramesLocked(GB_SETTLE_FRAMES)
+                        gbSwitchPressed = true
+                        gbLastA = switchFrames
+                    }
+                // Back on the list after SWITCH: the game said no (already out, can't be recalled, no will to fight).
+                gbSwitchPressed -> endSwitchLocked("the game refused the switch")
+                // Still on the list: the A on the mon was dropped - steer again from wherever the cursor is.
+                switchFrames >= GB_REPRESS_FRAMES -> {
+                    switchPhase = SwitchPhase.NAVIGATE
+                    switchFrames = 0
+                    switchLastSlot = -1
+                }
+            }
+            // The game took it: hold the frame a little longer, while it leaves the party screen (white, then the battle).
+            SwitchPhase.WAIT_CLOSE -> if (menu == null || switchFrames > CLOSE_TIMEOUT_FRAMES) {
+                endSwitchLocked("done")
+                holdTail = GB_HOLD_TAIL_FRAMES
+            }
+        }
+    }
+
+    /** Why the mon keyed [key] can't be sent in (not in the party, fainted, already out), or null. */
+    private fun gbRefusal(gb: GbPartySwitch, key: Long): String? {
+        val party = runCatching { gb.party(reader) }.getOrNull() ?: return "party unreadable"
+        val slot = party.indexOfFirst { it.key == key }
+        return when {
+            slot < 0 -> "mon not in the party"
+            party[slot].hp == 0 -> "slot $slot has fainted"
+            slot == runCatching { gb.outSlot(reader) }.getOrDefault(-1) -> "slot $slot is already out"
+            else -> null
+        }
+    }
+
     /** The party's size (the slots holding a Pokémon). */
     private fun partyCount(addrs: SwitchAddrs): Int {
         val raw = runCatching { reader.readCoreMemory(addrs.party, 6 * addrs.monStride) }.getOrNull() ?: return 6
         return (0 until 6).count { Gfx.u32(raw, it * addrs.monStride) != 0L }.coerceAtLeast(1)
     }
 
+    /** gPlayerParty's slot holding [personality] (the menu's slot while it's open), or null. */
     private fun slotOf(addrs: SwitchAddrs, personality: Long): Int? {
         val raw = runCatching { reader.readCoreMemory(addrs.party, 6 * addrs.monStride) }.getOrNull() ?: return null
         return (0 until 6).firstOrNull { Gfx.u32(raw, it * addrs.monStride) == personality }
@@ -467,7 +595,8 @@ class BattleInputController(
         synchronized(lock) {
             log("back()")
             pendingMoveIndex = null
-            pressLocked(MgbaCore.Key.B)
+            // A Game Boy party menu (the POKéMON pane's CANCEL) takes it held: Prism's party menu reads keys every other frame.
+            if (gen1) pressGbLocked(MgbaCore.Key.B) else pressLocked(MgbaCore.Key.B)
         }
     }
 
@@ -596,6 +725,16 @@ class BattleInputController(
         pressLocked(MgbaCore.Key.A)
     }
 
+    /** A Game Boy party menu's press: held [GB_PRESS_FRAMES] and released as long. Prism's party menu takes input every
+     * other frame (a one-frame A was dropped on every try, headless: its re-presses all landed on the same parity), so a
+     * press must span two frames; Yellow's and Crystal's take it just the same. Its battle menus read every frame: one-frame
+     * RIGHT / DOWN / A / B took at all 8 frame offsets tried (headless), so FIGHT, moves and RUN keep [pressLocked]. */
+    private fun pressGbLocked(bit: Int) {
+        log("queue press bit=$bit (${keyName(bit)}) x$GB_PRESS_FRAMES")
+        queue.addLast(Step(bit, GB_PRESS_FRAMES))
+        queue.addLast(Step(0, GB_PRESS_FRAMES))
+    }
+
     /** One real frame pressed, one real frame released — JOY_NEW only fires
      * on the frame a bit transitions from unset to set, so back-to-back
      * presses of the same button need an explicit release between them. */
@@ -615,6 +754,11 @@ class BattleInputController(
         const val MAX_CURSOR_PRESSES = 16      // steps the cursor took: two laps of six slots + CANCEL, then give up
         const val SUBMENU_FRAMES = 8           // the SHIFT / SUMMARY / CANCEL menu opening (takes A after 6 on FireRed, 2 on Emerald)
         const val CLOSE_TIMEOUT_FRAMES = 240
+        const val GB_PRESS_FRAMES = 2          // Prism's party menu reads keys every other frame (headless)
+        const val GB_SETTLE_FRAMES = 2        // after a Game Boy A: a taken pick has turned the cursor hollow by then
+        const val GB_REPRESS_FRAMES = 8        // a Game Boy menu still waiting this long after an A dropped it
+        const val MAX_GB_A_PRESSES = 12        // Crystal's SWITCH menu drops presses for ~30 frames after it shows (headless)
+        const val GB_HOLD_TAIL_FRAMES = 20     // white, then the battle back: ~8 frames on Yellow, ~14 on Crystal (headless)
         const val RUN_B_PRESSES = 6
         const val RUN_FIRST_GAP = 45           // the escape message starts printing
         const val RUN_B_GAP = 30

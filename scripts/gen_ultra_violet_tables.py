@@ -3,12 +3,12 @@
 the ROM the user owns (a 16 MB binary hack of FireRed 1.0, BPRE rev 0 code with
 the game code PUVV; no source, nothing is downloaded).
 
-    scripts/gen_ultra_violet_tables.py <ultra-violet-v1.22.gba> <firered-rev0.gba>
+    scripts/gen_ultra_violet_tables.py <Pokemon Ultra Violet (v1.22).gba> <firered-rev0.gba>
 
 Writes UltraVioletGen.kt into the app's data package: the species / move / item /
 map-section names and species types that differ from retail FireRed rev 0 (sha1
 41cb23d8...), by FireRed's own ids. The app runs Ultra Violet as FIRERED with these
-laid over the shared tables (ActiveTables' `ultraViolet`).
+laid over the shared tables (ActiveTables' `fireRedHack`, fireRedHackUltraViolet).
 
 Ultra Violet keeps every table at rev 0's address, edited in place (FireRed 1.0's
 literal pools still name them): gSpeciesNames 0x08245EE0, gBaseStats 0x08254784
@@ -108,7 +108,7 @@ def diff(a, b):
 
 def main():
     if len(sys.argv) != 3:
-        sys.exit(f"usage: {sys.argv[0]} <ultra-violet-v1.22.gba> <firered-rev0.gba>")
+        sys.exit(f"usage: {sys.argv[0]} <Pokemon Ultra Violet (v1.22).gba> <firered-rev0.gba>")
     uv, fr = (open(p, "rb").read() for p in sys.argv[1:])
     if hashlib.sha1(uv).hexdigest() != SHA1:
         sys.exit(f"not Ultra Violet v1.22 (sha1 {SHA1})")

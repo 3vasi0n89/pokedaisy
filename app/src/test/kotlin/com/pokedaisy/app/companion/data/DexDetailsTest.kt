@@ -70,7 +70,7 @@ class DexDetailsTest {
     /** Recharged Yellow: FireRed's table plus a LINKING CORD way for each trade evolution (method 16 holds the
      * trade item in the row's 4th u16); its own learnsets and wild Pokémon. */
     @Test fun `Recharged Yellow - the Linking Cord, its learnsets and Route 1`() {
-        assumeTrue(load(NATIVE_RECHARGED_YELLOW_V1_9_7, GameKind.RECHARGED_YELLOW, "Recharged Yellow v1.9.7.gba"))
+        assumeTrue(load(NATIVE_RECHARGED_YELLOW_V1_9_7, GameKind.RECHARGED_YELLOW, "Pokemon Recharged Yellow (v1.9.7).gba"))
         val t = POKEDEX_RECHARGED_YELLOW_V1_9_7
         val g = GUIDE_TABLES_RECHARGED_YELLOW_V1_9_7
         assertEquals(listOf(listOf(EvoReq.Trade), listOf(EvoReq.UseItem(61))), reqsTo(t, "KADABRA", "ALAKAZAM"))
@@ -103,7 +103,7 @@ class DexDetailsTest {
 
     /** The reporter's game (GitHub #28): expansion 1.15's methods + conditions, its Johto maps, its learnsets. */
     @Test fun `SoulGold - evolution conditions, maps and moves`() {
-        assumeTrue(load(NATIVE_SOULGOLD, GameKind.SOULGOLD, "Pokemon-SoulGold-v1.1.4.gba"))
+        assumeTrue(load(NATIVE_SOULGOLD, GameKind.SOULGOLD, "Pokemon SoulGold (v1.1.4).gba"))
         val t = POKEDEX_SOULGOLD
         val g = GUIDE_TABLES_SOULGOLD
         val all = DexDetails.evolutions(t)!!
@@ -130,13 +130,13 @@ class DexDetailsTest {
     }
 
     @Test fun `SoulGold v1_2 - the same data at its own addresses`() {
-        assumeTrue(load(NATIVE_SOULGOLD_V1_2, GameKind.SOULGOLD, "Soulgold (v1.2).gba"))
+        assumeTrue(load(NATIVE_SOULGOLD_V1_2, GameKind.SOULGOLD, "Pokemon SoulGold (v1.2).gba"))
         assertTrue(DexDetails.evolutions(POKEDEX_SOULGOLD_V1_2)!!.size > 300)
         assertTrue(DexDetails.catchSpots(GUIDE_TABLES_SOULGOLD_V1_2, byName("Pidgey"))!!.isNotEmpty())
     }
 
     @Test fun `Heart and Soul - places, times of day`() {
-        assumeTrue(load(NATIVE_HEART_AND_SOUL, GameKind.HEART_AND_SOUL, "Pokémon Heart and Soul (v2.0.6).gba"))
+        assumeTrue(load(NATIVE_HEART_AND_SOUL, GameKind.HEART_AND_SOUL, "Pokemon Heart and Soul (v2.0.6).gba"))
         val t = POKEDEX_HEART_AND_SOUL
         assertTrue(DexDetails.evolutions(t)!!.values.flatten().none { EvoReq.Special in it.reqs })
         assertTrue(listOf(EvoReq.LevelUp, EvoReq.AtPlace(40)) in reqsTo(t, "MAGNETON", "MAGNEZONE"))
@@ -147,14 +147,14 @@ class DexDetailsTest {
 
     @Test fun `older expansion and its forks name every method`() {
         for ((cfg, kind, rom) in listOf(
-            Triple(NATIVE_IMPERIUM, GameKind.IMPERIUM, "Emerald Imperium (v1.3.1).gba"),
+            Triple(NATIVE_IMPERIUM, GameKind.IMPERIUM, "Pokemon Emerald Imperium (v1.3.1).gba"),
             Triple(NATIVE_EMERALD_SEAGLASS, GameKind.EMERALD_SEAGLASS, "Pokemon Emerald Seaglass (v3.0).gba"),
             Triple(NATIVE_LAZARUS, GameKind.LAZARUS, "Pokemon Lazarus (v2.0).gba"),
             Triple(NATIVE_EMERALD_ROGUE, GameKind.EMERALD_ROGUE, "Pokemon Emerald Rogue (v2.2.1-EX).gba"),
             Triple(NATIVE_TMT2, GameKind.TMT2, "Pokemon Too Many Types 2 (v1.5.2).gba"),
-            Triple(NATIVE_RADICAL_RED_V4_1, GameKind.RADICAL_RED, "Pokemon - Radical Red (v4.1).gba"),
+            Triple(NATIVE_RADICAL_RED_V4_1, GameKind.RADICAL_RED, "Pokemon Radical Red (v4.1).gba"),
             Triple(NATIVE_AMETHYST, GameKind.AMETHYST, "Pokemon Amethyst (v1.3.0).gba"),
-            Triple(NATIVE_GAIA_V3_2, GameKind.GAIA, "Pokemon - Gaia (v3.2).gba"),
+            Triple(NATIVE_GAIA_V3_2, GameKind.GAIA, "Pokemon Gaia (v3.2).gba"),
         )) {
             if (!load(cfg, kind, rom)) continue
             val all = DexDetails.evolutions(cfg.pokedex!!)
@@ -173,7 +173,7 @@ class DexDetailsTest {
     }
 
     @Test fun `Unbound - CFRU's table and learnsets, no TMs`() {
-        assumeTrue(load(NATIVE_UNBOUND_WITH_DEX, GameKind.UNBOUND, "Pokémon Unbound (v2.1.1.1).gba"))
+        assumeTrue(load(NATIVE_UNBOUND_WITH_DEX, GameKind.UNBOUND, "Pokemon Unbound (v2.1.1.1).gba"))
         val t = POKEDEX_UNBOUND
         assertEquals(listOf(listOf(EvoReq.LevelUp, EvoReq.KnowsMoveType(23))), reqsTo(t, "Eevee", "Sylveon"))
         assertEquals(listOf(listOf(EvoReq.Level(32), EvoReq.TypeInParty(17))), reqsTo(t, "Pancham", "Pangoro"))
@@ -187,7 +187,7 @@ class DexDetailsTest {
     /** Super Mariomon: an old expansion's 10-row evolution table and {move, level} learnsets (its TATTLEDEX's EVO
      * page: BOB-OMB LvlUp to 14, then 36; its moves on the save are its first four). */
     @Test fun `Super Mariomon - evolutions and learnsets`() {
-        assumeTrue(load(NATIVE_MARIOMON_V1_5_1, GameKind.MARIOMON, "Super Mariomon v1.5.1-Anniversary.gba"))
+        assumeTrue(load(NATIVE_MARIOMON_V1_5_1, GameKind.MARIOMON, "Super Mariomon (v1.5.1 Anniversary).gba"))
         mariomonV13 = false
         val t = POKEDEX_MARIOMON_V1_5_1
         assertEquals(listOf(EvoLink(912, 913, listOf(EvoReq.Level(14))), EvoLink(913, 914, listOf(EvoReq.Level(36)))), DexDetails.family(t, 913))
@@ -199,11 +199,11 @@ class DexDetailsTest {
     }
 
     @Test fun `Quetzal and ROWE - word learnsets from their own tables`() {
-        if (load(NATIVE_QUETZAL, GameKind.QUETZAL, "PokemonQuetzalEnglishAlpha9v0.gba")) {
+        if (load(NATIVE_QUETZAL, GameKind.QUETZAL, "Pokemon Quetzal (Alpha 9.0) (English).gba")) {
             assertEquals(listOf(LevelMove(1, 33), LevelMove(1, 45)), DexDetails.levelUp(POKEDEX_QUETZAL, GUIDE_TABLES_QUETZAL, 1)!!.take(2))
             assertEquals(listOf(listOf(EvoReq.Level(7), EvoReq.Gender(female = true))), reqsTo(POKEDEX_QUETZAL, "Wurmple", "Silcoon"))
         }
-        if (load(NATIVE_ROWE, GameKind.ROWE, "Pokémon R.O.W.E. (v2.1.9.1 Experimental).gba")) {
+        if (load(NATIVE_ROWE, GameKind.ROWE, "Pokemon R.O.W.E. (v2.1.9.1 Experimental).gba")) {
             assertEquals(LevelMove(1, 33), DexDetails.levelUp(POKEDEX_ROWE, null, 1)!!.first())
             // Its unnamed level-up twin of each stone evolution gives way to the stone.
             assertEquals(listOf(listOf(EvoReq.UseItem(102))), reqsTo(POKEDEX_ROWE, "Nidorina", "Nidoqueen"))

@@ -8,7 +8,7 @@ package com.pokedaisy.app.companion.data
  * mon's GBC palette. Addresses are pret/pokeyellow's symbols ([Gen1DexTables]); the
  * seen / owned flags are WRAM bit arrays by Dex number ([readGen1PokedexState]).
  */
-class Gen1DexTables(
+data class Gen1DexTables(
     val baseStats: Pair<Int, Int>,          // BaseStats: 28 bytes per Dex number
     val dexEntryPointers: Pair<Int, Int>,   // by internal index - 1, in the same bank as the entries
     val monsterPalettes: Pair<Int, Int>,    // a palette id per Dex number (0 = MISSINGNO.)
@@ -22,6 +22,10 @@ class Gen1DexTables(
     /** wPokedexOwned / wPokedexSeen: 19 bytes each, bit n-1 = Dex No. n. */
     val owned: Long,
     val seen: Long,
+    /** The European carts keep the page's height in decimetres (1 byte) and weight in hectograms (2), English's
+     * feet / inches and pounds x 10 (4 bytes), and print with their own characters. */
+    val metric: Boolean = false,
+    val charset: Gen1Charset = Gen1Charset.EN,
 )
 
 val GEN1_DEX_YELLOW = Gen1DexTables(
@@ -38,12 +42,27 @@ val GEN1_DEX_YELLOW = Gen1DexTables(
     seen = 0xD309L,
 )
 
+/** The European Yellows: English's tables but for the dex pages' text and palettes (port_gen1.py, checked by contents). */
+private val GEN1_DEX_YELLOW_DE = GEN1_DEX_YELLOW.copy(dexEntryPointers = 0x10 to 0x4507, monsterPalettes = 0x1C to 0x6900,
+    cgbPalettes = 0x1C to 0x6AD8, owned = 0xD2FBL, seen = 0xD30EL, metric = true, charset = Gen1Charset.DF)
+private val GEN1_DEX_YELLOW_FR = GEN1_DEX_YELLOW_DE.copy(dexEntryPointers = 0x10 to 0x4508, monsterPalettes = 0x1C to 0x68F2,
+    cgbPalettes = 0x1C to 0x6ACA)
+private val GEN1_DEX_YELLOW_IT = GEN1_DEX_YELLOW_DE.copy(dexEntryPointers = 0x10 to 0x450D, monsterPalettes = 0x1C to 0x6961,
+    cgbPalettes = 0x1C to 0x6B39, charset = Gen1Charset.IS)
+private val GEN1_DEX_YELLOW_ES = GEN1_DEX_YELLOW_IT.copy(monsterPalettes = 0x1C to 0x6911, cgbPalettes = 0x1C to 0x6AE9)
+
 /** The Kanto dex: 151, no regional / national split. Its pages come from [Gen1Dex]. */
 val POKEDEX_YELLOW = PokedexTables(
     entries = 0, frontPics = 0, palettes = 0, speciesInfo = 0, speciesToNational = 0, abilityNames = 0, footprints = 0,
     speciesCount = 152, nationalCount = 151, regionalCount = 151, regionName = null,
     gen1 = GEN1_DEX_YELLOW,
 )
+/** The European pages print metric, "0.4m" / "6.0kg" (a full stop, no space: headless shots of each cart's page). */
+private val POKEDEX_YELLOW_METRIC = POKEDEX_YELLOW.copy(metric = true, decimalPoint = '.', unitSpace = false)
+val POKEDEX_YELLOW_DE = POKEDEX_YELLOW_METRIC.copy(gen1 = GEN1_DEX_YELLOW_DE)
+val POKEDEX_YELLOW_FR = POKEDEX_YELLOW_METRIC.copy(gen1 = GEN1_DEX_YELLOW_FR)
+val POKEDEX_YELLOW_IT = POKEDEX_YELLOW_METRIC.copy(gen1 = GEN1_DEX_YELLOW_IT)
+val POKEDEX_YELLOW_ES = POKEDEX_YELLOW_METRIC.copy(gen1 = GEN1_DEX_YELLOW_ES)
 
 fun readGen1PokedexState(r: MemoryReader, t: Gen1DexTables, tables: PokedexTables): PokedexState {
     val owned = r.readCoreMemory(t.owned, 19)
@@ -62,19 +81,8 @@ object Gen1Dex {
     private fun u8(b: ByteArray, o: Int) = b[o].toInt() and 0xFF
     private fun u16(b: ByteArray, o: Int) = u8(b, o) or (u8(b, o + 1) shl 8)
 
-    private val CHARS: Map<Int, String> = buildMap {
-        for (i in 0 until 26) { put(0x80 + i, ('A' + i).toString()); put(0xA0 + i, ('a' + i).toString()) }
-        for (i in 0 until 10) put(0xF6 + i, ('0' + i).toString())
-        putAll(mapOf(
-            0x7F to " ", 0x9A to "(", 0x9B to ")", 0x9C to ":", 0x9D to ";", 0xBA to "é", 0xBB to "'d", 0xBC to "'l",
-            0xBD to "'s", 0xBE to "'t", 0xBF to "'v", 0xE0 to "'", 0xE3 to "-", 0xE4 to "'r", 0xE5 to "'m", 0xE6 to "?",
-            0xE7 to "!", 0xE8 to ".", 0xEF to "♂", 0xF0 to "¥", 0xF1 to "×", 0xF2 to ".", 0xF3 to "/", 0xF4 to ",",
-            0xF5 to "♀", 0x54 to "POKé", 0x75 to "…", 0x4E to " ", 0x4F to " ", 0x49 to " ", 0x51 to " ",
-        ))
-    }
-
     /** Gen 1 text from [o] until its end (@, or the dex text's DEXEND 0x5F). */
-    private fun text(rom: ByteArray, o: Int): String {
+    private fun text(rom: ByteArray, o: Int, chars: Map<Int, String>): String {
         val sb = StringBuilder()
         var i = o
         while (i < rom.size && i < o + 400) {
@@ -82,7 +90,7 @@ object Gen1Dex {
             if (c == 0x5F) { sb.append('.'); break }   // DEXEND prints the entry's last full stop
             if (c == 0x50) break
             if (c == 0x00 && sb.isEmpty()) continue   // the text command that opens a far text
-            sb.append(CHARS[c] ?: "")
+            sb.append(chars[c] ?: "")
         }
         return sb.toString().split(' ').filter { it.isNotEmpty() }.joinToString(" ")
     }
@@ -97,20 +105,25 @@ object Gen1Dex {
         val e = off(pb, u16(rom, off(pb, pa) + 2 * (internal - 1)))
         var o = e
         while (u8(rom, o) != 0x50) o++
-        val category = text(rom, e)
+        val chars = t.charset.chars
+        val category = text(rom, e, chars)
         o++
+        // English: feet, inches, pounds x 10; Europe: decimetres, hectograms (one byte less).
         val feet = u8(rom, o)
         val inches = u8(rom, o + 1)
         val lbs10 = u16(rom, o + 2)
+        val dm = u8(rom, o)
+        val hg = u16(rom, o + 1)
+        val far = o + if (t.metric) 3 else 4
         // text_far: 0x17, address, bank.
-        val desc = if (u8(rom, o + 4) == 0x17) text(rom, off(u8(rom, o + 7), u16(rom, o + 5))) else ""
+        val desc = if (u8(rom, far) == 0x17) text(rom, off(u8(rom, far + 3), u16(rom, far + 1)), chars) else ""
         val s = off(t.baseStats.first, t.baseStats.second) + 28 * (dex - 1)
         return DexEntry(
             national = dex,
             species = dex,
             category = category,
-            heightDm = Math.round((feet * 12 + inches) * 2.54 / 10).toInt(),
-            weightHg = Math.round(lbs10 * 0.45359237).toInt(),
+            heightDm = if (t.metric) dm else Math.round((feet * 12 + inches) * 2.54 / 10).toInt(),
+            weightHg = if (t.metric) hg else Math.round(lbs10 * 0.45359237).toInt(),
             description = desc,
             type1 = u8(rom, s + 6),
             type2 = u8(rom, s + 7),
@@ -120,8 +133,8 @@ object Gen1Dex {
             catchRate = u8(rom, s + 8),
             genderRatio = -1,
             eggGroups = emptyList(),
-            heightIn = feet * 12 + inches,
-            weightLbs10 = lbs10,
+            heightIn = if (t.metric) null else feet * 12 + inches,
+            weightLbs10 = if (t.metric) null else lbs10,
         )
     }
 

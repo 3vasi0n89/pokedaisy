@@ -8,7 +8,7 @@ import java.io.File
 
 /** The Gen 1 font cut from the user's Yellow ROM is a TrueType file Java's own parser accepts. */
 class Gen1ArtTest {
-    private val rom = File(System.getProperty("user.home"), "Downloads/gbc/Pokemon-Yellow Version.gbc")
+    private val rom = File(File(RETAIL_ROM_DIR).parentFile, "gbc/Pokemon - Yellow Version - Special Pikachu Edition (USA, Europe) (CGB+SGB Enhanced).gb")
 
     @Test
     fun `Yellow's font parses, with its glyphs`() {

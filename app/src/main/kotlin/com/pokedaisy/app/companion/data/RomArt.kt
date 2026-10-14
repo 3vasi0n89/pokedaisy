@@ -27,7 +27,7 @@ object RomArt {
     const val DIR = "rom-art"
 
     /** Bump when [OUTPUTS] grows, so ROMs scanned before get scanned again. */
-    private const val SCAN_VERSION = 19
+    private const val SCAN_VERSION = 20
 
     /** Bumped whenever new art lands on disk, so loaders can retry. */
     val updates: StateFlow<Int> get() = _updates
@@ -115,6 +115,9 @@ object RomArt {
         "player_may" to (RomBlob.EM_PLAYER_MAY_GFX to RomBlob.EM_PLAYER_MAY_PAL),
         // Super Mariomon's own head for its map, in Brendan's slot (May's is retail's).
         "player_mario" to (RomBlob.MM_PLAYER_MARIO_GFX to RomBlob.MM_PLAYER_MARIO_PAL),
+        // Recharged Emerald redrew both heads for its own map.
+        "player_brendan_re" to (RomBlob.RE_PLAYER_BRENDAN_GFX to RomBlob.RE_PLAYER_BRENDAN_PAL),
+        "player_may_re" to (RomBlob.RE_PLAYER_MAY_GFX to RomBlob.RE_PLAYER_MAY_PAL),
     )
 
     /**
@@ -132,13 +135,13 @@ object RomArt {
     /** Every file [compose] can make. */
     val OUTPUTS: List<String> = run {
         val slots = listOf("normal", "selected", "fainted", "selected_fainted", "nohp_normal", "nohp_selected")
-        (listOf("partyfr", "partyem", "partyhns") + listOf("es", "de", "fr", "it").flatMap { listOf(emeraldPartyDir(it), fireRedPartyDir(it)) }).flatMap { d ->
+        (listOf("partyfr", "partyem", "partyhns", RE_PARTY_DIR) + listOf("es", "de", "fr", "it").flatMap { listOf(emeraldPartyDir(it), fireRedPartyDir(it)) }).flatMap { d ->
             slots.map { "$d/slot_$it.png" } + listOf("$d/status_icons.png", "$d/font_small.png") +
                 listOfNotNull("$d/pokeball.png".takeIf { d == "partyfr" || d == "partyem" || d == "partyhns" })
-        } + listOf("partybg/firered.png", "partybg/emerald.png", "partybg/hns.png", CFRU_BACKDROP) +
+        } + listOf("partybg/firered.png", "partybg/emerald.png", "partybg/hns.png", RE_BACKDROP, CFRU_BACKDROP) +
             (slots + "empty").map { "partycfru/slot_$it.png" } + CFRU_STATUS.map { "partycfru/${it.first}/status_icons.png" } +
             listOf(SWSH_BACKDROP) + (slots + "empty").map { "$SWSH_PARTY_DIR/slot_$it.png" } +
-            listOf("kanto", "sevii123", "sevii45", "sevii67", "hoenn", "seaglass", "lazarus", "soulgold", "glazed", "imperium", "hns", "rowe_hoenn", "rowe_kanto", "rowe_sevii",
+            listOf("kanto", "sevii123", "sevii45", "sevii67", "hoenn", "seaglass", "lazarus", "soulgold", "glazed", "imperium", "hns", "recharged_emerald", "rowe_hoenn", "rowe_kanto", "rowe_sevii",
                 "mariomon", "quetzal_kanto", "quetzal_sevii123", "quetzal_sevii45", "quetzal_sevii67").map { "regionmap/$it.png" } +
             PLAYER_ICONS.map { "regionmap/${it.first}.png" } +
             listOf(BAG_STARS_SOULGOLD, HOLD_ICONS) +
@@ -299,6 +302,11 @@ object RomArt {
         val blank: (Int, Int) -> Boolean = { tx, ty -> tx >= 23 && ty in 17..18 },
     )
 
+    /** Recharged Emerald's party menu: Emerald's party_menu.c and slot tilemaps under its own art (its backdrop, the
+     * palettes, its FONT_SMALL; the status icons Emerald's, recompressed; the Poké Ball Emerald's bytes). */
+    const val RE_PARTY_DIR = "partyre"
+    const val RE_BACKDROP = "partybg/recharged_emerald.png"
+
     /** One 32x32 cell of the CFRU hacks' party-menu grid, tiled by the app (GameBackdrop). */
     const val CFRU_BACKDROP = "partybg/cfru_tile.png"
 
@@ -327,6 +335,10 @@ object RomArt {
         Party("partyem", "partybg/emerald.png", RomBlob.EM_PARTY_BG_GFX, RomBlob.EM_PARTY_BG_PAL, RomBlob.EM_PARTY_BG_MAP,
             RomBlob.EM_SLOT_MAIN, RomBlob.EM_SLOT_NO_HP, RomBlob.EM_BALL_GFX, RomBlob.EM_BALL_PAL,
             RomBlob.EM_STATUS_GFX, RomBlob.EM_STATUS_PAL, RomBlob.EM_FONT_SMALL, halfWidthFont = false),
+        Party(RE_PARTY_DIR, RE_BACKDROP, RomBlob.RE_PARTY_BG_GFX, RomBlob.RE_PARTY_BG_PAL, RomBlob.RE_PARTY_BG_MAP,
+            // Its Poké Ball is Emerald's bytes: partyem/pokeball.png, from the same scan.
+            RomBlob.EM_SLOT_MAIN, RomBlob.EM_SLOT_NO_HP, null, RomBlob.EM_BALL_PAL,
+            RomBlob.RE_STATUS_GFX, RomBlob.RE_STATUS_PAL, RomBlob.RE_FONT_SMALL, halfWidthFont = false),
     ) + listOf(
         // The European Emeralds: their own slot tiles (the HP label), status icons and font;
         // the backdrop comes out pixel for pixel English's (only CANCEL's tiles differ).
@@ -414,6 +426,8 @@ object RomArt {
             "rowe_sevii" to Triple(RomBlob.RW_SEVII_GFX, RomBlob.RW_REGION_PAL, RomBlob.RW_SEVII_MAP),
             // Heart and Soul's Johto + Kanto map (smol, like SoulGold's), on Emerald's palette.
             "hns" to Triple(RomBlob.HNS_REGION_GFX, RomBlob.EM_REGION_PAL, RomBlob.HNS_REGION_MAP),
+            // Recharged Emerald redrew Hoenn (its own tiles, tilemap and palette) on Emerald's layout.
+            "recharged_emerald" to Triple(RomBlob.RE_REGION_GFX, RomBlob.RE_REGION_PAL, RomBlob.RE_REGION_MAP),
             // Imperium added markers for its new places, on Emerald's palette.
             "imperium" to Triple(RomBlob.IMP_REGION_GFX, RomBlob.EM_REGION_PAL, RomBlob.IMP_REGION_MAP),
             // Super Mariomon's world map: its own tiles, tilemap and palette.

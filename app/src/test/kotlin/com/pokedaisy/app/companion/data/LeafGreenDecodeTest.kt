@@ -47,6 +47,6 @@ class LeafGreenDecodeTest {
         assertEquals(2, EvolutionSource.table(cfg.pokedex!!)!![1].single().target) // BULBASAUR -> IVYSAUR
     }
 
-    @Test fun rev0() = check("leafgreen_rev0", NATIVE_LEAFGREEN_REV0, "PokemonLeafGreenVersion.gba")
+    @Test fun rev0() = check("leafgreen_rev0", NATIVE_LEAFGREEN_REV0, "Pokemon - LeafGreen Version (USA).gba")
     @Test fun rev1() = check("leafgreen_rev1", NATIVE_LEAFGREEN_REV1, "Pokemon - LeafGreen Version (USA, Europe) (Rev 1).gba")
 }

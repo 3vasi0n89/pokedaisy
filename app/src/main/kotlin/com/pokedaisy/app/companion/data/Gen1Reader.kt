@@ -38,6 +38,18 @@ data class Gen1Config(
     // wPlayTimeHours, Maxed, Minutes, Seconds, Frames: the telemetry's frame counter (the
     // companion's per-second refreshes, STATES' list, key off it moving).
     val playTime: Long = 0,
+    /** The cart's language letter (E, or the European ones' D / F / I / S) and, for those, its CGB
+     * manufacturer code ("APSD"): the companion's names ([gameText]) and language follow it. */
+    val language: Char = 'E',
+    val gameCode: String = "",
+    /** DisplayBattleMenu's cursor columns (wTopMenuItemX) for FIGHT / ITEM and PkMn / RUN: each language's
+     * words moved them (English 9 / 15; read off the `yellow*_battle_menu` fixtures' tile maps). */
+    val battleMenuLeftX: Int = 0x09,
+    val battleMenuRightX: Int = 0x0F,
+    /** The battle POKéMON switch ([Gen1PartySwitch]): wPartyMenuTypeOrMessageID (which party menu is up: 0 PkMn's,
+     * 2 the pick after a faint, 1 an item's "use on which?") and wPlayerMonNumber (the party slot in battle). */
+    val partyMenuType: Long = 0,
+    val playerMonNumber: Long = 0,
 )
 
 /** Pokémon Yellow (USA, Europe). Red/Blue's own addresses are one byte later (wPartyCount D163). */
@@ -62,7 +74,42 @@ val GEN1_YELLOW = Gen1Config(
     tileMap = 0xC3A0L,
     pokedex = POKEDEX_YELLOW,
     playTime = 0xDA40L,
+    partyMenuType = 0xD07CL,
+    playerMonNumber = 0xCC2FL,
 )
+
+/**
+ * The German, French, Italian and Spanish Yellows: English's code with their own text, which
+ * moved everything from wBattleMon up 5 bytes (wPlayerName is 0xD15C) - the same in all four
+ * (scripts/port_gen1.py, every field below from English's code in theirs; checked on headless
+ * captures of the English save booted in each, the `yellow_de` .. `yellow_es` fixtures). The
+ * menu, tile map and audio RAM didn't move.
+ */
+private val GEN1_YELLOW_EUROPE = GEN1_YELLOW.copy(
+    partyCount = 0xD167L,
+    partyMons = 0xD16FL,
+    bagCount = 0xD321L,
+    money = 0xD34BL,
+    badges = 0xD35AL,
+    curMap = 0xD362L,
+    yCoord = 0xD365L,
+    xCoord = 0xD366L,
+    isInBattle = 0xD05BL,
+    battleMon = 0xD018L,
+    enemyMon = 0xCFE9L,
+    enemyMonPartyPos = 0xCFECL,
+    enemyPartyCount = 0xD8A0L,
+    enemyMons = 0xD8A8L,
+    playTime = 0xDA45L,
+    partyMenuType = 0xD081L,
+)
+val GEN1_YELLOW_DE = GEN1_YELLOW_EUROPE.copy(language = 'D', gameCode = "APSD", pokedex = POKEDEX_YELLOW_DE,
+    battleMenuLeftX = 7, battleMenuRightX = 12)
+val GEN1_YELLOW_FR = GEN1_YELLOW_EUROPE.copy(language = 'F', gameCode = "APSF", pokedex = POKEDEX_YELLOW_FR,
+    battleMenuLeftX = 7, battleMenuRightX = 13)
+val GEN1_YELLOW_IT = GEN1_YELLOW_EUROPE.copy(language = 'I', gameCode = "APSI", pokedex = POKEDEX_YELLOW_IT,
+    battleMenuLeftX = 7, battleMenuRightX = 14)
+val GEN1_YELLOW_ES = GEN1_YELLOW_EUROPE.copy(language = 'S', gameCode = "APSS", pokedex = POKEDEX_YELLOW_ES)
 
 const val GEN1_PARTY_MON_SIZE = 44
 const val GEN1_BATTLE_MON_SIZE = 29
@@ -90,6 +137,7 @@ fun decodeGen1PartyMon(raw: ByteArray, off: Int, cfg: Gen1Config): Mon? {
         pp = IntArray(4) { u8(raw, off + 29 + it) and 0x3F },   // top 2 bits: PP Ups
         genderSymbol = GENDER_SYMBOL_NONE,
         exp = exp,
+        personality = gen1MonKey(raw, off),   // no personality in Gen 1: the switch's key (GbPartySwitch)
     )
 }
 
@@ -110,10 +158,20 @@ fun decodeGen1BattleMon(raw: ByteArray, cfg: Gen1Config): BattleMon? {
     )
 }
 
+/**
+ * The battle menu's four words as each Yellow prints them (FIGHT, PkMn, ITEM, RUN - the order [readGen1BattleInput]'s
+ * cells go 0, 1, 2, 3), read off the `yellow*_battle_menu` fixtures' screens; PkMn is the same two ligature tiles in all.
+ */
+fun gen1BattleMenuWords(language: Char): List<String> = when (language) {
+    'D' -> listOf("KMPF", "PkMn", "ITEM", "FLUCHT")
+    'F' -> listOf("ATTAQ", "PkMn", "OBJET", "FUITE")
+    'I' -> listOf("LOTTA", "PkMn", "STRUM.", "FUGA")
+    'S' -> listOf("LUCHA", "PkMn", "OBJ.", "ESC")
+    else -> listOf("FIGHT", "PkMn", "ITEM", "RUN")
+}
+
 private const val TILE_CURSOR = 0xED          // ▶, the waiting menu's cursor
-private const val BATTLE_MENU_TOP = 0x0E         // DisplayBattleMenu: rows 14 / 16, X 9 (FIGHT / ITEM) or 15 (PkMn / RUN)
-private const val BATTLE_MENU_LEFT_X = 0x09
-private const val BATTLE_MENU_RIGHT_X = 0x0F
+private const val BATTLE_MENU_TOP = 0x0E         // DisplayBattleMenu: rows 14 / 16, X per Gen1Config (FIGHT / ITEM, PkMn / RUN)
 private const val MOVE_MENU_TOP = 0x0C           // MoveSelectionMenu: moves on rows 13-16 (items 1-4), X 5
 private const val MOVE_MENU_X = 0x05
 
@@ -128,6 +186,7 @@ fun readGen1BattleInput(r: MemoryReader, cfg: Gen1Config): Pair<Int, Int> {
     if (cfg.topMenuItemY == 0L) return BATTLE_INPUT_NONE to -1
     val battle = u8(r.readCoreMemory(cfg.isInBattle, 1), 0)
     if (battle != 1 && battle != 2) return BATTLE_INPUT_NONE to -1
+    readGen1PartyMenu(r, cfg)?.let { return BATTLE_INPUT_PARTY_OPEN to it.pollCursor }
     val menu = r.readCoreMemory(cfg.topMenuItemY, 5)
     val top = u8(menu, 0)
     val x = u8(menu, 1)
@@ -135,10 +194,10 @@ fun readGen1BattleInput(r: MemoryReader, cfg: Gen1Config): Pair<Int, Int> {
     val max = u8(menu, 4)
     fun cursorShown(row: Int) = row in 0 until 18 && x < 20 &&
         u8(r.readCoreMemory(cfg.tileMap + row * 20 + x, 1), 0) == TILE_CURSOR
-    if (top == BATTLE_MENU_TOP && max == 1 && item <= 1 && (x == BATTLE_MENU_LEFT_X || x == BATTLE_MENU_RIGHT_X) &&
+    if (top == BATTLE_MENU_TOP && max == 1 && item <= 1 && (x == cfg.battleMenuLeftX || x == cfg.battleMenuRightX) &&
         cursorShown(top + 2 * item)
     ) {
-        return BATTLE_INPUT_ACTION_SELECT to ((if (x == BATTLE_MENU_RIGHT_X) 1 else 0) + 2 * item)
+        return BATTLE_INPUT_ACTION_SELECT to ((if (x == cfg.battleMenuRightX) 1 else 0) + 2 * item)
     }
     if (top == MOVE_MENU_TOP && x == MOVE_MENU_X && item in 1..4 &&
         u8(r.readCoreMemory(cfg.moveMenuType, 1), 0) == 0 && cursorShown(top + item)

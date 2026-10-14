@@ -36,13 +36,28 @@ class MoneyTest {
         assertEquals(48937L, money("quetzal_johto", NATIVE_QUETZAL))
         // Quetzal's money goes past 999,999 (its START menu shows 1048458).
         assertEquals(1_048_458L, money("quetzal_es", NATIVE_QUETZAL_ES))
+        // Quetzal 0.8.4 keeps Alpha 9's SaveBlock1: the same save, the same money, every build.
+        assertEquals(1_048_458L, money("quetzal_084", NATIVE_QUETZAL_V084))
+        assertEquals(1_048_458L, money("quetzal_es_084", NATIVE_QUETZAL_V084_ES))
+        assertEquals(1_048_458L, money("quetzal_moemon_084", NATIVE_QUETZAL_MOEMON_V084))
+        assertEquals(1_048_458L, money("quetzal_moemon_es_084", NATIVE_QUETZAL_MOEMON_V084_ES))
         assertEquals(1748L, money("unbound_fr", NATIVE_UNBOUND_FR))
         assertEquals(2000L, money("orange_islands", NATIVE_ORANGE_ISLANDS))
         assertEquals(3080L, money("ultra_violet", NATIVE_ULTRA_VIOLET))
+        // Retail FireRed's save, booted in FireRed Rocket Edition and Ash Gray.
+        assertEquals(246468L, money("rocket_edition", NATIVE_ROCKET_EDITION))
+        assertEquals(246468L, money("ash_gray", NATIVE_ASH_GRAY))
+        assertEquals(246468L, money("ash_gray_fork", NATIVE_ASH_GRAY))
         assertEquals(5000L, money("sword_shield_up", NATIVE_SWORD_SHIELD))
+        assertEquals(13000L, money("gs_chronicles", NATIVE_GS_CHRONICLES))
+        assertEquals(13000L, money("gs_chronicles_swapped", NATIVE_GS_CHRONICLES))
         // Recharged Yellow keeps no key: SaveBlock1+0x29C plain, every release (its trainer card says P4804).
         assertEquals(4804L, money("recharged_yellow_v180", NATIVE_RECHARGED_YELLOW_V1_8_0))
         assertEquals(4804L, money("recharged_yellow", NATIVE_RECHARGED_YELLOW_V1_9_7))
+        // Recharged Emerald: retail Emerald's save converted - its money, under its key (Rebalanced's 4 bytes later).
+        assertEquals(185092L, money("recharged_emerald_v225", NATIVE_RECHARGED_EMERALD_V2_2_5))
+        assertEquals(185092L, money("recharged_emerald", NATIVE_RECHARGED_EMERALD_V2_2_8))
+        assertEquals(185092L, money("recharged_emerald_rebalanced", NATIVE_RECHARGED_EMERALD_REBALANCED_V2_2_8))
         // Super Mariomon: vanilla's offsets in every release (its card says P3100).
         for ((key, cfg) in listOf("mariomon_v1_5_2" to NATIVE_MARIOMON_V1_5_2, "mariomon_v1_5_1" to NATIVE_MARIOMON_V1_5_1,
                 "mariomon_v1_3" to NATIVE_MARIOMON_V1_3, "mariomon_v1_2_2" to NATIVE_MARIOMON_V1_2_2, "mariomon_v1_2_1" to NATIVE_MARIOMON_V1_2_1)) {

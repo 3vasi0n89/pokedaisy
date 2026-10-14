@@ -50,12 +50,12 @@ class M4aSongsTest {
         // Its gcc m4aSongNumStart; headless, Viridian City's BGM was song 526's header, and `call 0x08000B69 300`
         // switched the BGM player to song 300's. Its song ids follow Emerald's table: sFanfares[0] is 367.
         val dir = File(RomFileReader.FIRERED_REV1_PATH).parentFile
-        val s = songs(File(dir, "Recharged Yellow v1.9.7.gba").path)
+        val s = songs(File(dir, "Pokemon Recharged Yellow (v1.9.7).gba").path)
         assertEquals(0x08000B69L, s.songNumStart)
         assertEquals(0x08B7EC90L, s.songTable)
         assertEquals(526, s.songId("song_0e1da7c"))
         for (v in listOf("1.8.0", "1.9.0", "1.9.4", "1.9.7")) {
-            assertTrue(v, isRechargedYellowRom(File(dir, "Recharged Yellow v$v.gba").readBytes().copyOf(0x200)))
+            assertTrue(v, isRechargedYellowRom(File(dir, "Pokemon Recharged Yellow (v$v).gba").readBytes().copyOf(0x200)))
         }
         assertFalse(isRechargedYellowRom(File(RomFileReader.FIRERED_REV1_PATH).readBytes().copyOf(0x200)))
     }
@@ -66,12 +66,12 @@ class M4aSongsTest {
         val lazarus = songs(File(dir, "Pokemon Lazarus (v2.0).gba").path)
         assertEquals(0x08009FA1L, lazarus.songNumStart)
         assertEquals(0x08FF5F48L, lazarus.songTable)
-        val soulGold = songs(File(dir, "Pokemon-SoulGold-v1.1.4.gba").path)
+        val soulGold = songs(File(dir, "Pokemon SoulGold (v1.1.4).gba").path)
         assertEquals(0x095FD42CL, soulGold.songTable)
-        val soulGold12 = songs(File(dir, "Soulgold (v1.2).gba").path)
+        val soulGold12 = songs(File(dir, "Pokemon SoulGold (v1.2).gba").path)
         assertEquals(0x081A2981L, soulGold12.songNumStart)
         assertEquals(0x096086FCL, soulGold12.songTable)
-        val soulGold12b = songs(File(dir, "Pokemon-SoulGold-v1.2.gba").path)
+        val soulGold12b = songs(File(dir, "Pokemon SoulGold (v1.2) (Alt 1).gba").path)
         assertEquals(0x081A2915L, soulGold12b.songNumStart)
         assertEquals(0x09608658L, soulGold12b.songTable)
     }
@@ -80,7 +80,7 @@ class M4aSongsTest {
         // Expansion's m4aSongNumStart plus a second argument: set, it plays the song's entry in
         // an alternate table instead (the fourth signature). Headless: the title screen plays
         // song 559 from gSongTable; `call 0x0817d4a9 559 1` switched the BGM to 0x09E2BE10.
-        val s = songs(File(File(RomFileReader.FIRERED_REV1_PATH).parentFile, "Pokémon Heart and Soul (v2.0.6).gba").path)
+        val s = songs(File(File(RomFileReader.FIRERED_REV1_PATH).parentFile, "Pokemon Heart and Soul (v2.0.6).gba").path)
         assertEquals(0x0817D4A9L, s.songNumStart)
         assertEquals(0x09356068L, s.songTable)
         assertEquals(559, s.songId("song_1d3a6e8"))
@@ -98,8 +98,8 @@ class M4aSongsTest {
         // mgba_dump `bgm`: the BGM player's song header) is a BGM-player song of its table.
         val dir = File(RomFileReader.FIRERED_REV1_PATH).parentFile
         for ((file, header) in listOf(
-            "Super Mariomon v1.5.2-Anniversary.gba" to "song_0f8ecc8", "Super Mariomon v1.5.1-Anniversary.gba" to "song_0f8e7e0",
-            "Super Mariomon v1.3.gba" to "song_0f6c124", "Super Mariomon v1.2.2.gba" to "song_0f6c11c", "Super Mariomon v1.2.1.gba" to "song_0f6c13c",
+            "Super Mariomon (v1.5.2 Anniversary).gba" to "song_0f8ecc8", "Super Mariomon (v1.5.1 Anniversary).gba" to "song_0f8e7e0",
+            "Super Mariomon (v1.3).gba" to "song_0f6c124", "Super Mariomon (v1.2.2).gba" to "song_0f6c11c", "Super Mariomon (v1.2.1).gba" to "song_0f6c13c",
         )) {
             val f = File(dir, file)
             if (!f.isFile) continue

@@ -59,7 +59,12 @@ object RomRegionMap {
     private const val SCREEN_BYTES = 30 * 20 * 2
 
     /** Bump when the images change, so ROMs read before get new ones. */
-    private const val VERSION = 2 // 2: junk Sevii screens dropped (Odyssey, Sword and Shield Ultimate Plus)
+    private const val VERSION = 3 // 2: junk Sevii screens dropped (Odyssey, Sword and Shield Ultimate Plus); 3: and unused ones (GS Chronicles, Gaia)
+
+    // FireRed 1.0's own Sevii tilemaps and region map tiles: a hack that moved the tiles but still points a screen
+    // at one of these draws FireRed's islands in its own tiles.
+    private val FIRERED_SEVII_TILEMAPS = setOf(0x3F0AFC, 0x3F0C0C, 0x3F0CF0)
+    private const val FIRERED_TILES = 0x3EF61C
 
     /** Reads [rom] in the background and publishes its map as [current]. */
     fun load(filesDir: File, romKey: String, rom: File) {
@@ -141,7 +146,7 @@ object RomRegionMap {
         // yet its Isle of Armor / Crown Tundra sections still sit on those screens; Odyssey's are
         // never shown). Dropped: their sections go on the main map, with nothing highlighted.
         fun uncut(c: IntArray) = c[0] == 0 && c[1] == 0 && c[2] == 30 && c[3] == 20
-        val junk = screens.indices.filter { it != imageOf[0] && uncut(crops[it]) && !uncut(crops[imageOf[0]]) }.toSet()
+        val junk = screens.indices.filter { it != imageOf[0] && uncut(crops[it]) && !uncut(crops[imageOf[0]]) }.toMutableSet()
         val images = screens.mapIndexed { i, img ->
             val (left, top, right, bottom) = crops[i]
             RomArt.Image((right - left) * 8, (bottom - top) * 8).also { out ->
@@ -188,6 +193,19 @@ object RomRegionMap {
             }
         }
         if (sections.isEmpty()) return null
+        // FireRed's own Sevii tilemap in the hack's moved tiles, holding no section or hardly any placed on it: junk
+        // too (GS Chronicles keeps its Kanto routes 12-27 there, three of 21 with a box; Gaia none at all). Its
+        // sections go on the main map, nothing highlighted. Amethyst and Orange Islands redrew theirs: most placed.
+        if (ptr(LIT_GFX) != FIRERED_TILES) {
+            for (i in screens.indices) {
+                if (i == imageOf[0] || i in junk || distinct[i] !in FIRERED_SEVII_TILEMAPS) continue
+                val on = sections.values.filter { it.region == i }
+                if (on.isEmpty() || on.count { it.w > 0 } * 4 < on.size) {
+                    junk.add(i)
+                    for (e in sections.entries) if (e.value.region == i) e.setValue(MapSecInfo(e.value.name, imageOf[0], 0, 0, 0, 0))
+                }
+            }
+        }
         // Each image's cursor grid (the first region drawn on it), kept only
         // if it names this ROM's own sections - else taps fall back to the rects.
         val layouts = images.indices.map { image ->

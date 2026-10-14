@@ -19,7 +19,7 @@ class RomRegionMapTest {
     }
 
     @Test fun unboundHasBorrius() {
-        val m = read("Pokémon Unbound (v2.1.1.1).gba")
+        val m = read("Pokemon Unbound (v2.1.1.1).gba")
         assertEquals(1, m.images.size) // every region slot is Borrius
         // Its 2-tile backdrop border and the missing last row are cut off, so
         // the grid's (4, 4) offset is (2, 2) here.
@@ -38,7 +38,7 @@ class RomRegionMapTest {
     }
 
     @Test fun odysseyHasItsOwnRegion() {
-        val m = read("Pokémon Odyssey (English) (v4.1.1).gba")
+        val m = read("Pokemon Odyssey (v4.1.1).gba")
         // Its own map; FireRed's three Sevii screens, drawn in its tiles (junk, never shown), are dropped.
         assertEquals(1, m.images.size)
         assertEquals(MapSecInfo("Fibernia", 0, 6, 13, 1, 1), m.sections[89])
@@ -47,7 +47,7 @@ class RomRegionMapTest {
 
     /** Sword and Shield Ultimate Plus: Galar on the first screen; FireRed's Sevii screens drawn in its tiles are junk. */
     @Test fun swordShieldHasGalar() {
-        val m = read("Sword and Shield Ultimate Plus (1.2.1.2).gba")
+        val m = read("Pokemon Sword and Shield Ultimate Plus (v1.2.1.2).gba")
         assertEquals(208 to 144, m.images[0].width to m.images[0].height)
         assertEquals(MapSecInfo("Postwick", 0, 10, 15, 1, 1), m.sections[0x58])
         assertEquals(MapSecInfo("Wyndon", 0, 4, 5, 1, 1), m.sections[0x61])
@@ -79,16 +79,43 @@ class RomRegionMapTest {
         assertEquals(2, m.sections[147]!!.region) // PUMMELO ISLAND
     }
 
+    /** Ash Gray (both builds): its own Kanto, then the Orange Islands on the second screen (FireRed's Sevii ids). */
+    @Test fun ashGrayHasTheOrangeIslands() {
+        for (rom in listOf("Pokemon Ash Gray (v4.5.3).gba", "Pokemon Ash Gray Fork Bug Fix (v1.0).gba")) {
+            val m = read(rom)
+            assertEquals(2, m.images.size)
+            assertEquals(MapSecInfo("Pallet Town", 0, 6, 13, 1, 1), m.sections[88])
+            assertEquals(MapSecInfo("Valencia Island", 1, 7, 14, 1, 1), m.sections[143])
+            assertEquals(MapSecInfo("Shamouti Island", 1, 13, 8, 1, 3), m.sections[171])
+        }
+    }
+
     /** Unbound's French translation: English's map, French names (its revision byte is 0x9E, not 0). */
     @Test fun unboundFrenchHasBorriusInFrench() {
-        val m = read("Pokémon Unbound v2.1.1.1 FR.gba")
+        val m = read("Pokemon Unbound (v2.1.1.1) (French).gba")
         assertEquals(1, m.images.size)
         assertEquals(MapSecInfo("Bélenbourg", 0, 12, 4, 1, 1), m.sections[89])
     }
 
     @Test fun gaiaIsOneMap() {
-        val m = read("Pokemon - Gaia (v3.2).gba")
+        val m = read("Pokemon Gaia (v3.2).gba")
         assertEquals(setOf(0), m.sections.values.map { it.region }.toSet())
+        assertEquals(1, m.images.size) // FireRed's three Sevii screens in its tiles, none of its sections on them: dropped
+    }
+
+    /**
+     * GS Chronicles: Johto on the first screen, Kanto on the second (FireRed's Sevii 1-3 slot). The other two are
+     * FireRed's Sevii tilemaps in its tiles, holding only its Kanto routes 12-27 (three of 21 with a box): dropped.
+     */
+    @Test fun gsChroniclesHasJohtoAndKanto() {
+        val m = read("Pokemon GS Chronicles (v2.7.6).gba")
+        assertEquals(2, m.images.size)
+        assertEquals(MapSecInfo("New Bark Town", 0, 21, 12, 1, 1), m.sections[0x58])
+        assertEquals(MapSecInfo("Route 29", 0, 18, 12, 3, 1), m.sections[0x65])
+        assertEquals(1, m.sections[0x94]!!.region) // Pewter City
+        assertEquals(MapSecInfo("Route 12", 0, 0, 0, 0, 0), m.sections[0xB0])
+        val model = RegionMapModel(arrayOf("johto", "kanto"), m.sections, m.layouts)
+        assertEquals(0x58, model.pick(0, 21, 12)?.mapsec)
     }
 
     @Test fun otherRomsGiveNothing() {

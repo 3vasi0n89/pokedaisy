@@ -16,9 +16,12 @@ Any GBA or Game Boy game plays in PokeDaisy. "Supported" is about the companion 
 - The English (USA / Europe) releases and the Spanish, German, French, Italian and Japanese ones, every revision.
 - English FireRed and Emerald also count when the file comes from a collection that changed it a little: the empty space at its end cut off or filled with something of its own, or patched to run on a flash cartridge (its save code changed so it saves without the original flash chip, often with the "internal battery has run dry" message reworded). Any change to the game itself makes it a hack the companion doesn't know.
 
-**Game Boy:**
+**Game Boy and Game Boy Color:**
 
-- Pokémon Yellow (USA / Europe), drawn in the game's own look.
+- Pokémon Yellow: the USA / Europe release and the German, French, Italian and Spanish ones, drawn in the game's own look. A German, French, Italian or Spanish copy shows its own names and Pokédex text. Item descriptions are only shown in the English one, as these games have none of their own.
+- Pokémon Crystal: the USA release, the USA / Europe revision 1 and the Australian one, drawn in the game's own look.
+- Pokémon Crystal Clear, the open world hack of Crystal: versions 2.5.11 and 2.6.0, each in its Standard Colors and its Color Filter build, drawn in the game's own look.
+- Pokémon Prism, built on Crystal with regions of its own: version 0.95 build 254 (Hotfix 5), drawn in the game's own look, with its own Pokédex.
 
 **ROM hacks**, each in the versions listed:
 
@@ -33,7 +36,10 @@ Any GBA or Game Boy game plays in PokeDaisy. "Supported" is about the companion 
 | Celia's Stupid Romhack | 1.1.4 |
 | Pokémon Orange Islands | Beta 5.7, and an older beta |
 | Pokémon Ultra Violet | 1.22 |
+| Pokémon FireRed Rocket Edition | its one release |
+| Pokémon Ash Gray | 4.5.3, and its Fork Bug Fix 1.0 build |
 | Sword and Shield Ultimate Plus | 1.2.1.2, plus its three patches |
+| Pokémon GS Chronicles | 2.7.6 |
 | Pokémon Recharged Yellow | 1.8.0, 1.9.0, 1.9.4 and 1.9.7 |
 | Pokémon Lazarus | 2.0 |
 | Emerald Seaglass | 3.0 |
@@ -42,8 +48,10 @@ Any GBA or Game Boy game plays in PokeDaisy. "Supported" is about the companion 
 | Emerald Imperium | 1.3.1 |
 | Pokémon Emerald Kaizo | 2.0 |
 | Pokémon Emerald Legacy | 1.1.4 |
-| Pokémon Quetzal | English Alpha 9 v0, Spanish Alpha 9 v0 |
+| Pokémon Quetzal | English Alpha 9 v0, Spanish Alpha 9 v0, English and Spanish Alpha 0.8.4 |
+| Moemon Quetzal | English and Spanish Alpha 0.8.4 Hotfix |
 | Super Mariomon | 1.2.1 to 1.3, 1.5.1 and 1.5.2 |
+| Pokémon Recharged Emerald | 2.2.5 and 2.2.8, and Rebalanced 2.2.8 |
 | Emerald Rogue | 2.2.1-EX |
 | Pokémon SoulGold | 1.1.4, and three builds of 1.2 |
 | Pokémon R.O.W.E. | 2.1.9.1 Experimental |

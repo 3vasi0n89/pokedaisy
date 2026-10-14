@@ -11,11 +11,11 @@ import org.junit.Test
 class UltraVioletDecodeTest {
     @Before fun setUp() {
         activeGame = GameKind.FIRERED
-        ultraViolet = true
+        fireRedHack = fireRedHackUltraViolet
     }
 
     @After fun tearDown() {
-        ultraViolet = false
+        fireRedHack = null
     }
 
     @Test
@@ -68,7 +68,7 @@ class UltraVioletDecodeTest {
         // GYARADOS is WATER / DRAGON here.
         assertEquals(SpeciesTypes(11, 16), activeSpeciesTypeData[130])
         // ... and only here: plain FireRed keeps its own.
-        ultraViolet = false
+        fireRedHack = null
         assertEquals("PREMIER BALL", itemName(12))
         assertEquals(SpeciesTypes(11, 2), activeSpeciesTypeData[130])
     }

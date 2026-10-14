@@ -8,9 +8,9 @@ keywords: [ff, turbo, speed up, skip, grind, grinding, slowmo, slow motion, musi
 
 Pokémon games have a lot of walking, text and grinding. Fast-forward runs the game several times faster so you get through it quicker, and PokeDaisy tries to get out of your way when speed would be a problem: in menus, on the map, and with the music.
 
-You'll find all the speed settings under `FAST-FORWARD` at the top of the companion's `SETTINGS`. Most of them are on the top screen's Settings too.
+You'll find all the speed settings under `FF / SPEED` at the top of the companion's `SETTINGS`. The ones you set once and leave, `SCENE SPEEDS`, `FF MODE` and `FF MUSIC`, are a tap further in, on its `SPEED OPTIONS` page. Most of them are on the top screen's Settings too.
 
-![The companion's SETTINGS tab, with the FAST-FORWARD group at the top: FF, FF SPEED, GAME SPEED, FF MODE, FF MUSIC and REWIND](shots/companion-settings.png "The FAST-FORWARD group in the companion's SETTINGS")
+![The companion's SETTINGS tab, with the FF / SPEED group at the top: FF, FF SPEED, GAME SPEED, REWIND and SPEED OPTIONS](shots/companion-settings.png "The FF / SPEED group in the companion's SETTINGS")
 
 ## Turning fast-forward on
 
@@ -53,7 +53,7 @@ The `SPEED CYCLE` hotkey (L2 on a controller, or the = key) steps through `1×`,
 
 ## Battles, text and menus at their own speed: SCENE SPEEDS
 
-`SCENE SPEEDS` (companion `SETTINGS` only) gives parts of the game a speed of their own. You can keep walking around at normal speed and still have battles go by at 2x, for example:
+`SCENE SPEEDS` (companion `SETTINGS` only, on the `SPEED OPTIONS` page) gives parts of the game a speed of their own. You can keep walking around at normal speed and still have battles go by at 2x, for example:
 
 - **`BATTLE SPEED`** covers the whole battle, from the first message to the last. Its bag and party screens follow `MENU SPEED` instead.
 - **`TEXT SPEED`** applies whenever a text box is open on the field: someone talking, a sign, a message after you pick something up. The words come out that much faster, close to instant text. The START menu counts too.

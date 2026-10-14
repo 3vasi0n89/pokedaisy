@@ -146,13 +146,13 @@ enum class WildMethod { GRASS, SURF, ROCK_SMASH, OLD_ROD, GOOD_ROD, SUPER_ROD }
 data class CatchSpot(val mapsec: Int, val method: WildMethod, val minLevel: Int, val maxLevel: Int, val percent: Int, val times: Int)
 
 /** What the game's tables give the DEX page, per section (without reading the ROM). */
-fun hasEvolutions(t: PokedexTables): Boolean = t.gen1 == null && when (val l = t.evoLayout) {
+fun hasEvolutions(t: PokedexTables): Boolean = !t.gameBoy && when (val l = t.evoLayout) {
     null -> t.evolutions != 0L
     else -> l.table != 0L || (t.expansion?.evolutionsOff ?: -1) >= 0
 }
 
 fun hasLearnsets(t: PokedexTables, g: GuideTables?): Boolean =
-    t.gen1 == null && ((t.expansion?.levelUpOff ?: -1) >= 0 || t.levelUpLearnsets != 0L || (g?.learnsets ?: 0L) != 0L)
+    !t.gameBoy && ((t.expansion?.levelUpOff ?: -1) >= 0 || t.levelUpLearnsets != 0L || (g?.learnsets ?: 0L) != 0L)
 
 fun hasCatchSpots(g: GuideTables?): Boolean = g != null && g.wildHeaders != 0L
 
@@ -538,7 +538,7 @@ object DexDetails {
     /** TMs / HMs (vanilla: "TM06" labels) or expansion's teachable list (TMs, HMs and tutors,
      * unlabelled, by name); null = this game's aren't read. */
     fun teachable(t: PokedexTables, g: GuideTables?, species: Int): List<TeachMove>? {
-        if (species <= 0 || t.gen1 != null) return null
+        if (species <= 0 || t.gameBoy) return null
         syncMoves(t, g)
         teach[species]?.let { return it }
         return runCatching { readTeachable(t, species) }
@@ -548,7 +548,7 @@ object DexDetails {
 
     /** Whether [t] reads TMs at all (no ROM read): the page says so when it doesn't. */
     fun hasTeachable(t: PokedexTables): Boolean =
-        t.gen1 == null && ((t.expansion?.teachableOff ?: -1) >= 0 || (t.tmhmLearnsets != 0L && t.tmhmMoves != 0L))
+        !t.gameBoy && ((t.expansion?.teachableOff ?: -1) >= 0 || (t.tmhmLearnsets != 0L && t.tmhmMoves != 0L))
 
     private fun readTeachable(t: PokedexTables, species: Int): List<TeachMove>? {
         val x = t.expansion
@@ -570,7 +570,7 @@ object DexDetails {
 
     /** gTMHMMoves: TM01..TM50 then HM01..HM08's moves; null = not read (or not checked) for [t]. */
     fun tmhmMoves(t: PokedexTables): List<Int>? {
-        if (t.gen1 != null || t.tmhmMoves == 0L || t.tmhmLearnsets == 0L) return null
+        if (t.gameBoy || t.tmhmMoves == 0L || t.tmhmLearnsets == 0L) return null
         // The caches below are [t]'s (keeping the guide tables they were synced with, if [t]'s).
         syncMoves(t, movesFor?.takeIf { it.first == t }?.second)
         tmhm?.let { return it }

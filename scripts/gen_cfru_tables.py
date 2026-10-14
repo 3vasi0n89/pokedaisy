@@ -87,6 +87,33 @@ GAMES = {
                     items={1: "Master Ball", 13: "Potion", 184: "Soothe Bell", 262: "Old Rod", 550: "Scizorite"},
                     mapsecs={0x58: "Postwick", 0x59: "Wedgehurst", 0x7B: "Wild Area", 0xC3: "Crown Tundra"}),
     ),
+    # Pokemon GS Chronicles v2.7.6: Johto and Kanto on CFRU (32 MB, BPRE rev 0, Ruki Studios).
+    # FireRed 1.0's literal pools say: gSpeciesNames 0x0941995C (40 refs), gBaseStats 0x09798E18
+    # (56), the 17-byte long move names 0x09CF820C (8; gMoveNames' 13-byte copy is 0x09CF5268, 23),
+    # gBattleMoves 0x09D10BE3 (135 of 137 - an odd address, the records are vanilla's 12 bytes),
+    # gItems 0x08F70000 (15). Species 1-1312 (DPE's order: Gen 3 at vanilla's ids, TURTWIG 440 on,
+    # DURALUDON 1310); moves end at 884. Its gItems is indexed by slot, as the game's ItemId_Get*
+    # do: a slot's .itemId is often a copy-pasted 374, so the names are keyed by slot. sMapNames
+    # stays at FireRed's pointer table, renamed in place: New Bark Town, ..., Route 29, Pallet Town.
+    # Checked against a new game's party (CYNDAQUIL / TOTODILE / CHIKORITA, Tackle / Leer ...).
+    "gs_chronicles": dict(
+        suffix="GsChronicles",
+        label="Pokemon GS Chronicles v2.7.6",
+        sha1="25f8840ecb58e584edf18ffde35f845e94f3f17c",
+        species_names=0x0941995C, species_max=1313,
+        base_stats=0x09798E18,
+        move_names=0x09CF820C, move_name_len=17, battle_moves=0x09D10BE3, moves_max=884,
+        items=0x08F70000, items_max=2000, item_key="slot",
+        gender=True,
+        map_names=0x083F1CAC,
+        checks=dict(species={1: "Bulbasaur", 25: "Pikachu", 152: "Chikorita", 155: "Cyndaquil", 158: "Totodile",
+                             277: "Treecko", 440: "Turtwig", 1310: "Duraludon"},
+                    types={1: (12, 3), 4: (10, 10), 35: (23, 23), 155: (10, 10), 158: (11, 11)},
+                    moves={33: ("Tackle", 0, 40), 45: ("Growl", 0, 0), 7: ("Fire Punch", 10, 75)},
+                    items={1: "Master Ball", 4: "Poké Ball", 13: "Potion", 17: "Awakening", 184: "Soothe Bell",
+                           262: "Old Rod"},
+                    mapsecs={0x58: "New Bark Town", 0x65: "Route 29", 0x92: "Pallet Town"}),
+    ),
 }
 
 
@@ -150,14 +177,16 @@ def main():
           f"val moveData{sfx}: Map<Int, MoveInfo> = mapOf(\n" +
           "".join(f"    {i} to MoveInfo({kstr(n)}, {t}, {p}),\n" for i, (n, t, p) in sorted(moves.items())) + ")\n")
 
-    # The array ends where 30 slots in a row aren't items.
+    # The array ends where 30 slots in a row aren't items. item_key="slot": the game indexes gItems
+    # by slot and the .itemId field isn't kept up (GS Chronicles), so a slot is its own id.
     items = {}
     misses = 0
+    by_slot = g.get("item_key") == "slot"
     for slot in range(1, g["items_max"]):
         a = g["items"] + 44 * slot
         if rom.off(a) + 44 > len(data) or misses >= 30:
             break
-        iid = rom.u16(a + 14)
+        iid = slot if by_slot else rom.u16(a + 14)
         n = rom.text(a, 14)
         if not n or not 0 < iid < 4000 or iid in items:
             misses += 1

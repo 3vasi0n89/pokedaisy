@@ -648,6 +648,7 @@ internal fun companionTabLabel(id: String): String = when (id) {
         GameKind.UNBOUND -> "CUBE"
         GameKind.ROWE -> "INVENTORY"
         GameKind.MARIOMON -> "POCKETS"
+        GameKind.CRYSTAL, GameKind.CRYSTAL_CLEAR, GameKind.PRISM -> "PACK"
         else -> tr("BAG")
     }
     else -> id

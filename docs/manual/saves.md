@@ -129,7 +129,7 @@ Save states are kept per game in `Android/data/com.pokedaisy.app/files/states/`,
 
 Walked into the wrong trainer, or picked the wrong move? With rewind on, you can hold a button and play the last 20 seconds or so backwards, then carry on from any point.
 
-1. Turn on `REWIND` in Settings (top screen or companion, in the `FAST-FORWARD` group). It's off by default, since it uses some memory and a little battery while on.
+1. Turn on `REWIND` in Settings (top screen or companion, in the `FF / SPEED` group). It's off by default, since it uses some memory and a little battery while on.
 2. Hold the `REWIND HOLD` hotkey to go back. Let go to play on from there.
 
 On a keyboard, `REWIND HOLD` is R. It has no controller button until you pick one under `HOTKEYS` (see [Controls](controls.md)). The sound is muted while you rewind, and when you reach the oldest moment it keeps, the picture stops there.

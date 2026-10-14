@@ -76,10 +76,9 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1 # v4.4.4
 
-      # Compiles the real UI sources against desktop Compose and renders every screen.
-      - name: Render every screen
-        run: ./gradlew -p ui-preview render --stacktrace
-
+      # No `render` here: its PNGs are for looking at (`make preview`), nothing checks them, and it ran past
+      # the job's timeout. Stress compiles the real UI sources against desktop Compose, so a change that
+      # breaks ui-preview (the only preview in cloud sessions) still fails here.
       # Rapid tab switching against memory / time budgets (ui-preview/src/render/Stress.kt).
       - name: Stress
         run: ./gradlew -p ui-preview stress --stacktrace
@@ -87,14 +86,6 @@ jobs:
       # The app's docs search ranks website/test/docsearch-cases.json like the website's.
       - name: Docs search
         run: ./gradlew -p ui-preview docsSearchCheck --stacktrace
-
-      - name: Screenshots
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: ui-preview-shots
-          path: ui-preview/build/shots/
-          retention-days: 7
 
   # The manual (docs/manual): every page draws in both readers, links and screenshots resolve, no dashes,
   # and every setting the app has is documented (website/test/docs.test.js) - so a PR that adds a setting

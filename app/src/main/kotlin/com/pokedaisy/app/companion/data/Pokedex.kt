@@ -30,6 +30,8 @@ data class DexFlags(
     /** Quetzal: caught is one bit array per region ([bytes] each, at these offsets) and counts in
      * any of them - what its card and continue screen count; [caught] is then unused. */
     val caughtRegions: List<Long> = emptyList(),
+    /** Quetzal Alpha 0.8.4: no caught arrays - a [seenLevels] level of 2 or more is caught (its POKéDEX's OWN). */
+    val caughtFromLevel: Boolean = false,
     /** Emerald Rogue: the arrays are indexed by species id, not dex number (No. n reads its species' bit). */
     val bySpecies: Boolean = false,
     /** Emerald Rogue's 2-bit state per species: [seen] holds bit 0 and [caught] bit 1 (1 seen, 2 caught,
@@ -148,6 +150,8 @@ data class PokedexTables(
     val expansion: SpeciesInfoDex? = null,
     /** A Game Boy game's dex ([Gen1Dex]: read from the cart's bytes); null = a GBA one. */
     val gen1: Gen1DexTables? = null,
+    /** A Game Boy Color game's dex ([Gen2Dex]: read from the cart's bytes); null = not one. */
+    val gen2: Gen2DexTables? = null,
     val flags: DexFlags = FIRERED_DEX_FLAGS,
     /** The flags' SaveBlock2 struct Pokedex, whose nationalMagic says the National Dex is unlocked. */
     val sb2DexOff: Long = 0x18,
@@ -851,6 +855,69 @@ val POKEDEX_QUETZAL_ES = POKEDEX_QUETZAL.copy(
     probeCategory = "Semilla",
 )
 
+/** Quetzal Alpha 0.8.4: Alpha 9's shapes over its first 1520 species (no Browt / Pombon / Gecqua lines: dex numbers to
+ * 1025), at its own addresses - the GF header's pics / gSpeciesInfo / ability names, the rest through English Alpha 9's
+ * literal pools, each table checked against Alpha 9's bytes (entries, footprints, evolutions, learnsets). Its own POKéDEX
+ * reads SEEN 466 / OWN 347 on the Spanish Alpha 9 save. */
+val POKEDEX_QUETZAL_V084 = POKEDEX_QUETZAL.copy(
+    entries = 0x08F71698L,
+    frontPics = 0x083F7624L,
+    palettes = 0x083E34C0L,
+    speciesInfo = 0x0843C2CCL,
+    speciesToNational = 0x084347FCL,
+    abilityNames = 0x08426FCFL,
+    footprints = 0x08F75E68L,
+    evoLayout = EvoLayout(EvoScheme.QUETZAL, table = 0x08486560L, perMon = 11),
+    levelUpLearnsets = 0x084A6FE0L,
+    speciesCount = 1520,
+    nationalCount = 1025,
+    regionalCount = 1025,
+    // Alpha 9's seen levels; its per-region caught arrays aren't there (a level of 2 or more is caught).
+    flags = POKEDEX_QUETZAL.flags.copy(caughtRegions = emptyList(), caughtFromLevel = true),
+)
+
+/** Quetzal Spanish Alpha 0.8.4: English 0.8.4's shapes at its own addresses, Alpha 9 Spanish's wording. */
+val POKEDEX_QUETZAL_V084_ES = POKEDEX_QUETZAL_V084.copy(
+    categoryPrefix = "POKéMON",
+    categorySuffix = "",
+    metric = true,
+    entries = 0x08F71370L,
+    frontPics = 0x083FF7F4L,
+    palettes = 0x083EB690L,
+    speciesInfo = 0x08444368L,
+    speciesToNational = 0x0843C898L,
+    abilityNames = 0x0842F05EL,
+    footprints = 0x08F75B40L,
+    evoLayout = EvoLayout(EvoScheme.QUETZAL, table = 0x0848E5FCL, perMon = 11),
+    levelUpLearnsets = 0x084AF07CL,
+    probeCategory = "Semilla",
+)
+
+/** Moemon Quetzal English / Spanish Alpha 0.8.4 Hotfix: their base builds' tables, moved (their own pictures). */
+val POKEDEX_QUETZAL_MOEMON_V084 = POKEDEX_QUETZAL_V084.copy(
+    entries = 0x08F7167CL,
+    frontPics = 0x083F7724L,
+    palettes = 0x083E35C0L,
+    speciesInfo = 0x0843C3CCL,
+    speciesToNational = 0x084348FCL,
+    abilityNames = 0x084270CFL,
+    footprints = 0x08F75E4CL,
+    evoLayout = EvoLayout(EvoScheme.QUETZAL, table = 0x08486660L, perMon = 11),
+    levelUpLearnsets = 0x084A70E0L,
+)
+
+val POKEDEX_QUETZAL_MOEMON_V084_ES = POKEDEX_QUETZAL_V084_ES.copy(
+    entries = 0x08F71354L,
+    frontPics = 0x083FF8F4L,
+    palettes = 0x083EB790L,
+    speciesInfo = 0x08444468L,
+    speciesToNational = 0x0843C998L,
+    abilityNames = 0x0842F15EL,
+    footprints = 0x08F75B24L,
+    evoLayout = EvoLayout(EvoScheme.QUETZAL, table = 0x0848E6FCL, perMon = 11),
+    levelUpLearnsets = 0x084AF17CL,
+)
+
 /**
  * Pokémon Orange Islands: retail FireRed rev 0's tables (each 0x70 before rev 1's, the entries
  * 0x60), edited in place - its CRYSTAL ONIX (species 409) and rebalanced starters among them.
@@ -874,6 +941,9 @@ val POKEDEX_ULTRA_VIOLET = POKEDEX_ORANGE_ISLANDS.copy(
     tmhmLearnsets = 0x08252BC8L,
     tmhmMoves = 0x0845A5A4L,
 )
+
+/** FireRed Rocket Edition: rev 0's tables but its ability names, repointed to 0x08950000; its mixed-case text. */
+val POKEDEX_ROCKET_EDITION = POKEDEX_ULTRA_VIOLET.copy(abilityNames = 0x08950000L, categorySuffix = "Pokémon")
 
 /**
  * Pokémon Sword and Shield Ultimate Plus v1.2.1.2 (CFRU): every table found through the
@@ -903,6 +973,39 @@ val POKEDEX_SWORD_SHIELD = PokedexTables(
     flags = CFRU_DEX_FLAGS,
     nationalMagicOff = -1,
     evoLayout = EvoLayout(EvoScheme.CFRU, table = 0x099C2C06L, perMon = 16),
+)
+
+/**
+ * Pokémon GS Chronicles v2.7.6 (CFRU): every table through the literal-pool word FireRed 1.0 loads
+ * it from (entries 0x097EE8CC, front pics 0x097D650C, palettes 0x097EBC24, base stats 0x09798E18,
+ * species -> national 0x097FB248, the 17-byte ability names 0x09CEA7C8, the evolutions 0x097AC008 -
+ * CFRU's 16 rows a species). Its own national numbers run to 910 (No. 906 is a Gen 9 species). The
+ * game's POKéDEX (headless) lists one Johto order of 501 species ids, at 0x097F8556 (No. 1
+ * CHIKORITA, 4 CYNDAQUIL, 7 TOTODILE; MARSHADOW last), read like Unbound's Borrius list, so the tab
+ * opens on JOHTO like the game; NATIONAL only once FireRed's own unlock byte (0xB9) is set, which a
+ * new game doesn't have. The flags are CFRU's: the new game's seen = caught = its three starters, as
+ * the game counts them.
+ */
+val POKEDEX_GS_CHRONICLES = PokedexTables(
+    entries = 0x097EE8CCL,
+    frontPics = 0x097D650CL,
+    palettes = 0x097EBC24L,
+    speciesInfo = 0x09798E18L,
+    speciesToNational = 0x097FB248L,
+    abilityNames = 0x09CEA7C8L,
+    footprints = 0,
+    abilityNameLength = 17,
+    hiddenAbilityOff = 0x1A,
+    categorySuffix = "Pokémon",
+    speciesCount = 1313,
+    nationalCount = 910,
+    regionalCount = 501,
+    regionName = "JOHTO",
+    regionalOrder = 0x097F8556L,
+    regionalOrderIsSpecies = true,
+    flags = CFRU_DEX_FLAGS,
+    probeCategory = "Seed",
+    evoLayout = EvoLayout(EvoScheme.CFRU, table = 0x097AC008L, perMon = 16),
 )
 
 /**
@@ -949,6 +1052,40 @@ val POKEDEX_RECHARGED_YELLOW_V1_9_4 = rechargedYellowDex(
 val POKEDEX_RECHARGED_YELLOW_V1_9_7 = rechargedYellowDex(
     0x0895C980L, 0x08757534L, 0x08750978L, 0x08969020L, 0x08965510L, 0x0861D454L,
     0x089600F0L, 0x0896E190L, 0x089674E8L, 0x08950854L,
+)
+
+/**
+ * Pokémon Recharged Emerald: Emerald's dex (Hoenn 202 + National, Emerald's species ids and entry shape) at its
+ * own addresses - the front pics / palettes / gBaseStats / ability names from the GF ROM header, the entries by
+ * BULBASAUR's ("Seed", 0.7 m / 6.9 kg: its text is mixed case), sSpeciesToNationalPokedexNum, sHoennToNationalOrder,
+ * the footprints, sTMHMLearnsets and sTMHMMoves by retail Emerald's bytes (Rebalanced rewrote its TM learnsets:
+ * v2.2.8's place, moved like the rest). Its evolutions are Recharged Yellow's scheme (a LINKING CORD for every
+ * trade evolution, [EvoScheme.RECHARGED_YELLOW]). The flags are Emerald's struct Pokedex in SaveBlock2 with no
+ * anti-cheat copies (its GF header points both at SaveBlock2's own seen array); Rebalanced's sit 4 bytes later.
+ */
+private fun rechargedEmeraldDex(
+    entries: Long, frontPics: Long, palettes: Long, speciesInfo: Long, speciesToNational: Long, abilityNames: Long,
+    footprints: Long, regionalOrder: Long, evolutions: Long, tmhmLearnsets: Long, tmhmMoves: Long, lead: Long = 0,
+) = POKEDEX_EMERALD.copy(
+    entries = entries, frontPics = frontPics, palettes = palettes, speciesInfo = speciesInfo,
+    speciesToNational = speciesToNational, abilityNames = abilityNames, footprints = footprints, regionalOrder = regionalOrder,
+    evolutions = 0, evoLayout = EvoLayout(EvoScheme.RECHARGED_YELLOW, table = evolutions),
+    tmhmLearnsets = tmhmLearnsets, tmhmMoves = tmhmMoves,
+    categorySuffix = "Pokémon", probeCategory = "Seed",
+    flags = DexFlags(DexFlagBlock.SAVE_BLOCK_2, 0x5C + lead, 0x28 + lead, 52), sb2DexOff = 0x18 + lead,
+)
+
+val POKEDEX_RECHARGED_EMERALD_V2_2_5 = rechargedEmeraldDex(
+    0x088C4CB8L, 0x086F9628L, 0x086F2A64L, 0x088CFC50L, 0x088CC140L, 0x086AD384L,
+    0x088C7D98L, 0x088CC478L, 0x088D4D38L, 0x088CE118L, 0x088C28D4L,
+)
+val POKEDEX_RECHARGED_EMERALD_V2_2_8 = rechargedEmeraldDex(
+    0x088C6B50L, 0x086FB4A8L, 0x086F48E4L, 0x088D1AE8L, 0x088CDFD8L, 0x086AF204L,
+    0x088C9C30L, 0x088CE310L, 0x088D6BD0L, 0x088CFFB0L, 0x088C476CL,
+)
+val POKEDEX_RECHARGED_EMERALD_REBALANCED_V2_2_8 = rechargedEmeraldDex(
+    0x088C72B4L, 0x086FBBB8L, 0x086F4FF4L, 0x088D224CL, 0x088CE73CL, 0x086AF914L,
+    0x088CA394L, 0x088CEA74L, 0x088D7354L, 0x088D0714L, 0x088C4ED0L, lead = 4,
 )
 
 /**
@@ -1127,15 +1264,17 @@ fun readPokedexState(c: MemoryReader, cfg: NativeConfig, t: PokedexTables): Poke
         DexFlagBlock.FIXED -> 0L
     }
     val seenBits = c.readCoreMemory(base + f.seen, if (f.seenLevels) f.bytes * 4 else f.bytes)
-    val caughtBits = if (f.caughtRegions.isEmpty()) c.readCoreMemory(base + f.caught, f.bytes)
+    val caughtBits = if (f.caughtFromLevel) ByteArray(0)
+        else if (f.caughtRegions.isEmpty()) c.readCoreMemory(base + f.caught, f.bytes)
         else f.caughtRegions.map { c.readCoreMemory(base + it, f.bytes) }.reduce { a, b -> ByteArray(a.size) { (a[it].toInt() or b[it].toInt()).toByte() } }
     val copies = f.seenCopies.map { c.readCoreMemory(sb1 + it, f.bytes) }
     fun bit(b: ByteArray, n: Int): Boolean {
         val i = n - f.firstBit
-        if (f.seenLevels && b === seenBits) {
-            // 8 three-bit levels per u32 word; any level but 0 is seen.
+        if (f.seenLevels && (b === seenBits || (f.caughtFromLevel && b === caughtBits))) {
+            // 8 three-bit levels per u32 word; any level but 0 is seen (2 and up caught, where that's how it's kept).
             val w = i / 8
-            return i >= 0 && w * 4 + 3 < b.size && ((u32le(b, w * 4) ushr (3 * (i % 8))) and 7L) != 0L
+            val least = if (b === caughtBits) 2L else 1L
+            return i >= 0 && w * 4 + 3 < seenBits.size && ((u32le(seenBits, w * 4) ushr (3 * (i % 8))) and 7L) >= least
         }
         return i >= 0 && i / 8 < b.size && (b[i / 8].toInt() shr (i % 8)) and 1 != 0
     }
@@ -1227,12 +1366,13 @@ object PokedexSource {
     fun cachedFrontSprite(t: PokedexTables, species: Int): Bitmap? = if (cachedFor == t) sprites[species] else null
     fun cachedFootprint(t: PokedexTables, species: Int): Bitmap? = if (cachedFor == t) footprints[species] else null
     fun cachedSpeciesMap(t: PokedexTables): IntArray? = when {
-        t.gen1 != null -> IntArray(t.nationalCount + 1) { it }   // Gen 1's tables are by Dex number
+        // Gen 1's and 2's tables are by Dex number - but Prism's, by its own species ids in its own dex order.
+        t.gameBoy -> IntArray(t.nationalCount + 1) { n -> t.gen2?.speciesOf(n) ?: n }
         cachedFor == t -> nationalToSpecies
         else -> null
     }
     fun cachedRegionalOrder(t: PokedexTables): IntArray? =
-        if (t.regionalOrder == 0L || t.gen1 != null) IntArray(t.regionalCount) { it + 1 } else if (cachedFor == t) regional else null
+        if (t.regionalOrder == 0L || t.gameBoy) IntArray(t.regionalCount) { it + 1 } else if (cachedFor == t) regional else null
 
     /** National numbers in regional-dex order ([PokedexTables.regionalCount] of them). */
     fun regionalOrder(t: PokedexTables): IntArray? {
@@ -1250,7 +1390,8 @@ object PokedexSource {
 
     /** Species id for a national dex number (the first species that maps to it), or 0. */
     fun speciesFor(t: PokedexTables, national: Int): Int {
-        if (t.gen1 != null) return if (national in 1..t.nationalCount) national else 0   // its tables are by Dex number
+        // Its tables are by Dex number (Prism: its dex's order).
+        if (t.gameBoy) return if (national !in 1..t.nationalCount) 0 else t.gen2?.speciesOf(national) ?: national
         sync(t)
         val map = nationalToSpecies ?: runCatching {
             if (t.nationalToSpecies != 0L) {
@@ -1271,7 +1412,7 @@ object PokedexSource {
 
     /** National dex number of a species id (Hoenn species aren't in national order), or 0. */
     fun nationalOf(t: PokedexTables, species: Int): Int {
-        if (t.gen1 != null) return if (species in 1..t.nationalCount) species else 0
+        if (t.gameBoy) return t.gen2?.dexOf(species) ?: if (species in 1..t.nationalCount) species else 0
         sync(t)
         val map = speciesToNational ?: runCatching { speciesNationals(t) }.getOrNull()?.also { speciesToNational = it } ?: return 0
         return map.getOrElse(species) { 0 }
@@ -1303,6 +1444,7 @@ object PokedexSource {
         sync(t)
         entries[national]?.let { return it }
         t.gen1?.let { g -> return Gen1Dex.entry(g, national)?.also { entries[national] = it } }
+        t.gen2?.let { g -> return Gen2Dex.entry(g, national)?.also { entries[national] = it } }
         return runCatching { readEntry(t, national) }
             .onFailure { android.util.Log.w("pokedaisy", "dex entry $national failed", it) }
             .getOrNull()?.also { entries[national] = it }
@@ -1313,6 +1455,10 @@ object PokedexSource {
         sync(t)
         if (species <= 0) return null
         sprites[species]?.let { return it }
+        t.gen2?.let { g ->
+            return runCatching { Gen2Dex.frontPixels(g, species)?.let { Bitmap.createBitmap(it, 56, 56, Bitmap.Config.ARGB_8888) } }
+                .getOrNull()?.also { sprites[species] = it }
+        }
         t.gen1?.let { g ->
             return runCatching { Gen1Dex.frontPixels(g, species)?.let { Bitmap.createBitmap(it, 56, 56, Bitmap.Config.ARGB_8888) } }
                 .getOrNull()?.also { sprites[species] = it }

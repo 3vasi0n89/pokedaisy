@@ -8,7 +8,7 @@ keywords: [remap, rebind, keybind, key bindings, buttons, mapping, controller, g
 
 PokeDaisy works out of the box on handhelds like the AYN Thor: the face buttons, shoulders, START and SELECT are the GBA's, and a few button combinations do emulator things like saving a state. Everything here is about changing that: which button presses what, which shortcuts exist, and what happens when you plug in a controller or play by touch.
 
-All of it lives in the `CONTROLS` group, on both screens: the top screen's Settings (from the library) and the companion's `SETTINGS`.
+The button settings live in the `CONTROLS` group, on both screens: the top screen's Settings (from the library) and the companion's `SETTINGS`. `AUTO-RUN`, `RUN INDOORS` and `WILD ENCOUNTERS` change the game itself, so they're in the companion's `GAMEPLAY` group, near the top.
 
 ## Game buttons
 
@@ -109,7 +109,7 @@ The quick menu puts the things you'd otherwise dig through menus for under one b
 | The keep-away spray | Uses an item from your bag that keeps wild Pokémon away (the tile shows its icon and name). With more than one kind in your bag, it lists them with how many you have and how many steps each lasts, so you pick. While one is still working it's greyed out and says how many steps are left. |
 | `BIKE` | Gets on your bike. While you're riding it says `GET OFF` and gets you off. |
 | `ROD` | Casts your best fishing rod. Face the water first. |
-| `WILD` | Turns `WILD ENCOUNTERS` off, and back to what it was (like `50%`) the next time. An `OFF` tag on its corner says they're off. It shows in games where `WILD ENCOUNTERS` works. |
+| `WILD` | Turns `WILD ENCOUNTERS` off, and back on the next time. An `OFF` tag on its corner says they're off. It shows in games where `WILD ENCOUNTERS` works. |
 | `SAVE STATE`, `LOAD STATE` | Saves or loads the current state slot. |
 | `FF` | Turns fast-forward on or off. |
 | `COMPANION` | Opens the companion (on a device with one screen). |
@@ -147,10 +147,9 @@ Both show `N/A` on a game PokeDaisy can't read the field of yet.
 
 ## WILD ENCOUNTERS
 
-`WILD ENCOUNTERS` sets how often wild Pokémon jump out at you in grass, caves and water:
+`WILD ENCOUNTERS` turns wild Pokémon jumping out at you in grass, caves and water on or off. It's in the companion's `GAMEPLAY` group:
 
-- **`NORMAL`** (the default) leaves the game's own rate.
-- **`75%`**, **`50%`** and **`25%`** let through about that share of the encounters you would have had, so `25%` means roughly one in four.
+- **`ON`** (the default) leaves the game's own rate.
 - **`OFF`** turns them off completely.
 
 Only random encounters change. Fishing, moves that lure wild Pokémon out and battles the story sets up still happen, and items that keep wild Pokémon away work as usual on top. The change applies at once, no restart needed.

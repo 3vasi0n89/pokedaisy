@@ -29,7 +29,7 @@ class RomFileReader(private val rom: ByteArray) : MemoryReader {
 
         /** Pokémon Unbound v2.1.1.1 (sha1 b4776b82…); override with -DunboundRom=/path. */
         val UNBOUND_PATH: String = System.getProperty("unboundRom")
-            ?: RETAIL_ROM_DIR + "Pokémon Unbound (v2.1.1.1).gba"
+            ?: RETAIL_ROM_DIR + "Pokemon Unbound (v2.1.1.1).gba"
 
         fun load(path: String): RomFileReader? = File(path).takeIf { it.isFile }?.let { RomFileReader(it.readBytes()) }
     }

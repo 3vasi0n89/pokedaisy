@@ -770,6 +770,27 @@ val GUIDE_TABLES_QUETZAL_ES = GUIDE_TABLES_QUETZAL.copy(
     mapGroups = 0x08934070L,
 )
 
+// Quetzal Alpha 0.8.4 (English / Spanish, and their Moemon Hotfix builds): Alpha 9's record shapes for Hoenn alone - no
+// Johto / Kanto trainer tables or map groups (34 groups, 124 wild headers). gTrainers, gWildMonHeaders and gMapGroups
+// through Alpha 9's literal pools; 265 is ROXANNE (PETRA), 961 her HARD twin, as in Alpha 9.
+val GUIDE_TABLES_QUETZAL_V084 = GUIDE_TABLES_QUETZAL.copy(
+    trainers = 0x08406948L,
+    wildHeaders = 0x08F34160L,
+    guide = GuideId.QUETZAL_V084,
+    altTrainers = emptyList(),
+    mapGroups = 0x0861310CL,
+    altMapSecGroups = null,
+)
+val GUIDE_TABLES_QUETZAL_V084_ES = GUIDE_TABLES_QUETZAL_V084.copy(
+    trainers = 0x0840EB18L, wildHeaders = 0x08F3C278L, probeName = "PETRA", mapGroups = 0x0861B224L,
+)
+val GUIDE_TABLES_QUETZAL_MOEMON_V084 = GUIDE_TABLES_QUETZAL_V084.copy(
+    trainers = 0x08406A48L, wildHeaders = 0x08F34144L, mapGroups = 0x086130F0L,
+)
+val GUIDE_TABLES_QUETZAL_MOEMON_V084_ES = GUIDE_TABLES_QUETZAL_V084_ES.copy(
+    trainers = 0x0840EC18L, wildHeaders = 0x08F3C25CL, mapGroups = 0x0861B208L,
+)
+
 // The four below from their release ROMs (expansion 1.9.4 / 1.9.2 / 1.12.3 / 1.15.2 per their RHHEXP
 // headers): SaveBlock1 flags / vars from the GF ROM header (+0x50 / +0x54); gTrainers found by a gym
 // leader's record and its literal-pool refs; HERE checked by warping onto grass headless and walking
@@ -856,6 +877,21 @@ val GUIDE_TABLES_ULTRA_VIOLET = GuideTables(
     mapGroups = 0x0872AF04L,
 )
 
+/** FireRed Rocket Edition: rev 0's tables and maps, its own story's guide (GuideRocketEdition.kt). */
+val GUIDE_TABLES_ROCKET_EDITION = GUIDE_TABLES_ULTRA_VIOLET.copy(
+    wildHeaders = 0x083C9CB8L,
+    guide = GuideId.ROCKET_EDITION,
+    mapGroups = 0x083526A8L,
+    probeName = "Brock",   // its text is mixed case
+)
+
+/** Pokémon Ash Gray: rev 0's gTrainers / learnsets, its own gWildMonHeaders and gMapGroups (all their literal-pool words). */
+val GUIDE_TABLES_ASH_GRAY = GUIDE_TABLES_ULTRA_VIOLET.copy(
+    wildHeaders = 0x088CD1F8L,
+    guide = GuideId.ASH_GRAY,
+    mapGroups = 0x0873E2F4L,
+)
+
 /**
  * Pokémon Sword and Shield Ultimate Plus (CFRU): gTrainers rewritten in place at FireRed rev
  * 0's address (trainer 414 is MILO), CFRU's 3-byte learnsets at 0x099F4D98, gWildMonHeaders
@@ -870,6 +906,23 @@ val GUIDE_TABLES_SWORD_SHIELD = GuideTables(
     probeName = "Milo",
     guide = GuideId.SWORD_SHIELD,
     mapGroups = 0x087B1010L,
+)
+
+/**
+ * Pokémon GS Chronicles v2.7.6 (CFRU): gTrainers rewritten in place at FireRed rev 0's address
+ * (trainer 321 is FALKNER), CFRU's 3-byte learnsets at 0x097DD63C, gWildMonHeaders 0x08A31664
+ * (all 14 literal-pool words; vanilla's shape, 151 headers), gMapGroups at FireRed's 0x083526A8
+ * (rewritten in place: 43 groups).
+ */
+val GUIDE_TABLES_GS_CHRONICLES = GuideTables(
+    trainers = 0x0823EAC8L,
+    learnsets = 0x097DD63CL,
+    learnsetCfru = true,
+    wildHeaders = 0x08A31664L,
+    probeTrainer = 321,
+    probeName = "Falkner",
+    guide = GuideId.GS_CHRONICLES,
+    mapGroups = 0x083526A8L,
 )
 
 /**
@@ -930,6 +983,42 @@ val GUIDE_TABLES_RECHARGED_YELLOW_V1_9_4 = GUIDE_TABLES_RECHARGED_YELLOW.copy(
 )
 val GUIDE_TABLES_RECHARGED_YELLOW_V1_9_7 = GUIDE_TABLES_RECHARGED_YELLOW.copy(
     trainers = 0x08768748L, learnsets = 0x089721F0L, wildHeaders = 0x08A6BD84L, mapGroups = 0x08B3F134L,
+)
+
+/**
+ * Pokémon Recharged Emerald: Emerald's trainer ids (265 = Roxanne, every one of the 855 names at retail's id), map
+ * groups and SaveBlock1 flags / vars moved by its bigger bag (+0x1344 / +0x1470, its GF ROM header's; Rebalanced 4
+ * later), Recharged Yellow's struct Trainer (0x24 bytes, name +0x13 in its mixed case, sizes +0x1F, a HARD party
+ * +0x20) and TrainerMons. gLevelUpLearnsets by BULBASAUR's list, gWildMonHeaders by retail's first map ids (v2.2.x
+ * keep retail's 20-byte header; Rebalanced's is 0x24 bytes - land, a second land table, water, rock smash, fishing
+ * at slots 0, 1, 2, 4, 6 - followed from v2.2.8's through the code that loads it), gMapGroups by the current map's
+ * header (gMapHeader's bytes in the ROM -> its group's table -> the table of groups).
+ */
+private val GUIDE_TABLES_RECHARGED_EMERALD = GUIDE_TABLES_EMERALD.copy(
+    trainers = 0, learnsets = 0, wildHeaders = 0, mapGroups = 0,
+    sb1FlagsOff = 0x1344,
+    sb1VarsOff = 0x1470,
+    probeName = "Roxanne",
+    guide = GuideId.RECHARGED_EMERALD,
+    trainerStride = 0x24,
+    trainerNameOff = 0x13,
+    trainerNameLen = 11,
+    trainerSizeOff = 0x1F,
+    trainerPartyOff = 4,
+    trainerMon = TrainerMonLayout(stride = 0x20, movesOff = 0x0C, speciesOff = 0x14, itemOff = 0x16, levelOff = 0x1A),
+    trainerHardPartyOff = 0x20,
+)
+
+val GUIDE_TABLES_RECHARGED_EMERALD_V2_2_5 = GUIDE_TABLES_RECHARGED_EMERALD.copy(
+    trainers = 0x0870A924L, learnsets = 0x088D8D94L, wildHeaders = 0x08A3F59CL, mapGroups = 0x08B346B8L,
+)
+val GUIDE_TABLES_RECHARGED_EMERALD_V2_2_8 = GUIDE_TABLES_RECHARGED_EMERALD.copy(
+    trainers = 0x0870C7A4L, learnsets = 0x088DAC2CL, wildHeaders = 0x08A41234L, mapGroups = 0x08B36350L,
+)
+val GUIDE_TABLES_RECHARGED_EMERALD_REBALANCED_V2_2_8 = GUIDE_TABLES_RECHARGED_EMERALD.copy(
+    trainers = 0x0870CEB4L, learnsets = 0x088DB3B0L, wildHeaders = 0x08A42748L, mapGroups = 0x08B38104L,
+    sb1FlagsOff = 0x1348, sb1VarsOff = 0x1474,
+    wildLayout = WildLayout(stride = 0x24, land = 0, water = 2, rockSmash = 4, fishing = 6),
 )
 
 /**

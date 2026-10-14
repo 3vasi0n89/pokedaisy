@@ -24,6 +24,8 @@ class TelemetrySampler {
         }
     // A Game Boy game's (Gen 1) addresses instead of [nativeCfg].
     private var gen1Cfg: Gen1Config? = null
+    // A Game Boy Color game's (Gen 2) addresses instead.
+    private var gen2Cfg: Gen2Config? = null
     private var lastError: String? = null
     // Set instead of nativeCfg for a large BPRE ROM that isn't recognized as
     // Unbound (see detect()) - a different hack we have no addresses for.
@@ -278,17 +280,20 @@ class TelemetrySampler {
             if (kind != null && !itemTextChosen) {
                 itemTextChosen = true
                 PokedexSource.romChanged()
-                nativeCfg?.language?.let { com.pokedaisy.app.companion.i18n.L10n.applyGameLanguage(it) }
+                (nativeCfg?.language ?: gen1Cfg?.language)?.let { com.pokedaisy.app.companion.i18n.L10n.applyGameLanguage(it) }
                 RomItemText.use(itemTable(reader))
             }
             activeGame = kind ?: GameKind.FIRERED
             val base = baseCfg ?: nativeCfg
             soulGoldV12 = base === NATIVE_SOULGOLD_V1_2 || base === NATIVE_SOULGOLD_V1_2B || base === NATIVE_SOULGOLD_V1_2C
             amethystV141 = base === NATIVE_AMETHYST_V1_4_1
-            ultraViolet = base === NATIVE_ULTRA_VIOLET
+            fireRedHack = fireRedHackFor(base)
+            emeraldHack = emeraldHackFor(base)
             mariomonV13 = base === NATIVE_MARIOMON_V1_3 || base === NATIVE_MARIOMON_V1_2_2 || base === NATIVE_MARIOMON_V1_2_1
-            romLanguage = nativeCfg?.language ?: 'E'
-            romGameCode = nativeCfg?.gameCode.orEmpty()
+            quetzalV084 = base?.quetzalV084 == true
+            gen2Cfg?.let { activeGen2 = it }
+            romLanguage = nativeCfg?.language ?: gen1Cfg?.language ?: 'E'
+            romGameCode = nativeCfg?.gameCode ?: gen1Cfg?.gameCode.orEmpty()
             // Quetzal picks each kind of name's language from its own options (a few bytes a sample).
             quetzalNames = nativeCfg?.takeIf { it.quetzalPlacesDefault >= 0 }
                 ?.let { runCatching { readQuetzalNames(reader, it) }.getOrNull() } ?: QuetzalNames()
@@ -297,6 +302,7 @@ class TelemetrySampler {
                 // English Unbound leaves nativeCfg null (see detect()); its French translation sets its own.
                 GameKind.UNBOUND -> readNativeTelemetry(reader, nativeCfg ?: NATIVE_UNBOUND_WITH_DEX)
                 GameKind.YELLOW -> readGen1Telemetry(reader, gen1Cfg ?: GEN1_YELLOW)
+                GameKind.CRYSTAL, GameKind.CRYSTAL_CLEAR, GameKind.PRISM -> readGen2Telemetry(reader, gen2Cfg ?: GEN2_CRYSTAL)
                 else -> {
                     unsupportedHackLabel?.let { return SnapshotView(connected = false, error = it, unsupported = true) }
                     val cfg = nativeCfg ?: return SnapshotView(connected = false, error = "no telemetry source")
@@ -318,7 +324,7 @@ class TelemetrySampler {
     /** Where the detected game's item descriptions are ([RomItemText]): its config's
      * table when the ROM has it there, else the vanilla table found by its shape. */
     private fun itemTable(reader: MemoryReader): ItemDescTable? {
-        if (kind == GameKind.YELLOW || unsupportedHackLabel != null) return null
+        if (kind == GameKind.YELLOW || kind.isCrystalFamily || unsupportedHackLabel != null) return null
         val cfg = if (kind == GameKind.UNBOUND) nativeCfg ?: NATIVE_UNBOUND_WITH_DEX else nativeCfg
         val t = cfg?.itemDescs
         if (t != null && RomItemText.matchesRom(reader, t)) return t
@@ -378,6 +384,13 @@ class TelemetrySampler {
                 nativeCfg = NATIVE_ORANGE_ISLANDS
                 return
             }
+            // FireRed 1.0 hacks edited in place, run as FireRed with their own names (ActiveTables' fireRedHack).
+            fireRedHackConfig(hash)?.let {
+                kind = GameKind.FIRERED
+                nativeCfg = it
+                ramVerified = true   // rev 0's battle code and cursors: a written cell + A checked headless on each
+                return
+            }
             // Recharged Yellow: a 16 MB rebuild of pokefirered, one config per release.
             rechargedYellowConfig(hash)?.let {
                 kind = GameKind.RECHARGED_YELLOW
@@ -417,6 +430,7 @@ class TelemetrySampler {
                 SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_SHA1, SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_CASUAL_SHA1,
                 SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_PERFORMANCE_SHA1, SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_CASUAL_PERFORMANCE_SHA1,
                 -> { kind = GameKind.SWORD_SHIELD; nativeCfg = NATIVE_SWORD_SHIELD }
+                GS_CHRONICLES_V2_7_6_SHA1 -> { kind = GameKind.GS_CHRONICLES; nativeCfg = NATIVE_GS_CHRONICLES }
                 else -> {
                     kind = GameKind.FIRERED
                     unsupportedRom(reader, code, size, hash, "unrecognized FireRed-based ROM hack " +
@@ -456,6 +470,10 @@ class TelemetrySampler {
                 IMPERIUM_V1_3_1_SHA1 -> { kind = GameKind.IMPERIUM; nativeCfg = NATIVE_IMPERIUM }
                 QUETZAL_V9_0_ALPHA_SHA1 -> { kind = GameKind.QUETZAL; nativeCfg = NATIVE_QUETZAL }
                 QUETZAL_V9_0_ALPHA_ES_SHA1 -> { kind = GameKind.QUETZAL; nativeCfg = NATIVE_QUETZAL_ES }
+                QUETZAL_V0_8_4_ALPHA_SHA1 -> { kind = GameKind.QUETZAL; nativeCfg = NATIVE_QUETZAL_V084 }
+                QUETZAL_V0_8_4_ALPHA_ES_SHA1 -> { kind = GameKind.QUETZAL; nativeCfg = NATIVE_QUETZAL_V084_ES }
+                MOEMON_QUETZAL_V0_8_4_ALPHA_Hotfix_SHA1 -> { kind = GameKind.QUETZAL; nativeCfg = NATIVE_QUETZAL_MOEMON_V084 }
+                MOEMON_QUETZAL_V0_8_4_ALPHA_ES_Hotfix_SHA1 -> { kind = GameKind.QUETZAL; nativeCfg = NATIVE_QUETZAL_MOEMON_V084_ES }
                 MARIOMON_V1_5_2_Anniversary_SHA1 -> { kind = GameKind.MARIOMON; nativeCfg = NATIVE_MARIOMON_V1_5_2 }
                 MARIOMON_V1_5_1_Anniversary_SHA1 -> { kind = GameKind.MARIOMON; nativeCfg = NATIVE_MARIOMON_V1_5_1 }
                 MARIOMON_V1_3_SHA1 -> { kind = GameKind.MARIOMON; nativeCfg = NATIVE_MARIOMON_V1_3 }
@@ -489,6 +507,13 @@ class TelemetrySampler {
                 kind = GameKind.EMERALD
                 nativeCfg = NATIVE_EMERALD_KAIZO
                 ramVerified = true   // retail's battle code and cursors: a written cell + A checked headless on it
+                return
+            }
+            // Recharged Emerald: a 16 MB rebuild of pokeemerald, run as Emerald with its own RAM and names.
+            rechargedEmeraldConfig(hash)?.let {
+                kind = GameKind.EMERALD
+                nativeCfg = it
+                ramVerified = true   // its cursors: walked, and a written cell + A checked headless on each build
                 return
             }
             // Emerald Legacy: pokeemerald rebuilt from its own source - its own RAM and code (NATIVE_EMERALD_LEGACY).
@@ -563,7 +588,10 @@ class TelemetrySampler {
         }
         val hash = if (off == size && size > 0) digest.digest().joinToString("") { "%02x".format(it) } else null
         when {
-            hash == YELLOW_SHA1 && GAME_BOY_SUPPORT -> { kind = GameKind.YELLOW; gen1Cfg = GEN1_YELLOW }
+            GAME_BOY_SUPPORT && gen1ConfigFor(hash) != null -> { kind = GameKind.YELLOW; gen1Cfg = gen1ConfigFor(hash) }
+            hash in CRYSTAL_SHA1S && GAME_BOY_SUPPORT -> { kind = GameKind.CRYSTAL; gen2Cfg = GEN2_CRYSTAL }
+            GAME_BOY_SUPPORT && crystalClearConfigFor(hash) != null -> { kind = GameKind.CRYSTAL_CLEAR; gen2Cfg = crystalClearConfigFor(hash) }
+            GAME_BOY_SUPPORT && hash == PRISM_V0_95_254_SHA1 -> { kind = GameKind.PRISM; gen2Cfg = GEN2_PRISM }
             else -> {
                 kind = GameKind.FIRERED
                 unsupportedHackLabel = "this Game Boy game isn't supported yet (sha1 ${hash?.take(12) ?: "unknown"}…)"
@@ -583,6 +611,24 @@ class TelemetrySampler {
     val knownPartyMenu: Pair<Long, Long>?
         get() = nativeCfg?.takeIf { it.partyMenu != 0L }?.let { it.partyMenu to it.playerParty }
 
+    /** The detected game's own USE / GIVE / TAKE tables when its config has them (Recharged Emerald), or null. */
+    val knownFieldItems: FieldItemFns?
+        get() = nativeCfg?.fieldItems
+
+    /** A Game Boy game's battle party menu, for the POKéMON switch ([GbPartySwitch]): Yellow (every language) and the
+     * Crystal family, each checked headless (a switch from PkMn / PKMN and the pick after a faint); null otherwise. */
+    val gbPartySwitch: GbPartySwitch?
+        get() = when {
+            kind == GameKind.YELLOW -> gen1Cfg?.let { c -> gbSwitchFor(c) { Gen1PartySwitch(c) } }
+            kind.isCrystalFamily -> gen2Cfg?.let { c -> gbSwitchFor(c) { Gen2PartySwitch(c) } }
+            else -> null
+        }
+
+    // One switch reader per config, not one a sample.
+    private var gbSwitch: Pair<Any, GbPartySwitch>? = null
+    private fun gbSwitchFor(cfg: Any, make: () -> GbPartySwitch): GbPartySwitch =
+        gbSwitch?.takeIf { it.first === cfg }?.second ?: make().also { gbSwitch = cfg to it }
+
     /** The open battle menu's cursor from the last fast sample, for a Gen 1 game ([readGen1BattleInput]); -1 otherwise. */
     @Volatile var battleMenuCursor = -1
         private set
@@ -590,6 +636,11 @@ class TelemetrySampler {
     fun sampleBattleInputFast(reader: MemoryReader): Pair<Int, Int>? {
         if (kind == GameKind.YELLOW) {
             val (state, cursor) = runCatching { readGen1BattleInput(reader, gen1Cfg ?: GEN1_YELLOW) }.getOrNull() ?: return null
+            battleMenuCursor = cursor
+            return 0 to state
+        }
+        if (kind.isCrystalFamily) {
+            val (state, cursor) = runCatching { readGen2BattleInput(reader, gen2Cfg ?: GEN2_CRYSTAL) }.getOrNull() ?: return null
             battleMenuCursor = cursor
             return 0 to state
         }
@@ -709,6 +760,12 @@ class TelemetrySampler {
         const val QUETZAL_V9_0_ALPHA_SHA1 = "d0658315da1e8827f66f15c3d3a000fe747e163e"
         // Pokémon Quetzal Spanish Alpha 9 v0 (BPEE, 32 MB) - host-side masked hash (GPIO bytes zero).
         const val QUETZAL_V9_0_ALPHA_ES_SHA1 = "fe346b5b0eb022e3a103f81e7dcefba6f1dc542f"
+        // Pokémon Quetzal Alpha 0.8.4, English / Spanish, and the Moemon Hotfix builds of both (BPEE, 32 MB) - host-side
+        // masked hashes (GPIO bytes zero, so a plain `shasum`).
+        const val QUETZAL_V0_8_4_ALPHA_SHA1 = "6806c7146aff457a4be85ef2030e9ddcdb17b665"
+        const val QUETZAL_V0_8_4_ALPHA_ES_SHA1 = "b6542c7dbb40cf6ea96714a7a0e30cb468102861"
+        const val MOEMON_QUETZAL_V0_8_4_ALPHA_Hotfix_SHA1 = "f1035f615c13c46394a18fa99181c24c3cd15e12"
+        const val MOEMON_QUETZAL_V0_8_4_ALPHA_ES_Hotfix_SHA1 = "ae5d88bb823a8f9d0d07e8784da2376ff7c1ae43"
         // Pokémon Orange Islands (BPRE rev 0, 16 MB - the size of retail, so checked by hash before
         // the retail check): Beta 5.7, and a build with no version on it that differs from it
         // in 80 bytes of map text and data (a typo Beta 5.7 doesn't have - likely an earlier beta).
@@ -727,6 +784,22 @@ class TelemetrySampler {
         const val SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_CASUAL_SHA1 = "daa2f89934d2c0447d5271dabeba86bfba04e1fd"
         const val SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_PERFORMANCE_SHA1 = "4858cc3d7b335bb5eed553861d7a4a17bad9ce2c"
         const val SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_CASUAL_PERFORMANCE_SHA1 = "932323d1fa3732d8673d1319fa86ed4df41087b9"
+        // Pokémon GS Chronicles v2.7.6 (BPRE, 32 MB, CFRU; Ruki Studios) - host-side masked hash (GPIO bytes zero).
+        const val GS_CHRONICLES_V2_7_6_SHA1 = "25f8840ecb58e584edf18ffde35f845e94f3f17c"
+
+        // Pokémon FireRed Rocket Edition (BPRE rev 0, 16 MB; no version on it) - host-side masked hash (GPIO bytes zero).
+        const val FIRERED_ROCKET_EDITION_UNVERSIONED_SHA1 = "033d05374ae34eb84fae62c693ca8f3da23dd1bd"
+        // Pokémon Ash Gray v4.5.3 and its Fork Bug Fix v1.0 build (BPRE rev 0, 16 MB, the same tables) -
+        // host-side masked hashes (GPIO bytes zero).
+        const val ASH_GRAY_V4_5_3_SHA1 = "1ee1557db1e4c2e0e94c6306efcc40506bc40cc9"
+        const val ASH_GRAY_FORK_BUG_FIX_V1_0_SHA1 = "92ed82145c013069472153391c7aab1cfbf37b75"
+
+        /** The config of a FireRed 1.0 hack edited in place that runs as FireRed (Rocket Edition, Ash Gray), or null. */
+        fun fireRedHackConfig(hash: String?): NativeConfig? = when (hash) {
+            FIRERED_ROCKET_EDITION_UNVERSIONED_SHA1 -> NATIVE_ROCKET_EDITION
+            ASH_GRAY_V4_5_3_SHA1, ASH_GRAY_FORK_BUG_FIX_V1_0_SHA1 -> NATIVE_ASH_GRAY
+            else -> null
+        }
 
         /** Hacks under a game code of their own that detect() reads as their base game (by hash). */
         val HACK_GAME_CODES = setOf(ULTRA_VIOLET_CODE)
@@ -746,6 +819,20 @@ class TelemetrySampler {
             else -> null
         }
 
+        // Pokémon Recharged Emerald (Jaizu; BPEE, 16 MB, a pokeemerald rebuild): three builds, each its own
+        // (NATIVE_RECHARGED_EMERALD_*). Their GPIO bytes are zero, so the masked hashes are the files'.
+        const val RECHARGED_EMERALD_V2_2_5_SHA1 = "67f44fb4cdbb16c0d1a495ac219f2979b1e3005f"
+        const val RECHARGED_EMERALD_V2_2_8_SHA1 = "56c9777215f5be627f7c3099e68985aefc10f2b7"
+        const val RECHARGED_EMERALD_REBALANCED_V2_2_8_SHA1 = "08b9c7903ae4c4e26d80ef945a90c004ae1e0ebb"
+
+        /** Recharged Emerald's config for a build's hash; null for any other ROM. */
+        fun rechargedEmeraldConfig(hash: String?): NativeConfig? = when (hash) {
+            RECHARGED_EMERALD_V2_2_5_SHA1 -> NATIVE_RECHARGED_EMERALD_V2_2_5
+            RECHARGED_EMERALD_V2_2_8_SHA1 -> NATIVE_RECHARGED_EMERALD_V2_2_8
+            RECHARGED_EMERALD_REBALANCED_V2_2_8_SHA1 -> NATIVE_RECHARGED_EMERALD_REBALANCED_V2_2_8
+            else -> null
+        }
+
         // Super Mariomon (Too Many Productions; BPEE, 32 MB): every release the user has, host-side
         // masked hashes (GPIO bytes zero, so a plain `shasum`).
         const val MARIOMON_V1_2_1_SHA1 = "43dd208b23eade69aa3384301e934ecafbf6c2b3"
@@ -756,9 +843,51 @@ class TelemetrySampler {
 
         // Pokémon Yellow (USA, Europe) - the Game Boy cart (pret/pokeyellow builds it byte for byte).
         const val YELLOW_SHA1 = "cc7d03262ebfaf2f06772c1a480c7d9d5f4a38e1"
+        // The German, French, Italian and Spanish carts (GBC, SGB Enhanced): plain `shasum`s.
+        const val YELLOW_DE_SHA1 = "42f3714eec6eca25200d42461ff08d57c98f6d1d"
+        const val YELLOW_FR_SHA1 = "0aceec0ef7aa2ca5aa831554598d91f61a925591"
+        const val YELLOW_IT_SHA1 = "05bb8e99f24d498613930949730afa8024e77d08"
+        const val YELLOW_ES_SHA1 = "1dc242039218fba50928d1afb66b70565b6b9daf"
+
+        /** A Yellow cart's config by its hash, or null for any other Game Boy game. */
+        fun gen1ConfigFor(hash: String?): Gen1Config? = when (hash) {
+            YELLOW_SHA1 -> GEN1_YELLOW
+            YELLOW_DE_SHA1 -> GEN1_YELLOW_DE
+            YELLOW_FR_SHA1 -> GEN1_YELLOW_FR
+            YELLOW_IT_SHA1 -> GEN1_YELLOW_IT
+            YELLOW_ES_SHA1 -> GEN1_YELLOW_ES
+            else -> null
+        }
+
+        // Pokémon Crystal - rev 0 (USA), rev 1 (USA, Europe) and Australia: pret/pokecrystal builds all three byte for byte.
+        const val CRYSTAL_SHA1 = "f4cd194bdee0d04ca4eac29e09b8e4e9d818c133"
+        const val CRYSTAL_REV1_SHA1 = "f2f52230b536214ef7c9924f483392993e226cfb"
+        const val CRYSTAL_AU_SHA1 = "a0fc810f1d4e124434f7be2c989ab5b5892ddf36"
+        val CRYSTAL_SHA1S = setOf(CRYSTAL_SHA1, CRYSTAL_REV1_SHA1, CRYSTAL_AU_SHA1)
+
+        // Pokémon Crystal Clear (ShockSlayer's open-world Crystal hack): v2.5.11 and v2.6.0, each a Standard Colors
+        // build and a Color Filter one (the same code and tables, other palettes): one RAM, a version's ROM tables.
+        const val CRYSTAL_CLEAR_V2_5_11_SHA1 = "a1c4da6b0057c98fe4ebea45d6812a484fc69abd"
+        const val CRYSTAL_CLEAR_V2_5_11_COLOR_FILTER_SHA1 = "6fc677bf7a9db103cb9ee11ac08d26782e69ae41"
+        const val CRYSTAL_CLEAR_V2_6_0_SHA1 = "84d5c4924c3f1f3fc690669148b7e392948fb23d"
+        const val CRYSTAL_CLEAR_V2_6_0_COLOR_FILTER_SHA1 = "534876e4e4d0d79a82fef3bbe5bea11c40451727"
+        val CRYSTAL_CLEAR_SHA1S = setOf(CRYSTAL_CLEAR_V2_5_11_SHA1, CRYSTAL_CLEAR_V2_5_11_COLOR_FILTER_SHA1,
+            CRYSTAL_CLEAR_V2_6_0_SHA1, CRYSTAL_CLEAR_V2_6_0_COLOR_FILTER_SHA1)
+
+        fun crystalClearConfigFor(sha1: String?): Gen2Config? = when (sha1) {
+            CRYSTAL_CLEAR_V2_5_11_SHA1, CRYSTAL_CLEAR_V2_5_11_COLOR_FILTER_SHA1 -> GEN2_CRYSTAL_CLEAR_V2_5_11
+            CRYSTAL_CLEAR_V2_6_0_SHA1, CRYSTAL_CLEAR_V2_6_0_COLOR_FILTER_SHA1 -> GEN2_CRYSTAL_CLEAR_V2_6_0
+            else -> null
+        }
+
+        // Pokémon Prism (RainbowDevs' Crystal-engine hack): v0.95 build 254 (Hotfix 5), the final release. A file named
+        // as a patched Crystal that calls itself "LOL PRISM" isn't Prism: Crystal rev 0 with its first 32 KB replaced by a
+        // program that fills the screen with "LOL" and halts - nothing to read.
+        const val PRISM_V0_95_254_SHA1 = "752076692ae3387cf426ce5f51a98c6b60e8df6a"
 
         /** The Game Boy / Color carts the companion reads ([CompanionSupport] checks imports against it). */
-        val SUPPORTED_GB_SHA1S = setOf(YELLOW_SHA1)
+        val SUPPORTED_GB_SHA1S = setOf(YELLOW_SHA1, YELLOW_DE_SHA1, YELLOW_FR_SHA1, YELLOW_IT_SHA1, YELLOW_ES_SHA1) +
+            CRYSTAL_SHA1S + CRYSTAL_CLEAR_SHA1S + PRISM_V0_95_254_SHA1
 
         /**
          * Game Boy / Color (Pokémon Yellow): the library, folder scan, frontend launch and
@@ -769,20 +898,25 @@ class TelemetrySampler {
         const val GAME_BOY_SUPPORT = true
 
         /** Every hack detect() has RAM addresses for - the >16 MB ones it
-         * hashes, plus Seaglass, Emerald Kaizo, Emerald Legacy, Orange Islands, Recharged Yellow and Ultra Violet (16 MB). [CompanionSupport] checks imports against it. */
+         * hashes, plus Seaglass, Emerald Kaizo, Emerald Legacy, Orange Islands, Recharged Yellow / Emerald and Ultra Violet (16 MB). [CompanionSupport] checks imports against it. */
         val SUPPORTED_HACK_SHA1S = setOf(
             UNBOUND_V2_1_1_1_SHA1, GAIA_V3_2_SHA1, RADICAL_RED_V4_1_SHA1, ODYSSEY_V4_1_1_SHA1,
             AMETHYST_V1_3_0_SHA1, AMETHYST_V1_4_1_SHA1, CELIA_V1_1_4_SHA1, HEART_AND_SOUL_V2_0_6_SHA1, LAZARUS_V2_0_SHA1,
             ROWE_V2_1_9_1_SHA1, EMERALD_ROGUE_V2_2_1_EX_SHA1, TMT2_V1_5_2_SHA1, EMERALD_SEAGLASS_V3_0_SHA1, EMERALD_KAIZO_V2_0_SHA1, EMERALD_LEGACY_V1_1_4_SHA1,
             SOULGOLD_V1_1_4_SHA1, SOULGOLD_V1_2_SHA1, SOULGOLD_V1_2B_SHA1, SOULGOLD_V1_2C_SHA1, GLAZED_V9_2_0_SHA1, IMPERIUM_V1_3_1_SHA1,
             QUETZAL_V9_0_ALPHA_SHA1, QUETZAL_V9_0_ALPHA_ES_SHA1, UNBOUND_V2_1_1_1_FR_SHA1,
+            QUETZAL_V0_8_4_ALPHA_SHA1, QUETZAL_V0_8_4_ALPHA_ES_SHA1, MOEMON_QUETZAL_V0_8_4_ALPHA_Hotfix_SHA1,
+            MOEMON_QUETZAL_V0_8_4_ALPHA_ES_Hotfix_SHA1,
             ORANGE_ISLANDS_V5_7_BETA_SHA1, ORANGE_ISLANDS_UNVERSIONED_SHA1,
+            FIRERED_ROCKET_EDITION_UNVERSIONED_SHA1, ASH_GRAY_V4_5_3_SHA1, ASH_GRAY_FORK_BUG_FIX_V1_0_SHA1,
             ULTRA_VIOLET_V1_22_SHA1, SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_SHA1, SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_CASUAL_SHA1,
             SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_PERFORMANCE_SHA1, SWORD_SHIELD_ULTIMATE_PLUS_V1_2_1_2_CASUAL_PERFORMANCE_SHA1,
             RECHARGED_YELLOW_V1_8_0_SHA1, RECHARGED_YELLOW_V1_9_0_SHA1, RECHARGED_YELLOW_V1_9_4_SHA1,
             RECHARGED_YELLOW_V1_9_7_SHA1,
+            RECHARGED_EMERALD_V2_2_5_SHA1, RECHARGED_EMERALD_V2_2_8_SHA1, RECHARGED_EMERALD_REBALANCED_V2_2_8_SHA1,
             MARIOMON_V1_2_1_SHA1, MARIOMON_V1_2_2_SHA1, MARIOMON_V1_3_SHA1, MARIOMON_V1_5_1_Anniversary_SHA1,
             MARIOMON_V1_5_2_Anniversary_SHA1,
+            GS_CHRONICLES_V2_7_6_SHA1,
         )
     }
 }

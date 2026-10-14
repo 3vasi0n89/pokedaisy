@@ -14,7 +14,7 @@ import org.junit.Test
 class RadicalRedGuideTest {
     private val t = GUIDE_TABLES_RADICAL_RED
 
-    private fun rom(): RomFileReader? = RomFileReader.load(RETAIL_ROM_DIR + "Pokemon - Radical Red (v4.1).gba")?.also {
+    private fun rom(): RomFileReader? = RomFileReader.load(RETAIL_ROM_DIR + "Pokemon Radical Red (v4.1).gba")?.also {
         activeGame = GameKind.RADICAL_RED
         PokedexSource.reader = it
     }

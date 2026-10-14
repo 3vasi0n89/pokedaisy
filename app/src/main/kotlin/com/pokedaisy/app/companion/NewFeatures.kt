@@ -31,8 +31,11 @@ object NewFeatures {
     /** SETTINGS > HUD > REPEL STEPS: a REPEL's steps left, counting down beside the balls. */
     const val HUD_REPEL = "hud_repel"
 
+    /** SETTINGS > SINGLE SCREEN: a two-screen device played on one, the companion over the game. */
+    const val SINGLE_SCREEN = "single_screen"
+
     /** Every feature that gets the tag. */
-    val ALL = listOf(HUD, BATTLE_BUTTONS, GAME_HOTKEYS, COMPANION_WINDOW, HUD_PC, QUICK_MENU, HUD_REPEL)
+    val ALL = listOf(HUD, BATTLE_BUTTONS, GAME_HOTKEYS, COMPANION_WINDOW, HUD_PC, QUICK_MENU, HUD_REPEL, SINGLE_SCREEN)
 
     private const val DAYS = 7
     private const val DAY_MS = 24 * 60 * 60 * 1000L

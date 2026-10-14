@@ -26,6 +26,8 @@ class FieldItemsTest {
         val p = fns.party!!
         var locked = false
         var repel = 0
+        /** Every VarSet, in order: (variable, value). */
+        val varSets = mutableListOf<Pair<Int, Int>>()
         val bag = mutableMapOf(86 to 1)
         var bagKinds = 30
         val party = mutableListOf<Mon>()
@@ -50,12 +52,13 @@ class FieldItemsTest {
             return when (fn) {
                 fns.fieldControlsLocked -> if (locked) 1 else 0
                 fns.varGet -> { assertEquals(fns.repelVar, a0); repel.toLong() }
-                fns.varSet -> { assertEquals(fns.repelVar, a0); repel = a1; 1 }
+                fns.varSet -> { varSets += a0 to a1; if (a0 == fns.repelVar) repel = a1; 1 }
                 fns.checkBagHasItem -> if ((bag[a0] ?: 0) >= a1) 1 else 0
                 fns.removeBagItem -> if ((bag[a0] ?: 0) >= a1) { bag[a0] = bag[a0]!! - a1; if (bag[a0] == 0) bag.remove(a0); 1 } else 0
                 p.addBagItem -> if (a0 in bag || bag.size < bagKinds) { bag[a0] = (bag[a0] ?: 0) + a1; 1 } else 0
                 p.getMonData -> mon(a0).let { m ->
-                    when (a1) {
+                    // pokeemerald's ids; a build that moved them (monFieldShift) is asked for the moved ones.
+                    when (if (a1 >= 11) a1 - p.monFieldShift else a1) {
                         0 -> m.personality
                         11 -> m.species.toLong()
                         12 -> m.held.toLong()
@@ -65,7 +68,7 @@ class FieldItemsTest {
                     }
                 }
                 p.setMonData -> {
-                    assertEquals(12, a1)
+                    assertEquals(12 + p.monFieldShift, a1)
                     if (!failSetMonData) mon(a0).held = read(a2.toLong() and 0xFFFFFFFFL, 2).let { (it[0].toInt() and 0xFF) or ((it[1].toInt() and 0xFF) shl 8) }
                     0x080000C1
                 }
@@ -100,7 +103,7 @@ class FieldItemsTest {
                 ByteArray(len).also { it[0] = (bagSnapshots.size - 1).toByte() }
             }
             addr == p.partyCount -> byteArrayOf(party.size.toByte())
-            addr == fns.items + 86 * 44L + 0x13 -> byteArrayOf(100)
+            addr == fns.items + 86L * fns.itemSize + fns.itemParamOff -> byteArrayOf(100)
             addr >= 0x08000000L -> ByteArray(len)
             else -> ByteArray(len) { ram[addr + it] ?: 0 }
         }
@@ -437,12 +440,27 @@ class FieldItemsTest {
         assertTrue(s.marked(13) && s.canTake && s.picksMove(34))
     }
 
+    /** FireRed Rocket Edition and Ash Gray (both builds) keep rev 0's code: rev 0's table, its CRCs, their own gItems. */
+    @Test
+    fun `the FireRed hacks edited in place run rev 0's table`() {
+        val fns = fieldItemsForGame(GameKind.FIRERED, "BPRE", 0)!!
+        var ran = 0
+        for (file in listOf("Pokemon FireRed Rocket Edition.gba", "Pokemon Ash Gray (v4.5.3).gba", "Pokemon Ash Gray Fork Bug Fix (v1.0).gba")) {
+            val bytes = File(RETAIL_ROM_DIR + file).takeIf { it.isFile }?.readBytes() ?: continue
+            val s = fieldItemSupport(fns, romReader(bytes))
+            assertTrue(file, s != null && s.marked(13) && s.canUse(13) && s.canGive(200) && s.canTake)
+            assertEquals(file, listOf(100, 200, 250), listOf(86, 83, 84).map { romReader(bytes)(fns.items + it * 44 + 0x13, 1)[0].toInt() and 0xFF })
+            ran++
+        }
+        assumeTrue(ran > 0)
+    }
+
     /** Every table against its own retail ROM (pret's builds of them, byte for byte), and never against another's. */
     @Test
     fun `each retail table matches its ROM and no other`() {
         val roms = listOf(
             Triple("Pokemon - FireRed Version (USA, Europe) (Rev 1).gba", "BPRE", 1),
-            Triple("PokemonLeafGreenVersion.gba", "BPGE", 0),
+            Triple("Pokemon - LeafGreen Version (USA).gba", "BPGE", 0),
             Triple("Pokemon - LeafGreen Version (USA, Europe) (Rev 1).gba", "BPGE", 1),
             Triple("Pokemon - Emerald Version (USA, Europe).gba", "BPEE", 0),
             Triple("Pokemon - Ruby Version (USA, Europe) (Rev 1).gba", "AXVE", 1),
@@ -467,7 +485,6 @@ class FieldItemsTest {
             }
         }
         assertNull(fieldItemsFor("BPRE", 2)) // no such revision
-        assertNull(fieldItemsFor("AXVJ", 1)) // Japanese Ruby: not mapped (port_field_items.py couldn't)
     }
 
     /** The generated tables (scripts/port_field_items.py) against the other-language ROMs they came from: each
@@ -492,6 +509,73 @@ class FieldItemsTest {
             checked++
         }
         assertEquals(FIELD_ITEMS_PORTS.size, checked)
+    }
+
+    /** Recharged Emerald (scripts/find_field_items_recharged_emerald.py): each build's table matches its own ROM's code
+     * and no other's, its gItems' 48-byte records give the Repels' steps at 0x15, its pockets keep key items and TMs out
+     * of GIVE (and leave its Medicine pocket in), and its config hands the table over (it shares retail's game code). */
+    @Test
+    fun `each Recharged Emerald table matches its own build`() {
+        val builds = listOf(
+            Triple("Pokemon Recharged Emerald (v2.2.5).gba", FIELD_ITEMS_RECHARGED_EMERALD_V2_2_5, NATIVE_RECHARGED_EMERALD_V2_2_5),
+            Triple("Pokemon Recharged Emerald (v2.2.8).gba", FIELD_ITEMS_RECHARGED_EMERALD_V2_2_8, NATIVE_RECHARGED_EMERALD_V2_2_8),
+            Triple("Pokemon Recharged Emerald Rebalanced (v2.2.8).gba", FIELD_ITEMS_RECHARGED_EMERALD_REBALANCED_V2_2_8, NATIVE_RECHARGED_EMERALD_REBALANCED_V2_2_8),
+        ).mapNotNull { (file, fns, cfg) -> File(RETAIL_ROM_DIR + file).takeIf { it.isFile }?.let { Triple(it.readBytes(), fns, cfg) } }
+        assumeTrue(builds.size == 3)
+        val tables = builds.map { it.second }
+        for ((bytes, fns, cfg) in builds) {
+            val read = romReader(bytes)
+            assertTrue(fns === cfg.fieldItems)
+            assertTrue(fns === fieldItemsForGame(GameKind.EMERALD, "BPEE", 0, cfg.fieldItems))
+            val s = fieldItemSupport(fns, read)!!
+            for (other in tables - fns) assertFalse(fieldItemCodeMatches(other, read))
+            assertFalse(fieldItemCodeMatches(FIELD_ITEMS_EMERALD, read))
+            assertEquals(listOf(100, 200, 250), listOf(86, 83, 84).map { read(fns.items + it * 48L + fns.itemParamOff, 1)[0].toInt() and 0xFF })
+            val items = read(fns.items, fns.party!!.itemCount * fns.itemSize)
+            assertEquals(fns.party!!.usable + REPEL_ITEMS, usableItems(fns, items))
+            // Medicine-pocket items (13, its PEWTER ARARE 62), Poké Balls, Berries, held items; not key items (MACH BIKE),
+            // TMs / HMs or Mail.
+            for (id in listOf(13, 62, 4, 139, 182, 200, 86)) assertTrue("$id", s.canGive(id))
+            for (id in listOf(259, 289, 339, 121, 0)) assertFalse("$id", s.canGive(id))
+            assertTrue(s.canUse(13) && s.canUse(86) && s.picksMove(34) && s.canTake)
+            // PEWTER ARARE runs the medicine routine but has no effect entry (the game: "It won't have any effect.");
+            // RARE CANDY; its LURE (not done here).
+            assertFalse(s.canUse(62) || s.canUse(68) || s.canUse(52))
+        }
+        // Retail Emerald keeps retail's table: no config table, so by kind and code.
+        assertTrue(fieldItemsForGame(GameKind.EMERALD, "BPEE", 0, NATIVE_EMERALD_RETAIL.fieldItems) === FIELD_ITEMS_EMERALD)
+    }
+
+    @Test
+    fun `a Repel sets the game's other variables too, in its order`() {
+        val fns = FAKE_FNS.copy(repelVar = 0x4021, repelClearVars = listOf(0x4055, 0x404E), lastRepelVar = 0x4052)
+        val g = FakeGame(fns)
+        g.bag[83] = 1
+        assertEquals(ItemUseOutcome(ItemUseResult.USED, 100), useFieldItem(fns, 86, false, g))
+        assertEquals(listOf(0x4055 to 0, 0x404E to 0, 0x4021 to 100, 0x4052 to 86), g.varSets)
+        assertEquals(ItemUseResult.STILL_ACTIVE, useFieldItem(fns, 83, false, g).result)
+        assertEquals(4, g.varSets.size)
+    }
+
+    @Test
+    fun `a build whose Pokemon fields moved is asked for the moved ids`() {
+        val fns = FAKE_FNS.copy(party = FAKE_FNS.party!!.copy(monFieldShift = 9))
+        val g = FakeGame(fns)
+        g.bag[13] = 1
+        g.bag[200] = 1
+        g.party += FakeGame.Mon(0x111, hp = 3, held = 182)
+        g.party += FakeGame.Mon(0x222, egg = true)
+        g.party += FakeGame.Mon(0x333, species = 303)
+        val s = FieldItemSupport(fns, setOf(13, 200, 182, 63))
+        assertEquals(listOf(SlotVerdict.OK, SlotVerdict.EGG, SlotVerdict.NO_EFFECT), partyTargets(s, 13, false, false, g).targets.map { it.verdict })
+        g.bag[63] = 1
+        assertEquals(SlotVerdict.NO_EFFECT, partyTargets(s, 63, false, false, g).targets[2].verdict) // HP UP on SHEDINJA
+        assertEquals(ItemUseResult.USED, useOnMon(s, 13, partyTargets(s, 13, false, false, g).targets[0], 0, false, g).result)
+        val give = partyTargets(s, 200, true, false, g).targets[0]
+        assertEquals(182, give.heldItem)
+        assertEquals(ItemUseOutcome(ItemUseResult.GIVEN, swapped = 182), giveToMon(s, 200, give, false, g))
+        assertEquals(ItemUseOutcome(ItemUseResult.TAKEN, swapped = 200), takeFromMon(s, partyHeldItems(s, g).targets[0], false, g))
+        assertEquals(0, g.party[0].held)
     }
 
     @Test

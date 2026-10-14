@@ -247,6 +247,19 @@ object PixelIcons {
     /** [cursorLeft] mirrored: a row that opens a page. */
     val cursorRight = cursorLeft.map { it.reversed() }
 
+    /** A right chevron, two pixels thick: a settings row that opens a page of its own (OptionLine's `chevron`). */
+    val chevronRight = listOf(
+        "11....",
+        "111...",
+        ".111..",
+        "..111.",
+        "...111",
+        "..111.",
+        ".111..",
+        "111...",
+        "11....",
+    )
+
     /** An empty party slot, for [PixelArt]: K rim, G fill. */
     val disc = listOf(
         "....KKKK....",

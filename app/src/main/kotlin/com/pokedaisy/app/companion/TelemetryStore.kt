@@ -128,6 +128,12 @@ class TelemetryStore {
     /** The detected game's gPartyMenu + gPlayerParty, when its config has them. */
     fun knownPartyMenu(): Pair<Long, Long>? = sampler.knownPartyMenu
 
+    /** The detected game's own USE / GIVE / TAKE tables, when its config has them (FieldItems.kt). */
+    fun knownFieldItems(): com.pokedaisy.app.companion.data.FieldItemFns? = sampler.knownFieldItems
+
+    /** A Game Boy game's battle party menu, for the POKéMON switch, or null. */
+    fun gbPartySwitch(): com.pokedaisy.app.companion.data.GbPartySwitch? = sampler.gbPartySwitch
+
     /** The battle menus' cursors, where the ROM's RAM is known to be its config's. */
     fun knownCursorAddrs(): Pair<Long, Long>? = sampler.knownCursorAddrs
 

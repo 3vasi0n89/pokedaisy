@@ -11,7 +11,7 @@ package com.pokedaisy.app.companion.data
  *
  * Addresses are pret/pokeyellow's symbols (its build is byte-identical to retail).
  */
-class Gen1MusicTables(
+data class Gen1MusicTables(
     val sha1: String,
     /** PlayMusic, in bank 0. */
     val playMusic: Int,
@@ -50,8 +50,18 @@ val GEN1_MUSIC_YELLOW = Gen1MusicTables(
     ),
 )
 
+/**
+ * The German, French, Italian and Spanish Yellows: English's sound engine, songs and audio RAM; their own
+ * bank-0 code moved PlayMusic, and French PlaceNextChar's `jp z` (scripts/port_gen1.py, the same instruction
+ * bytes in each).
+ */
+val GEN1_MUSIC_YELLOW_DE = GEN1_MUSIC_YELLOW.copy(sha1 = TelemetrySampler.YELLOW_DE_SHA1, playMusic = 0x2216)
+val GEN1_MUSIC_YELLOW_FR = GEN1_MUSIC_YELLOW.copy(sha1 = TelemetrySampler.YELLOW_FR_SHA1, playMusic = 0x220D, spin = 0x1754)
+val GEN1_MUSIC_YELLOW_IT = GEN1_MUSIC_YELLOW.copy(sha1 = TelemetrySampler.YELLOW_IT_SHA1)
+val GEN1_MUSIC_YELLOW_ES = GEN1_MUSIC_YELLOW.copy(sha1 = TelemetrySampler.YELLOW_ES_SHA1, playMusic = 0x2210)
+
 object Gen1Music {
-    private val GAMES = listOf(GEN1_MUSIC_YELLOW)
+    private val GAMES = listOf(GEN1_MUSIC_YELLOW, GEN1_MUSIC_YELLOW_DE, GEN1_MUSIC_YELLOW_FR, GEN1_MUSIC_YELLOW_IT, GEN1_MUSIC_YELLOW_ES)
 
     fun forSha1(sha1: String): Gen1MusicTables? = GAMES.firstOrNull { it.sha1 == sha1 }
 

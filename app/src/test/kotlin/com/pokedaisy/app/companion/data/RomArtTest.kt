@@ -33,23 +33,33 @@ class RomArtTest {
 
     @Test fun emeraldSuppliesItsArt() = assertGolden(composed(RomFileReader.EMERALD_PATH), EMERALD)
 
+    /** Recharged Emerald's own party menu art, Hoenn map and map heads (recompressed and partly redrawn: none of
+     * Emerald's fingerprints match it), the same bytes in all three builds. */
+    @Test fun rechargedEmeraldSuppliesItsArt() {
+        for (f in listOf("Pokemon Recharged Emerald (v2.2.5).gba", "Pokemon Recharged Emerald (v2.2.8).gba", "Pokemon Recharged Emerald Rebalanced (v2.2.8).gba")) {
+            val images = composed(System.getProperty("user.home") + "/Downloads/Game ROMs & Emulation/gba/" + f)
+            val mine = images.filterKeys { it.startsWith(RomArt.RE_PARTY_DIR) || it == RomArt.RE_BACKDROP || it.contains("recharged_emerald") || it.endsWith("_re.png") }
+            assertEquals(f, RECHARGED_EMERALD, mine.mapValues { pixels(it.value) })
+        }
+    }
+
     /** Glazed wrote its own region map (Tunod + Johto) over retail Emerald's blobs; the rest of its art is retail's. */
     @Test fun glazedSuppliesItsRegionMap() {
-        val images = composed(System.getProperty("user.home") + "/Downloads/Game ROMs & Emulation/gba/Glazed (9.2.0).gba")
+        val images = composed(System.getProperty("user.home") + "/Downloads/Game ROMs & Emulation/gba/Pokemon Glazed (v9.2.0).gba")
         assertEquals("38897c17", pixels(images.getValue("regionmap/glazed.png")))
         assertTrue("regionmap/hoenn.png" !in images)
     }
 
     /** Imperium's region map: Emerald's with markers for its new places, on Emerald's palette. */
     @Test fun imperiumSuppliesItsRegionMap() {
-        val images = composed(System.getProperty("user.home") + "/Downloads/Game ROMs & Emulation/gba/Emerald Imperium (v1.3.1).gba")
+        val images = composed(System.getProperty("user.home") + "/Downloads/Game ROMs & Emulation/gba/Pokemon Emerald Imperium (v1.3.1).gba")
         assertEquals("a9c4cfb6", pixels(images.getValue("regionmap/imperium.png")))
     }
 
     /** Super Mariomon's world map (MM_REGION_*, the same bytes in every release) and MARIO's head for it. */
     @Test fun mariomonSuppliesItsRegionMap() {
-        for (v in listOf("v1.2.1", "v1.2.2", "v1.3", "v1.5.1-Anniversary", "v1.5.2-Anniversary")) {
-            val path = System.getProperty("user.home") + "/Downloads/Game ROMs & Emulation/gba/Super Mariomon $v.gba"
+        for (v in listOf("v1.2.1", "v1.2.2", "v1.3", "v1.5.1 Anniversary", "v1.5.2 Anniversary")) {
+            val path = System.getProperty("user.home") + "/Downloads/Game ROMs & Emulation/gba/Super Mariomon ($v).gba"
             if (!File(path).isFile) continue
             val images = RomArt.compose(RomArt.find(File(path).readBytes()))
             assertEquals(v, "4031a74a", pixels(images.getValue("regionmap/mariomon.png")))
@@ -60,7 +70,7 @@ class RomArtTest {
 
     /** Quetzal's Kanto / Sevii maps: FireRed's art redrawn for Emerald's region_map.c (QTZ_*). */
     @Test fun quetzalSuppliesItsRegionMaps() {
-        val images = composed(System.getProperty("user.home") + "/Downloads/Game ROMs & Emulation/gba/PokemonQuetzalEnglishAlpha9v0.gba")
+        val images = composed(System.getProperty("user.home") + "/Downloads/Game ROMs & Emulation/gba/Pokemon Quetzal (Alpha 9.0) (English).gba")
         assertEquals(
             listOf("eee6e9af", "307eba25", "f356dacb", "508b250a"),
             listOf("kanto", "sevii123", "sevii45", "sevii67").map { pixels(images.getValue("regionmap/quetzal_$it.png")) },
@@ -69,7 +79,7 @@ class RomArtTest {
 
     /** Heart and Soul's Johto + Kanto Pokegear map (smol, HNS_REGION_*), on Emerald's palette. */
     @Test fun heartAndSoulSuppliesItsRegionMap() {
-        val images = composed(System.getProperty("user.home") + "/Downloads/Game ROMs & Emulation/gba/Pokémon Heart and Soul (v2.0.6).gba")
+        val images = composed(System.getProperty("user.home") + "/Downloads/Game ROMs & Emulation/gba/Pokemon Heart and Soul (v2.0.6).gba")
         assertEquals("54343313", pixels(images.getValue("regionmap/hns.png")))
     }
 
@@ -79,7 +89,7 @@ class RomArtTest {
      * bundled before.
      */
     @Test fun heartAndSoulSuppliesItsPartyArt() {
-        val images = composed(GBA + "Pokémon Heart and Soul (v2.0.6).gba")
+        val images = composed(GBA + "Pokemon Heart and Soul (v2.0.6).gba")
         assertGolden(images.filterKeys { it.startsWith("partyhns/") || it == "partybg/hns.png" }, HEART_AND_SOUL)
     }
 
@@ -91,8 +101,8 @@ class RomArtTest {
      */
     @Test fun cfruHacksSupplyTheirPartyArt() {
         val roms = mapOf(
-            "Pokémon Unbound (v2.1.1.1).gba" to "ub", "Pokemon - Radical Red (v4.1).gba" to "rr",
-            "Pokémon Odyssey (English) (v4.1.1).gba" to "od", "Pokemon Amethyst (v1.3.0).gba" to "am",
+            "Pokemon Unbound (v2.1.1.1).gba" to "ub", "Pokemon Radical Red (v4.1).gba" to "rr",
+            "Pokemon Odyssey (v4.1.1).gba" to "od", "Pokemon Amethyst (v1.3.0).gba" to "am",
             "Pokemon Amethyst (v1.4.1).gba" to "am",
         ).filterKeys { File(GBA + it).isFile }
         assumeTrue("no CFRU ROM here", roms.isNotEmpty())
@@ -105,8 +115,8 @@ class RomArtTest {
                 assertEquals("$rom $path", CFRU_STATUS.getValue(path.split('/')[1]), pixels(img))
             }
         }
-        if ("Pokémon Unbound (v2.1.1.1).gba" in roms) {
-            assertEquals("53f5f1ea", pixels(composed(GBA + "Pokémon Unbound (v2.1.1.1).gba").getValue("partyfr/pokeball.png")))
+        if ("Pokemon Unbound (v2.1.1.1).gba" in roms) {
+            assertEquals("53f5f1ea", pixels(composed(GBA + "Pokemon Unbound (v2.1.1.1).gba").getValue("partyfr/pokeball.png")))
         }
     }
 
@@ -116,7 +126,7 @@ class RomArtTest {
      * are Odyssey's. Pinned to scripts/gen_cfru_party_assets.py's decode of the same ROM.
      */
     @Test fun swordShieldSuppliesItsPartyArt() {
-        val images = composed(GBA + "Sword and Shield Ultimate Plus (1.2.1.2).gba")
+        val images = composed(GBA + "Pokemon Sword and Shield Ultimate Plus (v1.2.1.2).gba")
         assertGolden(images.filterKeys { it.startsWith("partyswsh/") || it == RomArt.SWSH_BACKDROP }, SWSH)
         assertEquals(CFRU_STATUS.getValue("od"), pixels(images.getValue("partycfru/od/status_icons.png")))
         assertEquals(emptySet<String>(), images.keys.filter { it.startsWith("partycfru/slot_") || it == RomArt.CFRU_BACKDROP }.toSet())
@@ -216,4 +226,19 @@ class RomArtTest {
             "regionmap/player_may.png" to "e7e272c8",
         )
     }
+
+    private val RECHARGED_EMERALD = mapOf(
+            "partybg/recharged_emerald.png" to "e9fcbfdc",
+            "partyre/font_small.png" to "a1f3b06a",
+            "partyre/slot_fainted.png" to "988df89d",
+            "partyre/slot_nohp_normal.png" to "0402fa82",
+            "partyre/slot_nohp_selected.png" to "ed6e77fa",
+            "partyre/slot_normal.png" to "b868b751",
+            "partyre/slot_selected.png" to "06077c6c",
+            "partyre/slot_selected_fainted.png" to "b0393f12",
+            "partyre/status_icons.png" to "5c0fddd3",
+            "regionmap/player_brendan_re.png" to "c1356739",
+            "regionmap/player_may_re.png" to "7b114caf",
+            "regionmap/recharged_emerald.png" to "e4f9110b",
+    )
 }

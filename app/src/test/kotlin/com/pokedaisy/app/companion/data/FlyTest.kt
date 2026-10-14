@@ -140,7 +140,7 @@ class FlyTest {
 
     @Test
     fun `each game's FLY code is where its table says, and nowhere else`() {
-        val lg0 = File(RETAIL_ROM_DIR + "PokemonLeafGreenVersion.gba")
+        val lg0 = File(RETAIL_ROM_DIR + "Pokemon - LeafGreen Version (USA).gba")
         if (lg0.isFile) assertTrue(flyCodeMatches(FLY_LEAFGREEN_REV0) { a, n -> lg0.readBytes().copyOfRange((a - 0x08000000).toInt(), (a - 0x08000000).toInt() + n) })
         val roms = listOf("Pokemon - FireRed Version (USA, Europe) (Rev 1).gba", "Pokemon - LeafGreen Version (USA, Europe) (Rev 1).gba",
             "Pokemon - Emerald Version (USA, Europe).gba").map { File(RETAIL_ROM_DIR + it) }

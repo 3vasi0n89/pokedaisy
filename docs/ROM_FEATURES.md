@@ -8,7 +8,11 @@ change to any of the places listed under "Where it's decided" updates its rows h
 
 | Game | Version | EXPAND | Battle buttons | One-press picks | POKéMON switch | Field items | FLY | Trainer card | Field reads | Bike / surf | Wild encounters | PC anywhere |
 | ---- | ------- | :----: | :------------: | :-------------: | :------------: | :---------: | :-: | :----------: | :---------: | :---------: | :-------------: | :---------: |
-| Yellow (GB) | USA/Europe | n/a | ✅ | ✅ ¹ | — | — | — | — | n/a | n/a | n/a | n/a |
+| Yellow (GB) | USA/Europe | n/a | ✅ | ✅ ¹ | ✅ ⁸ | — | — | — | n/a | n/a | n/a | n/a |
+| Yellow (GB) | DE / FR / IT / ES | n/a | ✅ | ✅ ¹ | ✅ ⁸ | — | — | — | n/a | n/a | n/a | n/a |
+| Crystal (GBC) | USA, USA/Europe rev 1, AU | n/a | ✅ | ✅ ¹ | ✅ ⁸ | — | — | — | n/a | n/a | n/a | n/a |
+| Crystal Clear (GBC) | 2.5.11, 2.6.0 (4 builds) | n/a | ✅ | ✅ ¹ | ✅ ⁸ | — | — | — | n/a | n/a | n/a | n/a |
+| Prism (GBC) | 0.95 build 254 | n/a | ✅ | ✅ ¹ | ✅ ⁸ | — | — | — | n/a | n/a | n/a | n/a |
 | FireRed | USA/Europe rev 1 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | FireRed | USA/Europe rev 0 | ✅ | ✅ | — | — | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
 | FireRed | ES | ✅ | ✅ | ◐ ² | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
@@ -22,21 +26,26 @@ change to any of the places listed under "Where it's decided" updates its rows h
 | Ruby / Sapphire | USA rev 0, ES / DE / FR / IT | ✅ | ✅ | ✅ | — | ✅ | ✅ | — | ◐ ⁵ | ✅ | ✅ | ✅ |
 | Ruby / Sapphire | JP | ✅ | ✅ | ✅ | — | ✅ | ✅ | — | ◐ ⁵ | ✅ | ✅ | ✅ |
 | Amethyst | 1.3.0, 1.4.1 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
+| Ash Gray | 4.5.3, Fork Bug Fix 1.0 | ✅ | ✅ | ✅ | ✅ | ✅ | ◐ ⁹ | — | ◐ ⁹ | ◐ ⁹ | ◐ ⁹ | ◐ ⁹ |
 | Celia's Stupid Romhack | 1.1.4 | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | ✅ | ✅ | — |
 | Emerald Imperium | 1.3.1 | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Emerald Kaizo | 2.0 | ✅ | ✅ | ✅ | ✅ | ✅ | — ⁴ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Emerald Legacy | 1.1.4 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Emerald Rogue | 2.2.1-EX | ✅ | — | — | — | — | — | — | ◐ ⁶ | — | — | — |
 | Emerald Seaglass | 3.0 | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | ✅ | ✅ | — |
+| FireRed Rocket Edition | the one release | ✅ | ✅ | ✅ | ✅ | ✅ | ◐ ⁹ | — | ◐ ⁹ | ◐ ⁹ | ◐ ⁹ | ◐ ⁹ |
 | Gaia | 3.2 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
 | Glazed | 9.2.0 | ✅ | ✅ | ✅ | ✅ | ✅ | ◐ ⁷ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| GS Chronicles | 2.7.6 | ✅ | ✅ | ✅ | ✅ | ✅ | ◐ ⁹ | — | ◐ ⁹ | ◐ ⁹ | ◐ ⁹ | ◐ ⁹ |
 | Heart and Soul | 2.0.6 | ✅ | ✅ | ✅ | ✅ | — | ✅ | — | ◐ ⁶ | — | ✅ | ✅ |
 | Lazarus | 2.0 | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | Odyssey | 4.1.1 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
 | Orange Islands | Beta 5.7, an older beta | ◐ ³ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
 | Quetzal | English / Spanish Alpha 9 v0 | ◐ ³ | ✅ | ✅ | ✅ | — | — | — | ◐ ⁶ | — | — | — |
+| Quetzal, Moemon Quetzal | English / Spanish Alpha 0.8.4 (+ Hotfix) | — | ✅ | ✅ | ✅ | — | — | — | — | — | — | — |
 | R.O.W.E. | 2.1.9.1 Experimental | ◐ ³ | ✅ | ✅ | ✅ | — | — | — | ✅ | ✅ | ✅ | — |
 | Radical Red | 4.1 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
+| Recharged Emerald | 2.2.5, 2.2.8, Rebalanced 2.2.8 | — | ✅ | ✅ | ✅ | ✅ | — | — | — | — | — | — |
 | Recharged Yellow | 1.8.0, 1.9.0, 1.9.4, 1.9.7 | ✅ | ✅ | ✅ | ✅ | — | — | ✅ | ✅ | ✅ | ✅ | — |
 | SoulGold | 1.1.4, 1.2 (3 builds) | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ◐ ⁶ | — | ✅ | ✅ |
 | Super Mariomon | 1.2.1-1.3, 1.5.1, 1.5.2 | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | ✅ | ✅ | — |
@@ -45,8 +54,11 @@ change to any of the places listed under "Where it's decided" updates its rows h
 | Ultra Violet | 1.22 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
 | Unbound | 2.1.1.1, 2.1.1.1 French | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
-1. Yellow's battle controls steer from the cursor they read off the screen (`readGen1BattleInput`), not from
-   addresses on a config.
+1. Yellow's and Crystal's battle controls steer from the cursor they read off the screen (`readGen1BattleInput`,
+   `readGen2BattleInput`: the menu's own cursor variables, checked against the filled ▶ on screen), not from addresses
+   on a config. Crystal's were run headless with the controls' own timing: a move used, RUN taken; Crystal Clear keeps
+   Crystal's menus and their variables at Crystal's addresses, run the same way in both of its versions; so does Prism
+   (its words mixed case: Fight / PkMn / Pack / Run), run the same way in a wild battle.
 2. Spanish FireRed's port copies English rev 1's config, cursors included. Its battle RAM matches English byte for
    byte (gBattleStruct 0x02023FE8, gEnemyParty 0x0202402C, the cursors sit between them), but it was never checked
    headless.
@@ -62,6 +74,17 @@ change to any of the places listed under "Where it's decided" updates its rows h
    ids it falls back on are Hoenn's / Kanto's), so it may hold B on one.
 7. Glazed's first region only (Tunod, in Hoenn's map slots: Emerald's tables fly there); its Johto isn't in the
    table.
+8. The Game Boy games' switch drives their own party menus (`GbPartySwitch.kt`: Yellow's HandleMenuInput list, Crystal's
+   _2DMenu with its CANCEL row, the SWITCH / STATS / CANCEL menu after a pick, none after a faint) and finds the Pokémon
+   by species, OT ID and DVs (no personality in those games). Run headless through the real controller and readers
+   against the running game: English Yellow and all four European ones (a switch from PkMn; English and German after
+   a faint too, the one already out refused before a press), Crystal rev 1 (from PKMN, from inside its SWITCH menu,
+   after a faint), Crystal Clear 2.6.0 and Prism (from the menu and after a faint). Crystal rev 0 / AU and Crystal
+   Clear 2.5.11 share that RAM and code; Prism takes a menu press only if it spans two frames, so every switch press
+   does.
+9. Should work, not run on this hack yet: it is FireRed rev 0's code edited in place (Rocket Edition, Ash Gray) or a
+   CFRU hack (GS Chronicles), and the tables these columns use are FireRed rev 0's / the CFRU hacks', each checked on
+   other games.
 
 ## What each column is
 
@@ -70,7 +93,8 @@ change to any of the places listed under "Where it's decided" updates its rows h
   (`BattleInputController`). Without them the battle panes are information only.
 - **One-press picks**: a FIGHT / move tap writes the menu's cursor and presses A once (GitHub #33). Without it a tap
   walks the cursor blind, 46-90 frames a tap (the "taps take a while" report).
-- **POKéMON switch**: the battle POKéMON pane switches the tapped party slot in (the closed loop on gPartyMenu).
+- **POKéMON switch**: the battle POKéMON pane switches the tapped party slot in (the closed loop on gPartyMenu, or on
+  a Game Boy game's own party menu).
 - **Field items**: ITEMS' USE (Repels, medicine, PP items) and GIVE / TAKE on a Pokémon (`FieldItems.kt`).
 - **FLY**: the MAP tab's FLY button (`Fly.kt`).
 - **Trainer card**: the CARD tab (`TrainerCard.kt`).
@@ -94,10 +118,14 @@ change to any of the places listed under "Where it's decided" updates its rows h
 - **One-press picks**: `NativeConfig.actionCursor` / `moveCursor`, handed out only for a hash-verified ROM
   (`TelemetrySampler.knownCursorAddrs`). Configs made with `.copy()` inherit them: zero them where the RAM moved.
 - **POKéMON switch**: `PokeDaisyActivity.switchAddrsFor` (by `GameKind`, game code and revision), or
-  `NativeConfig.partyMenu` for the games it reads from their config (SoulGold, Recharged Yellow, Super Mariomon, the
-  FireRed / LeafGreen ports).
-- **Field items**: `fieldItemsForGame` in `FieldItems.kt` (retail tables + `FieldItemsPortsGen.kt`), each gated on
-  its functions' code CRCs at run time.
+  `NativeConfig.partyMenu` for the games it reads from their config (SoulGold, Recharged Yellow, Recharged Emerald, Super
+  Mariomon, the FireRed / LeafGreen ports); the Game Boy games through `TelemetrySampler.gbPartySwitch` (Yellow in every
+  language, the Crystal family), with their addresses on `Gen1Config` / `Gen2Config` (`partyMenuType` /
+  `playerMonNumber`, `partyMenuAction` / `curBattleMon`).
+- **Field items**: `fieldItemsForGame` in `FieldItems.kt` (retail tables + `FieldItemsPortsGen.kt`), or the config's
+  own `NativeConfig.fieldItems` for a rebuild that shares retail's game code (Recharged Emerald:
+  `FieldItemsRechargedEmeraldGen.kt` from `scripts/find_field_items_recharged_emerald.py`), each gated on its
+  functions' code CRCs at run time.
 - **FLY**: `FieldItemFns.fly`: the English FireRed rev 1, LeafGreen and Emerald tables, `FieldItemsPortsGen.kt`'s
   (`scripts/port_field_items.py`, FireRed rev 0 from rev 1) and the hacks using FireRed rev 0's (the 16-bit map
   section ones through `GET_MAPSEC_TYPE_U16`). Flown headless (party slot 0 given the move with SetMonData, the

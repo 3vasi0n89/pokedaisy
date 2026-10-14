@@ -53,10 +53,9 @@ clean: ## gradle clean
 
 ##@ Checks (what CI runs)
 
-check: ## Everything a PR must pass: unit tests, translations, ui-preview render + stress, docs, debug build
+check: ## Everything a PR must pass: unit tests, translations, ui-preview stress + docs search, docs, debug build
 	python3 scripts/check_translations.py
 	./gradlew :app:testDebugUnitTest :app:assembleDebug
-	./gradlew -p ui-preview render
 	./gradlew -p ui-preview stress
 	./gradlew -p ui-preview docsSearchCheck
 	cd website && npm ci && node --test test/docs.test.js test/docsearch.test.js && npm run build

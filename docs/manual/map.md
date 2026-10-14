@@ -37,7 +37,9 @@ Pick one and the map shows it with the cursor on it. This is the quickest way to
 
 ## More than one map
 
-Some games have more than one map. In FireRed and LeafGreen, for example, the Sevii Islands are on maps of their own. Those games get a region button next to `PLACES`, named after the next map (`SEVII 1-3`, `SEVII 4-5`, `SEVII 6-7`, back to `KANTO`); in other games the maps are numbered. Tap it to flip through them. When you're on another map than the one shown, `ME` brings you home.
+Some games have more than one map. In FireRed and LeafGreen, for example, the Sevii Islands are on maps of their own. Those games get a region button next to `PLACES`, named after the next map (`SEVII 1-3`, `SEVII 4-5`, `SEVII 6-7`, back to `KANTO`); Crystal's and Crystal Clear's are `JOHTO` and `KANTO`; Prism has six, `NALJO`, `RIJON`, `JOHTO`, `KANTO`, `SEVII` and `TUNOD`; in other games the maps are numbered. Tap it to flip through them. When you're on another map than the one shown, `ME` brings you home.
+
+In Crystal Clear you design your own character, and in Prism you pick one of six, so the map doesn't draw you: the cursor and the place name still show where you are.
 
 In the `PLACES` list, places that aren't on the first map say which map they're on.
 
@@ -54,7 +56,7 @@ It works in FireRed, LeafGreen, Emerald, Ruby and Sapphire in every language and
 No game art comes with PokeDaisy. The map picture is rebuilt from your own ROM, once, the first time you play a game, and kept after that. So the very first time, the map can take a moment to appear.
 
 - **FireRed, LeafGreen, Emerald, Ruby and Sapphire** use their region's own map.
-- **Many hacks** have their own region drawn into the ROM, and get it: Unbound, Radical Red, Gaia, Odyssey and other FireRed-based hacks, plus hacks like Lazarus, SoulGold, Heart and Soul, Glazed and Quetzal.
+- **Many hacks** have their own region drawn into the ROM, and get it: Unbound, Radical Red, Gaia, Odyssey and other FireRed-based hacks, plus hacks like Lazarus, SoulGold, Heart and Soul, Glazed and Quetzal. Quetzal Alpha 0.8.4 (and Moemon Quetzal) is Hoenn only and shows the Hoenn map.
 - **Hacks that kept the original map** use FireRed's or Emerald's.
 
 When there's no picture for a game (or for the area you're in), the tab shows the place's name and your position as text instead.

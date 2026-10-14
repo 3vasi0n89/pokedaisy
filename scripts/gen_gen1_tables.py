@@ -3,9 +3,15 @@
 straight from the ROM the user owns (nothing is downloaded):
 
     scripts/gen_gen1_tables.py yellow <rom.gb>
+    scripts/gen_gen1_tables.py yellow_de|yellow_fr|yellow_it|yellow_es <rom.gb>
 
 Writes app/src/main/kotlin/.../companion/data/{SpeciesNames,SpeciesTypes,MoveData,
-ItemNames,TypeChart,MapSecData,Gen1Species}<Suffix>.kt.
+ItemNames,TypeChart,MapSecData,Gen1Species}<Suffix>.kt; for the German, French, Italian and
+Spanish carts, only their names (YellowText<Lang>Gen.kt): their species ids, types, moves' types
+and powers, base stats and type chart are English's byte for byte (checked here), their map ids too.
+The European carts' addresses come from scripts/port_gen1.py (English's code, matched in theirs),
+each checked by its contents below; they print with a European character set of their own
+(German / French, Italian / Spanish: read off each cart's FontGraphics).
 
 Addresses (bank:address) are pret/pokeyellow's symbols: its `make` output is
 byte-identical to the retail ROM (sha1 cc7d0326...), so pokeyellow.sym names
@@ -43,6 +49,34 @@ GAMES = {
                     items={1: "MASTER BALL", 4: "POKé BALL", 20: "POTION", 0xC9: "TM01", 0xC4: "HM01"},
                     maps={0: "PALLET TOWN", 1: "VIRIDIAN CITY", 0x0C: "ROUTE 1"}),
     ),
+    # The European carts: English's code, their own text. Addresses from scripts/port_gen1.py, checked by contents.
+    **{f"yellow_{lang}": dict(
+        suffix=f"Yellow{lang.title()}", label=label, sha1=sha1, names_only=True, charset=cs, machine_prefixes=pre,
+        monster_names=(0x3A, 0x4000), name_len=10, internal_count=190,
+        pokedex_order=(0x10, order), base_stats=(0x0E, 0x43DE), base_stats_size=28, dex_count=151,
+        moves=(0x0E, 0x4000), move_count=165, move_names=(0x2F, 0x4000),
+        item_names=(0x01, 0x45B8), item_count=0x61,
+        type_effects=(0x0F, effects),
+        external_maps=(0x1C, ext), internal_maps=(0x1C, intl), first_indoor_map=0x25, map_count=0xF8,
+        checks=checks)
+       for lang, label, sha1, cs, pre, order, effects, ext, intl, checks in [
+        ("de", "Pokemon - Gelbe Edition (Germany)", "42f3714eec6eca25200d42461ff08d57c98f6d1d", "DF", ("TM", "VM"),
+         0x5023, 0x6609, 0x5399, 0x5408,
+         dict(species={1: "BISASAM", 25: "PIKACHU", 150: "MEWTU"}, moves={85: "DONNERBLITZ"},
+              items={1: "MEISTERBALL", 4: "POKéBALL", 20: "TRANK"}, maps={0: "ALABASTIA", 0x0C: "ROUTE 1"})),
+        ("fr", "Pokemon - Version Jaune (France)", "0aceec0ef7aa2ca5aa831554598d91f61a925591", "DF", ("CT", "CS"),
+         0x5036, 0x6610, 0x53A0, 0x540F,
+         dict(species={1: "BULBIZARRE", 25: "PIKACHU", 150: "MEWTWO"}, moves={85: "TONNERRE"},
+              items={1: "MASTER BALL", 4: "POKé BALL", 20: "POTION"}, maps={0: "BOURG PALETTE", 0x0C: "ROUTE 1"})),
+        ("it", "Pokemon - Versione Gialla (Italy)", "05bb8e99f24d498613930949730afa8024e77d08", "IS", ("MT", "MN"),
+         0x5043, 0x660C, 0x539C, 0x540B,
+         dict(species={1: "BULBASAUR", 25: "PIKACHU"}, moves={85: "FULMINE"},
+              items={1: "MASTER BALL", 4: "POKé BALL", 20: "POZIONE"}, maps={0: "BIANCAVILLA", 0x0C: "PERCORSO 1"})),
+        ("es", "Pokemon - Edicion Amarilla (Spain)", "1dc242039218fba50928d1afb66b70565b6b9daf", "IS", ("MT", "MO"),
+         0x5041, 0x660A, 0x539F, 0x540E,
+         dict(species={1: "BULBASAUR", 25: "PIKACHU"}, moves={85: "RAYO"},
+              items={1: "MASTER BALL", 4: "POKé BALL", 20: "POCIÓN"}, maps={0: "PUEBLO PALETA", 0x0C: "RUTA 1"})),
+    ]},
 }
 
 CHARS = {0x7F: " ", 0xBA: "é", 0xE0: "'", 0xE3: "-", 0xE6: "?", 0xE7: "!", 0xE8: ".", 0xEF: "♂", 0xF5: "♀",
@@ -53,10 +87,22 @@ CHARS.update({0x80 + i: chr(65 + i) for i in range(26)})
 CHARS.update({0xA0 + i: chr(97 + i) for i in range(26)})
 CHARS.update({0xF6 + i: str(i) for i in range(10)})
 
+# The European carts drop English's 'd 'l 's 't 'v ligatures at 0xBB-0xBF for accented letters
+# (FontGraphics tiles 0xBA-0xDF, read off each cart's font).
+_EU = {k: v for k, v in CHARS.items() if not 0xBA <= k <= 0xBF and k not in (0xE4, 0xE5)}
+CHARSETS = {
+    "EN": CHARS,
+    "DF": {**_EU, **dict(zip(range(0xBA, 0xCD), "àèéùßçÄÖÜäöüëïâôûêî")), 0xE4: "+",
+           **dict(zip(range(0xD4, 0xE0), ["c'", "d'", "j'", "l'", "m'", "n'", "p'", "s'", "'s", "t'", "u'", "y'"]))},
+    "IS": {**_EU, **dict(zip(range(0xBA, 0xD8), "àèéùÀÁÄÖÜäöüÈÉÌÍÑÒÓÙÚáìíñòóúº&")), 0xE4: "¿", 0xE5: "¡",
+           **dict(zip(range(0xD8, 0xDF), ["'d", "'l", "'m", "'r", "'s", "'t", "'v"]))},
+}
+
 
 class Rom:
-    def __init__(self, data):
+    def __init__(self, data, chars=CHARS):
         self.d = data
+        self.chars = chars
 
     @staticmethod
     def off(bank, addr):
@@ -71,9 +117,9 @@ class Rom:
         for b in self.d[o:o + maxlen]:
             if b == 0x50:
                 return "".join(out)
-            if b not in CHARS:
+            if b not in self.chars:
                 raise ValueError(f"unknown char {b:02X} at {bank:02X}:{addr:04X}")
-            out.append(CHARS[b])
+            out.append(self.chars[b])
         raise ValueError(f"unterminated text at {bank:02X}:{addr:04X}")
 
     def text_list(self, bank, addr, count):
@@ -105,12 +151,16 @@ def kmap(name, typ, items):
 
 
 def main():
-    if len(sys.argv) != 3 or sys.argv[1] not in GAMES:
-        sys.exit(f"usage: {sys.argv[0]} <{'|'.join(GAMES)}> <rom.gb>")
+    if len(sys.argv) < 3 or sys.argv[1] not in GAMES:
+        sys.exit(__doc__)
     g = GAMES[sys.argv[1]]
     data = open(sys.argv[2], "rb").read()
     if hashlib.sha1(data).hexdigest() != g["sha1"]:
         sys.exit(f"{sys.argv[2]} isn't {g['label']} (sha1 {g['sha1'][:8]}...)")
+    if g.get("names_only"):
+        if len(sys.argv) != 4:
+            sys.exit(f"usage: {sys.argv[0]} {sys.argv[1]} <rom.gb> <english yellow.gb>")
+        return names_only(g, data, open(sys.argv[3], "rb").read())
     rom = Rom(data)
     sfx, c = g["suffix"], g["checks"]
     head = (f"// GENERATED by scripts/gen_gen1_tables.py from the {g['label']} ROM\n"
@@ -126,7 +176,7 @@ def main():
         if dex == 0:
             continue  # MISSINGNO. slots
         raw = data[rom.off(mb, ma + (idx - 1) * g["name_len"]):][:g["name_len"]]
-        names[dex] = "".join(CHARS[b] for b in raw.split(b"\x50")[0])
+        names[dex] = "".join(rom.chars[b] for b in raw.split(b"\x50")[0])
     bb, ba = g["base_stats"]
     types = {}
     for dex in range(1, g["dex_count"] + 1):
@@ -230,6 +280,74 @@ def main():
           "// (regionmap/yellow.png, which Gen1Art rebuilds from the ROM).\n",
           kmap(f"mapSecData{sfx}", "MapSecInfo", [(k, f"MapSecInfo({kstr(n)}, 0, {x + 2}, {y + 1}, 1, 1)") for k, (n, x, y) in sorted(maps.items())]))
     print(f"{len(names)} species, {len(moves)} moves, {len(items)} items, {len(type_names)} types, {len(maps)} maps")
+
+
+def names_only(g, data, en):
+    """A European cart: its names over English's tables, after checking those tables are English's bytes."""
+    e = GAMES["yellow"]
+    if hashlib.sha1(en).hexdigest() != e["sha1"]:
+        sys.exit(f"the English cart isn't {e['label']}")
+    rom, eng = Rom(data, CHARSETS[g["charset"]]), Rom(en)
+    for what, n in (("pokedex_order", g["internal_count"]), ("base_stats", 28 * 151), ("moves", 6 * 165), ("type_effects", 3 * 82)):
+        (b, a), (eb, ea) = g[what], e[what]
+        assert data[rom.off(b, a):][:n] == en[eng.off(eb, ea):][:n], f"{what} isn't English's"
+    ob, oa = g["pokedex_order"]
+    internal_to_dex = [0] + [rom.u8(ob, oa + i) for i in range(g["internal_count"])]
+    mb, ma = g["monster_names"]
+    species = {}
+    for idx in range(1, g["internal_count"] + 1):
+        dex = internal_to_dex[idx]
+        if dex:
+            raw = data[rom.off(mb, ma + (idx - 1) * g["name_len"]):][:g["name_len"]]
+            species[dex] = "".join(rom.chars[b] for b in raw.split(b"\x50")[0])
+    nb, na = g["move_names"]
+    moves = {i + 1: n for i, n in enumerate(rom.text_list(nb, na, g["move_count"]))}
+    ib, ia = g["item_names"]
+    items = {i + 1: n for i, n in enumerate(rom.text_list(ib, ia, g["item_count"]))}
+    tm, hm = g["machine_prefixes"]
+    items.update({0xC4 + i: f"{hm}{i + 1:02d}" for i in range(5)})
+    items.update({0xC9 + i: f"{tm}{i + 1:02d}" for i in range(50)})
+    # The prefixes as the game's GetMachineName writes them (two letters, no terminator, in bank 0).
+    pre = bytes(0x80 + ord(c) - 65 for c in tm + hm)
+    assert data[:0x4000].count(pre) == 1, "machine prefixes"
+    xb, xa = g["external_maps"]
+    ib2, ia2 = g["internal_maps"]
+    internal, o = [], rom.off(ib2, ia2)
+    while data[o] != 0xFF:
+        internal.append((data[o], data[o + 1], struct.unpack_from("<H", data, o + 2)[0]))
+        o += 4
+    # The town map cells must be English's: the app's map boxes are English's (mapSecDataYellow).
+    eint, o = [], eng.off(*e["internal_maps"])
+    while en[o] != 0xFF:
+        eint.append(en[o:o + 2])
+        o += 4
+    assert [bytes(x[:2]) for x in internal] == eint, "internal map entries"
+    maps = {}
+    for m in range(g["map_count"]):
+        if m < g["first_indoor_map"]:
+            o = rom.off(xb, xa + 3 * m)
+            assert data[o] == en[eng.off(*e["external_maps"]) + 3 * m], f"map {m}'s cell"
+            p = struct.unpack_from("<H", data, o + 1)[0]
+        else:
+            entry = next((x for x in internal if m < x[0]), None)
+            if entry is None:
+                continue
+            p = entry[2]
+        maps[m] = rom.text(xb, p)
+    c = g["checks"]
+    for what, got in (("species", species), ("moves", moves), ("items", items), ("maps", maps)):
+        for k, v in c[what].items():
+            assert got[k] == v, f"{what} {k}: {got[k]!r} != {v!r}"
+    head = (f"// GENERATED by scripts/gen_gen1_tables.py from the {g['label']} ROM\n"
+            f"// (sha1 {g['sha1'][:8]}...) - do not hand-edit. Its names over English Yellow's tables, by the same\n"
+            "// ids (Dex number, move id, item id, map id); everything else is English's byte for byte.\n")
+    sfx = g["suffix"]
+    write(f"YellowText{sfx[6:]}Gen.kt", head,
+          kmap(f"speciesNames{sfx}", "String", [(k, kstr(v)) for k, v in sorted(species.items())]) + "\n" +
+          kmap(f"moveNames{sfx}", "String", [(k, kstr(v)) for k, v in sorted(moves.items())]) + "\n" +
+          kmap(f"itemNames{sfx}", "String", [(k, kstr(v)) for k, v in sorted(items.items())]) + "\n" +
+          kmap(f"mapNames{sfx}", "String", [(k, kstr(v)) for k, v in sorted(maps.items())]))
+    print(f"{len(species)} species, {len(moves)} moves, {len(items)} items, {len(maps)} maps")
 
 
 if __name__ == "__main__":

@@ -106,6 +106,9 @@ data class NativeConfig(
     // SaveBlock1 offset of `pos` (mapGroup/mapNum follow at +4/+5). Heart and
     // Soul puts 4 extra bytes at the start of SaveBlock1, so it's 4 there.
     val saveBlock1PosOff: Long = 0,
+    // SaveBlock2 offset of playerGender (after the 8-byte name). Recharged Emerald Rebalanced puts 4 bytes in front
+    // of SaveBlock2's fields (and SaveBlock1's: [saveBlock1PosOff]), so it's 0xC there.
+    val playerGenderOff: Long = 8,
     // SaveBlock1 offset of `money` (XOR SaveBlock2.encryptionKey, like bag
     // quantities); -1 = not known for this game, so no money is shown.
     val moneyOff: Long = -1,
@@ -129,6 +132,9 @@ data class NativeConfig(
     // gPartyMenu, for the battle POKéMON pane's switch where the activity takes
     // it from the config (SoulGold's releases); 0 = not here.
     val partyMenu: Long = 0,
+    // USE / GIVE / TAKE's functions (FieldItems.kt) for a build with no retail code to key them on (Recharged
+    // Emerald's gcc rebuilds); null = by game kind and header code (fieldItemsForGame).
+    val fieldItems: FieldItemFns? = null,
     // gEnemyParty (6 encrypted Pokémon structs, like gPlayerParty) for the
     // battle's FOE TEAM; 0 = not known for this game.
     val enemyParty: Long = 0,
@@ -166,6 +172,8 @@ data class NativeConfig(
     // Quetzal's IDIOMA options pick each kind of name's language from the save ([readQuetzalNames]);
     // this is LUGARES' default when unset - its release's language (0 English, 1 Spanish). -1 = no such options.
     val quetzalPlacesDefault: Int = -1,
+    // Quetzal Alpha 0.8.4 (ActiveTables' quetzalV084): Hoenn on Emerald's map, its map names in one language, its moves.
+    val quetzalV084: Boolean = false,
 ) {
     val gMainInBattle get() = gMain + inBattleOff
     val gMainVblankCtr get() = gMain + 0x24
@@ -1717,6 +1725,7 @@ val NATIVE_QUETZAL = NATIVE_EMERALD.copy(
     completeWhenChoseItem = 0x0808EC05L,
     waitForMonSelection = 0x0808EB4DL,
     handleInputChooseTarget = 0x0808C18DL,
+    partyMenu = 0x0203E9FCL,
     eggSpecies = 1529,
     monIconTable = 0x091CFB80L,
     monIconPaletteIndices = 0x091D1DDCL,
@@ -1757,6 +1766,106 @@ val NATIVE_QUETZAL_ES = NATIVE_QUETZAL.copy(
     quetzalPlacesDefault = 1,
 )
 
+/** Quetzal 0.8.4's 11 bag pockets (its bag screen's tabs: ITEMS, MEDICINE, POKé BALLS, BERRIES, TRAINING, EVO / FORMS,
+ * BATTLE ITEMS, MEGA STONES, Z CRYSTALS, TERA SHARDS, KEY ITEMS - gItems' +0x12 pocket, 1-based). TMs aren't in it. */
+val QUETZAL_V084_BAG_POCKET_ORDER = listOf(
+    POCKET_ITEMS, POCKET_ITEMS, POCKET_POKE_BALLS, POCKET_BERRIES, POCKET_ITEMS, POCKET_ITEMS,
+    POCKET_ITEMS, POCKET_ITEMS, POCKET_ITEMS, POCKET_ITEMS, POCKET_KEY_ITEMS,
+)
+
+// Pokémon Quetzal English Alpha 0.8.4 (sha1 6806c714…) - the release before Alpha 9: the same engine with Hoenn alone
+// (34 map groups to Alpha 9's 40), so Emerald's region map and vanilla's gRegionMapEntries (one language a build), and
+// vanilla's bag: gBagPockets' 11 pockets of {itemId, quantity ^ key} in SaveBlock1 (no BAG3 stream). Its species and
+// items are Alpha 9's first 1520 / 879 (1520 is its egg), its names tables (every language) Alpha 9's, 16 moves have
+// other powers (scripts/gen_quetzal_tables.py --v084). No 0.8.4 save: Spanish Alpha 9's loads in it (the English
+// saves stand in Kanto / Johto and fade to black) - with its party, money, map and dex as they were, its bag read as
+// 0.8.4's slots (the game's own bag screen shows the same: Great Ball x9999 x3 ...). From headless captures of it
+// (`quetzal_084`, a walk, `quetzal_084_battle`), every address also English Alpha 9's literal pools mapped into its
+// code (scripts/port_retail.py's matching) and stable across the three:
+//   - gPlayerParty / Count Alpha 9's (0x020235CC / 0x020235C9); gMain 0x030023C0 (its vblank counter moving);
+//     gSaveBlock1Ptr / 2Ptr 0x0300531C / 0x03005320 (moving on every load; SaveBlock1 Alpha 9's, money +0x918, pos
+//     +0x470); gMapHeader 0x02038CAC, gObjectEvents 0x02038CE4 (the player's at pos + 7).
+//   - gBagPockets 0x0203B904 (11 x {slots*, capacity}: 130 / 60 / 40 / 70 / 70 / 120 / 120 / 160 / 40 / 30 / 80).
+//   - Battle: Alpha 9's EWRAM (gBattleTypeFlags .. gEnemyParty, the cursors); gBattlerControllerFuncs 0x030052E0,
+//     action / move / bag / party 0x08087FED / 0x08088C61 / 0x0808AE95 / 0x0808ADDD (each seen there), the target
+//     handler by its code. Cursors checked headless: RIGHT / DOWN walk 0 -> 1 -> 3, a written 2 + A opens the party
+//     menu, 1 + A the bag, a written move 1 + A spent its PP; gPartyMenu 0x0203EA08 (a list: DOWN walks slotId 0 -> 1,
+//     A, SHIFT sent slot 1 in).
+//   - ROM: its GF header's tables (species / move names, gSpeciesInfo, gItems, gBattleMoves, pics, icons), the rest
+//     through the literal pools, each checked against Alpha 9's bytes.
+val NATIVE_QUETZAL_V084 = NATIVE_QUETZAL.copy(
+    itemDescs = ItemDescTable(0x08F95224L, 0x1C, 0x0C),
+    gMain = 0x030023C0L,
+    saveBlock1Ptr = 0x0300531CL,
+    saveBlock2Ptr = 0x03005320L,
+    objectEvents = 0x02038CE4L,
+    mapHeader = 0x02038CACL,
+    bagPockets = 0x0203B904L,
+    bagPocketCount = 11,
+    bagPocketOrder = QUETZAL_V084_BAG_POCKET_ORDER,
+    bag3 = null,
+    battlerControllerFuncs = 0x030052E0L,
+    handleInputChooseAction = 0x08087FEDL,
+    handleInputChooseMove = 0x08088C61L,
+    completeWhenChoseItem = 0x0808AE95L,
+    waitForMonSelection = 0x0808ADDDL,
+    handleInputChooseTarget = 0x08088435L,
+    partyMenu = 0x0203EA08L,
+    eggSpecies = 1520,
+    monIconTable = 0x08F84C54L,
+    monIconPaletteIndices = 0x08F86E8CL,
+    monIconPaletteTable = 0x08F8771CL,
+    itemIconTable = 0x09060C70L,
+    pokedex = POKEDEX_QUETZAL_V084,
+    guideTables = GUIDE_TABLES_QUETZAL_V084,
+    altMapSecGroups = null,
+    quetzalV084 = true,
+)
+
+// Pokémon Quetzal Spanish Alpha 0.8.4 (sha1 b6542c7d…): English 0.8.4's RAM (the same literal pools, the same three
+// captures' checks: `quetzal_es_084`, `quetzal_es_084_battle`), its handlers 0x24 earlier (as Alpha 9 Spanish's are),
+// its ROM tables at its own addresses; its map names are Spanish.
+val NATIVE_QUETZAL_V084_ES = NATIVE_QUETZAL_V084.copy(
+    itemDescs = ItemDescTable(0x08F94944L, 0x1C, 0x0C),
+    handleInputChooseAction = 0x08087FC9L,
+    handleInputChooseMove = 0x08088C3DL,
+    completeWhenChoseItem = 0x0808AE71L,
+    waitForMonSelection = 0x0808ADB9L,
+    handleInputChooseTarget = 0x08088411L,
+    monIconTable = 0x08F84988L,
+    monIconPaletteIndices = 0x08F86BC0L,
+    monIconPaletteTable = 0x08F87450L,
+    itemIconTable = 0x09061844L,
+    pokedex = POKEDEX_QUETZAL_V084_ES,
+    guideTables = GUIDE_TABLES_QUETZAL_V084_ES,
+    language = 'S',
+    quetzalPlacesDefault = 1,
+)
+
+// Moemon Quetzal English / Spanish Alpha 0.8.4 Hotfix (sha1 f1035f61… / ae5d88bb…): the 0.8.4 builds with other
+// Pokémon pictures - the same code (its battle handlers at the same addresses, each seen in its own captures:
+// `quetzal_moemon_084`, `quetzal_moemon_es_084` and their `_battle`s), RAM and names tables; only where the ROM keeps
+// its tables moved. Its pictures are read from the player's ROM like every game's, never bundled.
+val NATIVE_QUETZAL_MOEMON_V084 = NATIVE_QUETZAL_V084.copy(
+    itemDescs = ItemDescTable(0x08F95208L, 0x1C, 0x0C),
+    monIconTable = 0x08F84C38L,
+    monIconPaletteIndices = 0x08F86E70L,
+    monIconPaletteTable = 0x08F87700L,
+    itemIconTable = 0x09060C54L,
+    pokedex = POKEDEX_QUETZAL_MOEMON_V084,
+    guideTables = GUIDE_TABLES_QUETZAL_MOEMON_V084,
+)
+
+val NATIVE_QUETZAL_MOEMON_V084_ES = NATIVE_QUETZAL_V084_ES.copy(
+    itemDescs = ItemDescTable(0x08F94928L, 0x1C, 0x0C),
+    monIconTable = 0x08F8496CL,
+    monIconPaletteIndices = 0x08F86BA4L,
+    monIconPaletteTable = 0x08F87434L,
+    itemIconTable = 0x09061828L,
+    pokedex = POKEDEX_QUETZAL_MOEMON_V084_ES,
+    guideTables = GUIDE_TABLES_QUETZAL_MOEMON_V084_ES,
+)
+
 /** Quetzal's IDIOMA options: the language each kind of name is shown in ([quetzalNames]):
  * 0 English, 1 Spanish, 2 Latin American Spanish (3, Portuguese, reads as English). */
 data class QuetzalNames(val species: Int = 0, val moves: Int = 0, val items: Int = 0, val places: Int = 0)
@@ -1780,7 +1889,8 @@ fun readQuetzalNames(c: MemoryReader, cfg: NativeConfig): QuetzalNames {
         species = if (((b[0].toInt() ushr 5) and 7) in 1..2) 1 else 0,
         moves = lang(b[1].toInt() and 7),
         items = lang((b[2].toInt() ushr 3) and 7),
-        places = if (p in 1..4) lang(p - 1) else cfg.quetzalPlacesDefault,
+        // 0.8.4 has no LUGARES option: its map names are its build's language (gRegionMapEntries holds one).
+        places = if (p in 1..4 && !cfg.quetzalV084) lang(p - 1) else cfg.quetzalPlacesDefault,
     )
 }
 
@@ -1881,7 +1991,7 @@ val NATIVE_ORANGE_ISLANDS = NATIVE_FIRERED_REV0.copy(
 // (`ultra_violet`: CHARMANDER Lv6 10/21, SCRATCH / GROWL, POTION, ₽3080 in PALLET TOWN)
 // decodes with rev 0's addresses. It moved gWildMonHeaders (0x087339C0) and gMapGroups
 // (0x0872AF04) for its new maps, and renamed a few things (GameKind.FIRERED with
-// ActiveTables' ultraViolet: UltraVioletGen.kt). Its region map is FireRed's byte for byte.
+// ActiveTables' fireRedHack: UltraVioletGen.kt). Its region map is FireRed's byte for byte.
 val NATIVE_ULTRA_VIOLET = NATIVE_FIRERED_REV0.copy(
     // FireRed's battle menu cursors (retail rev 0's EWRAM), checked headless like Unbound's: RIGHT / DOWN walk
     // 0 -> 1 -> 3, a written 2 + A opens the party menu, a written move 1 + A spends its PP.
@@ -1893,6 +2003,28 @@ val NATIVE_ULTRA_VIOLET = NATIVE_FIRERED_REV0.copy(
     battlerPartyIndexes = NATIVE_FIRERED_REV1.battlerPartyIndexes,
     battleStructPtr = NATIVE_FIRERED_REV1.battleStructPtr,
     monToSwitchIntoOff = NATIVE_FIRERED_REV1.monToSwitchIntoOff,
+)
+
+// Pokémon FireRed Rocket Edition (16 MB, BPRE rev 0, sha1 033d0537…): FireRed 1.0 edited in place, no
+// source. Every literal pool the config points through still names rev 0's address but for the moves
+// (gMoveNames 0x08901800 / gBattleMoves 0x08900000: 132 added), gTypeNames / gTypeEffectiveness (a FAIRY
+// type, 23) and its ability names (0x08950000) - and retail FireRed's save loads in it (it keeps the
+// SaveBlocks): the headless capture (`rocket_edition`) decodes with rev 0's addresses. GameKind.FIRERED
+// with ActiveTables' fireRedHack (RocketEditionGen.kt, gen_firered_hack_tables.py); FireRed's region map.
+val NATIVE_ROCKET_EDITION = NATIVE_ULTRA_VIOLET.copy(
+    pokedex = POKEDEX_ROCKET_EDITION,
+    guideTables = GUIDE_TABLES_ROCKET_EDITION,
+)
+
+// Pokémon Ash Gray v4.5.3 (16 MB, BPRE rev 0, sha1 1ee1557d…; its Fork Bug Fix v1.0 build, 92ed8214…,
+// differs in 493 bytes of scripts and shares this): FireRed 1.0 edited in place, no source. Its tables
+// sit at rev 0's addresses, edited in place, but for gWildMonHeaders (0x088CD1F8), gMapGroups (0x0873E2F4)
+// and its region map's art (its own Kanto and Orange Islands: RomRegionMap); retail FireRed's save loads
+// in both builds (`ash_gray`, `ash_gray_fork`). GameKind.FIRERED with ActiveTables' fireRedHack
+// (AshGrayGen.kt, gen_firered_hack_tables.py).
+val NATIVE_ASH_GRAY = NATIVE_ULTRA_VIOLET.copy(
+    pokedex = POKEDEX_ULTRA_VIOLET,
+    guideTables = GUIDE_TABLES_ASH_GRAY,
 )
 
 // Pokémon Sword and Shield Ultimate Plus v1.2.1.2 (32 MB, sha1 afe4c8e0…): Galar on CFRU, so
@@ -1915,6 +2047,28 @@ val NATIVE_SWORD_SHIELD = NATIVE_FIRERED_REV0.copy(
     // Battle (headless, a scripted wild WOOLOO: `sword_shield_up_battle`): rev 0's battle RAM and
     // BattlePokemon hold, gEnemyParty holds the WOOLOO, and rev 0's action handler is what
     // gBattlerControllerFuncs points at while the action menu waits (CFRU patched it in place).
+    enemyParty = NATIVE_FIRERED_REV1.enemyParty,
+    battlerPartyIndexes = NATIVE_FIRERED_REV1.battlerPartyIndexes,
+    battleStructPtr = NATIVE_FIRERED_REV1.battleStructPtr,
+    monToSwitchIntoOff = NATIVE_FIRERED_REV1.monToSwitchIntoOff,
+)
+
+// Pokémon GS Chronicles v2.7.6 (Ruki Studios; 32 MB, sha1 25f8840e…): Johto and Kanto on CFRU,
+// FireRed 1.0's code and RAM with its data repointed. Every RAM global's literal-pool word is rev
+// 0's (gPlayerParty 745 of 745, gSaveBlock1Ptr 444 of 452, gMain 585 of 586, gBagPockets 15 of 15,
+// the battle globals all of theirs); the tables' words hold the hack's: gItems 0x08F70000 (indexed
+// by slot), gMonIconTable 0x097DA810, gMonIconPaletteIndices 0x097DA2EE (the palettes stay
+// vanilla's), sItemIconTable 0x08F78000. No save of the user's: the `gs_chronicles*` fixtures are
+// a new game played headless (CYNDAQUIL / TOTODILE / CHIKORITA in NEW BARK TOWN; the READMEs).
+val NATIVE_GS_CHRONICLES = NATIVE_FIRERED_REV0.copy(
+    actionCursor = 0x02023FF8L,
+    moveCursor = 0x02023FFCL,
+    itemDescs = vanillaItems(0x08F70000L),
+    monIconTable = 0x097DA810L,
+    monIconPaletteIndices = 0x097DA2EEL,
+    itemIconTable = 0x08F78000L,
+    pokedex = POKEDEX_GS_CHRONICLES,
+    guideTables = GUIDE_TABLES_GS_CHRONICLES,
     enemyParty = NATIVE_FIRERED_REV1.enemyParty,
     battlerPartyIndexes = NATIVE_FIRERED_REV1.battlerPartyIndexes,
     battleStructPtr = NATIVE_FIRERED_REV1.battleStructPtr,
@@ -2065,6 +2219,128 @@ val NATIVE_RECHARGED_YELLOW_V1_9_7 = NATIVE_RECHARGED_YELLOW_V1_9_4.copy(
     pokedex = POKEDEX_RECHARGED_YELLOW_V1_9_7,
     guideTables = GUIDE_TABLES_RECHARGED_YELLOW_V1_9_7,
     trainerCard = TRAINER_CARD_RECHARGED_YELLOW_V1_9_7,
+)
+
+// Pokémon Recharged Emerald (Jaizu; BPEE, 16 MB, sha1 67f44fb4… v2.2.5 / 56c97772… v2.2.8 / 08b9c790… Rebalanced
+// v2.2.8): Recharged Yellow's treatment of Emerald - a pokeemerald rebuild with modern gcc, no source, nothing at a
+// retail address - but Emerald's ids, gTypeEffectiveness and party / bag / region map art, so it runs as EMERALD with
+// its own names laid over (ActiveTables' emeraldHack, gen_recharged_emerald_tables.py). The user has no save of it:
+// retail Emerald's loads, but SaveBlock1 differs past the bag, so the fixtures boot it rewritten by
+// scripts/convert_save_recharged_emerald.py (`recharged_emerald*`: KADABRA Lv36 first of six on ROUTE 114).
+//   - SaveBlock1 (its GF ROM header + SetBagItemsPointers): Items 60 slots at +0x560, Key Items 50 at +0x650, Poké
+//     Balls 32 at +0x718, TMs at +0x798, Berries at +0x898, a Medicine pocket (50) at +0x366C, flags +0x1344, vars
+//     +0x1470; party +0x238, money +0x490 and SaveBlock2's key +0xAC are retail's (the money decrypts as in retail).
+//   - gSaveBlock1Ptr / 2Ptr (v2.2.5 0x030071F8, v2.2.8 0x03007214, Rebalanced 0x03007220; 922 / 760 references),
+//     gPlayerParty 0x020373C8 (Rebalanced +0x14) with its count 3 bytes before and gEnemyParty after it, gMain
+//     0x030036D4 (+0x24 counted 16 between dumps 16 frames apart), gMapHeader 0x0200C1AC (mapsec 0x1D ROUTE 114),
+//     gObjectEvents 0x020067AC (the player at pos + 7), gBagPockets 0x0200C218: six {ptr, capacity} pockets in each
+//     item's own pocket order (gItems +0x1E, 48-byte records as in Recharged Yellow) - Items, Medicine, Poké Balls,
+//     TMs, Berries, Key Items.
+//   - Battle (a scripted wild ZIGZAGOON through ScriptContext_SetupScript - v2.2.5 0x081AF031, v2.2.8 0x081B09D5,
+//     Rebalanced 0x081B0AF1, the function that loads gScriptCmdTable and sets the script pointer): Recharged
+//     Yellow's order 8 bytes lower - gBattleTypeFlags 0x020003B8, gBattlersCount 0x0200143C, gBattlerPartyIndexes
+//     0x02001440, gBattlerPositions 0x02001448, gBattleMons 0x02001458 (vanilla's 0x58 bytes), the gBattleStruct
+//     pointer 0x02001878 with the cursors +0x10 / +0x14 (RIGHT / DOWN walk 0 -> 1 -> 3, a written 2 + A opens the
+//     party menu, a written move 1 + A spent CONFUSION's PP). gBattlerControllerFuncs 0x03004468: action / move /
+//     bag / party read live in each menu; the target handler is the one the move handler's literal pool names.
+//     gPartyMenu (slotId +9 walked 0 -> 1 -> 2 with DOWN: Emerald's list); POKéMON, DOWN, A, SHIFT put party slot 1
+//     into gBattlerPartyIndexes[0].
+//   - ROM: the GF ROM header gives the icon tables, gSpeciesNames, gBaseStats and gItems; sItemIconTable is the pair
+//     table whose entry 1 points at retail's MASTER BALL icon bytes. The Pokédex / guide tables are retail's shapes,
+//     found by their bytes (Pokedex.kt, GuideRom.kt).
+//   - USE / GIVE / TAKE (`fieldItems`): FieldItemsRechargedEmeraldGen.kt, found through the game's own callers by
+//     scripts/find_field_items_recharged_emerald.py and checked headless on each build.
+// Rebalanced puts 4 bytes in front of both save blocks (its header's offsets are all 4 higher), so its SaveBlock1 /
+// SaveBlock2 fields sit 4 later; its RAM globals are v2.2.8's but for the party (+0x14) and the save-block pointers.
+private val NATIVE_RECHARGED_EMERALD = NativeConfig(
+    itemDescs = null,
+    playerParty = 0x020373C8L,
+    playerPartyCount = 0x020373C5L,
+    battleMons = 0x02001458L,
+    battlerPositions = 0x02001448L,
+    battlersCount = 0x0200143CL,
+    battleTypeFlags = 0x020003B8L,
+    gMain = 0x030036D4L,
+    saveBlock1Ptr = 0,
+    saveBlock2Ptr = 0,
+    objectEvents = 0x020067ACL,
+    mapHeader = 0x0200C1ACL,
+    bagPockets = 0x0200C218L,
+    bagPocketCount = 6,
+    // Recharged Yellow's order, Medicine folded into Items.
+    bagPocketOrder = RECHARGED_YELLOW_BAG_POCKET_ORDER,
+    encryptionKeyOff = 0xACL,
+    moneyOff = 0x490L,
+    battlerControllerFuncs = 0x03004468L,
+    enemyParty = 0x02037620L,
+    battlerPartyIndexes = 0x02001440L,
+    battleStructPtr = 0x02001878L,
+    actionCursor = 0x02001888L,
+    moveCursor = 0x0200188CL,
+    monToSwitchIntoOff = 0x5C,
+    partyMenu = 0x02037338L,
+)
+
+val NATIVE_RECHARGED_EMERALD_V2_2_5 = NATIVE_RECHARGED_EMERALD.copy(
+    itemDescs = ItemDescTable(0x088AB850L, 48, 0x18, count = RECHARGED_YELLOW_ITEMS),
+    saveBlock1Ptr = 0x030071F8L,
+    saveBlock2Ptr = 0x030071FCL,
+    monIconTable = 0x088DADD4L,
+    monIconPaletteIndices = 0x088DB4B4L,
+    monIconPaletteTable = 0x088DB66CL,
+    itemIconTable = 0x088B04D4L,
+    handleInputChooseAction = 0x080446D9L,
+    handleInputChooseMove = 0x08044C49L,
+    completeWhenChoseItem = 0x08046AE5L,
+    waitForMonSelection = 0x08046A0DL,
+    handleInputChooseTarget = 0x08044939L,
+    pokedex = POKEDEX_RECHARGED_EMERALD_V2_2_5,
+    guideTables = GUIDE_TABLES_RECHARGED_EMERALD_V2_2_5,
+    fieldItems = FIELD_ITEMS_RECHARGED_EMERALD_V2_2_5,
+)
+
+val NATIVE_RECHARGED_EMERALD_V2_2_8 = NATIVE_RECHARGED_EMERALD.copy(
+    itemDescs = ItemDescTable(0x088AD6E8L, 48, 0x18, count = RECHARGED_YELLOW_ITEMS),
+    saveBlock1Ptr = 0x03007214L,
+    saveBlock2Ptr = 0x03007218L,
+    monIconTable = 0x088DCC6CL,
+    monIconPaletteIndices = 0x088DD34CL,
+    monIconPaletteTable = 0x088DD504L,
+    itemIconTable = 0x088B236CL,
+    handleInputChooseAction = 0x080447C9L,
+    handleInputChooseMove = 0x08044D39L,
+    completeWhenChoseItem = 0x08046B49L,
+    waitForMonSelection = 0x08046A71L,
+    handleInputChooseTarget = 0x08044A21L,
+    pokedex = POKEDEX_RECHARGED_EMERALD_V2_2_8,
+    guideTables = GUIDE_TABLES_RECHARGED_EMERALD_V2_2_8,
+    fieldItems = FIELD_ITEMS_RECHARGED_EMERALD_V2_2_8,
+)
+
+val NATIVE_RECHARGED_EMERALD_REBALANCED_V2_2_8 = NATIVE_RECHARGED_EMERALD.copy(
+    itemDescs = ItemDescTable(0x088ADE28L, 48, 0x18, count = RECHARGED_YELLOW_ITEMS),
+    playerParty = 0x020373DCL,
+    playerPartyCount = 0x020373D9L,
+    enemyParty = 0x02037634L,
+    partyMenu = 0x0203734CL,
+    saveBlock1Ptr = 0x03007220L,
+    saveBlock2Ptr = 0x03007224L,
+    saveBlock1PosOff = 4,
+    playerGenderOff = 0xC,
+    encryptionKeyOff = 0xB0L,
+    moneyOff = 0x494L,
+    monIconTable = 0x088DD3F0L,
+    monIconPaletteIndices = 0x088DDAD0L,
+    monIconPaletteTable = 0x088DDC88L,
+    itemIconTable = 0x088B2AACL,
+    handleInputChooseAction = 0x080447C5L,
+    handleInputChooseMove = 0x08044D35L,
+    completeWhenChoseItem = 0x08046B45L,
+    waitForMonSelection = 0x08046A6DL,
+    handleInputChooseTarget = 0x08044A1DL,
+    pokedex = POKEDEX_RECHARGED_EMERALD_REBALANCED_V2_2_8,
+    guideTables = GUIDE_TABLES_RECHARGED_EMERALD_REBALANCED_V2_2_8,
+    fieldItems = FIELD_ITEMS_RECHARGED_EMERALD_REBALANCED_V2_2_8,
 )
 
 // Super Mariomon (Too Many Productions; BPEE, 32 MB, no source): every release is an old
@@ -2292,11 +2568,11 @@ internal fun readMapShape(c: MemoryReader, mapHeader: Long, typeOff: Int = MAP_H
 internal fun Telemetry.withMapShape(s: MapShape?): Telemetry =
     if (s == null) this else copy(mapWidth = s.width, mapHeight = s.height, mapType = s.type)
 
-/** SaveBlock2.playerGender (right after the 8-byte name in every Gen 3 game); -1 if unreadable. */
+/** SaveBlock2.playerGender (right after the 8-byte name in every Gen 3 game: [NativeConfig.playerGenderOff]); -1 if unreadable. */
 internal fun readPlayerGender(c: MemoryReader, cfg: NativeConfig): Int = runCatching {
     val sb2 = saveBlock2(c, cfg)
     if (sb2 !in 0x02000000L until 0x04000000L) return -1
-    (c.readCoreMemory(sb2 + SAVEBLOCK2_GENDER_OFF, 1)[0].toInt() and 0xFF).takeIf { it <= 1 } ?: -1
+    (c.readCoreMemory(sb2 + cfg.playerGenderOff, 1)[0].toInt() and 0xFF).takeIf { it <= 1 } ?: -1
 }.getOrDefault(-1)
 
 /** [NativeConfig.hubNameOff]'s name, or null. */
@@ -2309,7 +2585,6 @@ private fun readHubName(c: MemoryReader, cfg: NativeConfig): String? = runCatchi
 
 private const val MAP_HEADER_MAP_TYPE_OFF = 0x17
 private const val MAX_MAP_SIDE = 1024
-private const val SAVEBLOCK2_GENDER_OFF = 8L
 
 private var bagTick = 0
 private var lastBag: List<Item> = emptyList()
@@ -2535,7 +2810,8 @@ private fun Mon.withNativeGender(raw: ByteArray, off: Int, layout: PartyMonLayou
     val ratios = when (activeGame) {
         // Emerald shares FireRed's internal Gen3 species ids and base-stat gender ratios; so does
         // Recharged Yellow (gen_recharged_yellow_tables.py checks its gBaseStats against FireRed's).
-        GameKind.FIRERED, GameKind.EMERALD, GameKind.RECHARGED_YELLOW -> genderRatiosFireRed
+        GameKind.FIRERED -> runningFireRedHack?.genderRatios ?: genderRatiosFireRed
+        GameKind.EMERALD, GameKind.RECHARGED_YELLOW -> genderRatiosFireRed
         GameKind.UNBOUND -> genderRatiosUnbound
         GameKind.RADICAL_RED -> genderRatiosRadicalRed
         GameKind.ODYSSEY -> genderRatiosOdyssey
@@ -2550,6 +2826,7 @@ private fun Mon.withNativeGender(raw: ByteArray, off: Int, layout: PartyMonLayou
         GameKind.ROWE -> genderRatiosRowe
         GameKind.ORANGE_ISLANDS -> genderRatiosOrangeIslands
         GameKind.SWORD_SHIELD -> genderRatiosSwordShield
+        GameKind.GS_CHRONICLES -> genderRatiosGsChronicles
         GameKind.MARIOMON -> if (mariomonV13) genderRatiosMariomonV13 else genderRatiosMariomon
         else -> return this
     }

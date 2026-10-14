@@ -139,8 +139,24 @@ HACKS = [
                            (" (performance)", "4858cc3d7b335bb5eed553861d7a4a17bad9ce2c", "sword_shield_up_performance"),
                            (" (casual, performance)", "932323d1fa3732d8673d1319fa86ed4df41087b9",
                             "sword_shield_up_casual_performance")]],
+    # GS Chronicles: CFRU's graphics lookup (FireRed's GetObjectEventGraphicsInfo hooked to 0x09C84B31, whose pool
+    # names table 0 and the table of tables) and its flags; gMapGroups is FireRed's, rewritten in place.
+    # Its primary tilesets hold 512 metatiles, not FireRed's 640 (each tileset's metatiles run 0x2000 bytes to its
+    # attributes). It boots through its own splash (boot_file) and uses 0x0203FF00, so the check's battle script goes
+    # elsewhere.
+    dict(name="GS Chronicles v2.7.6", sha1="25f8840ecb58e584edf18ffde35f845e94f3f17c", family="FR", mapped=True,
+         save="gs_chronicles", boot_file="gs_chronicles.txt", script_ram=0x0203F400,
+         a=dict(MAP_GROUPS=0x083526A8, PRIMARY_OVERRIDE=512, **cfru(0x081C68F4, 0x09D0C80C), **CFRU_FLAGS)),
     dict(name="Ultra Violet v1.22", sha1="3b6c51d8fb6b513bdd01b7bda3ed8965bc985d58", family="FR", mapped=True,
          save="ultra_violet", a=dict(MAP_GROUPS=0x0872AF04, OBJ_GFX_INFO=0x08741100)),
+    # FireRed Rocket Edition and Ash Gray: FireRed rev 0 edited in place, booted with retail FireRed's save (their own
+    # quest log recap needs firered_hack.txt's B presses). Both moved the object palettes (mapped from the pools).
+    dict(name="FireRed Rocket Edition", sha1="033d05374ae34eb84fae62c693ca8f3da23dd1bd", family="FR", mapped=True,
+         save="rocket_edition", boot_file="firered_hack.txt", a=dict(MAP_GROUPS=0x083526A8, OBJ_GFX_INFO=0x0839FDB0)),
+    *[dict(name=f"Ash Gray {v}", sha1=sha, family="FR", mapped=True, save=save, boot_file="firered_hack.txt",
+           a=dict(MAP_GROUPS=0x0873E2F4, OBJ_GFX_INFO=0x0839FDB0))
+      for v, sha, save in [("v4.5.3", "1ee1557db1e4c2e0e94c6306efcc40506bc40cc9", "ash_gray"),
+                           ("Fork Bug Fix v1.0", "92ed82145c013069472153391c7aab1cfbf37b75", "ash_gray_fork")]],
     # Binary Emerald hacks: Emerald's code, mapped the same way.
     dict(name="Glazed 9.2.0", sha1="e10105d8544469c6a11ca2cf510289981df3c3b0", family="EM", mapped=True,
          save="glazed", a=dict(MAP_GROUPS=0x08486578)),
@@ -417,6 +433,7 @@ def main():
                      addrs={k: (f"{v:#010x}" if v is not None else None) for k, v in addrs.items()}, votes=votes,
                      script=f"{script:#010x}" if script else None, missing=missing, save=hack["save"] if hack else None,
                      boot=hack.get("boot", []) if hack else [], boot_file=hack.get("boot_file") if hack else None,
+                     script_ram=hack.get("script_ram") if hack else None,
                      name=hack["name"] if hack else None)
         report.append(entry)
         if hack and hack.get("pending"):

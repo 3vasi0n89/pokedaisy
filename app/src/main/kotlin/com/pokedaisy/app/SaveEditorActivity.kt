@@ -77,7 +77,7 @@ class SaveEditorActivity : ComponentActivity() {
         if (path == null || !FeatureFlags.saveEditor(this)) { finish(); return }
         rom = File(path)
         gameName = GameTitles.label(this, prefs, rom)
-        setContent { AppTheme { Root() } }
+        setContent { AppTheme { com.pokedaisy.app.companion.ui.CompactTextOnSmallWindows { Root() } } }
         load()
     }
 

@@ -88,3 +88,7 @@ private fun quetzalBosses(mapGroup: Int) = when (mapGroup) {
 }
 
 internal val GUIDE_QUETZAL = GameGuide(verified = false, bosses = HOENN + JOHTO + KANTO, bossesFor = ::quetzalBosses, pages = emptyList())
+
+/** Quetzal Alpha 0.8.4: Hoenn alone, with Alpha 9's trainers, HARD twins and flags (its ROXANNE is 265 / 961, its
+ * continue screen counts the same badge flags). */
+internal val GUIDE_QUETZAL_V084 = GameGuide(verified = false, bosses = HOENN, pages = emptyList())

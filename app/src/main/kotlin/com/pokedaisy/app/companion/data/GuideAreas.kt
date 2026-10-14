@@ -48,15 +48,18 @@ private fun rawAreas(guide: GuideId): List<String> = when (guide) {
     GuideId.CELIA -> GUIDE_AREAS_CELIA_RAW
     GuideId.ORANGE_ISLANDS -> GUIDE_AREAS_ORANGE_ISLANDS_RAW
     GuideId.ULTRA_VIOLET -> GUIDE_AREAS_ULTRA_VIOLET_RAW
+    GuideId.ROCKET_EDITION -> GUIDE_AREAS_ROCKET_EDITION_RAW
+    GuideId.ASH_GRAY -> GUIDE_AREAS_ASH_GRAY_RAW
     GuideId.SWORD_SHIELD -> GUIDE_AREAS_SWORD_SHIELD_RAW
+    GuideId.GS_CHRONICLES -> GUIDE_AREAS_GS_CHRONICLES_RAW
     // Each Recharged Yellow release moved items and gifts around: its own data.
     GuideId.RECHARGED_YELLOW -> GUIDE_AREAS_RECHARGED_YELLOW_RAW
     GuideId.RECHARGED_YELLOW_V180 -> GUIDE_AREAS_RECHARGED_YELLOW_V180_RAW
     GuideId.RECHARGED_YELLOW_V190 -> GUIDE_AREAS_RECHARGED_YELLOW_V190_RAW
     GuideId.RECHARGED_YELLOW_V194 -> GUIDE_AREAS_RECHARGED_YELLOW_V194_RAW
     // No area data yet: HERE lists the wild Pokémon alone.
-    GuideId.GLAZED, GuideId.IMPERIUM, GuideId.QUETZAL, GuideId.LAZARUS, GuideId.SEAGLASS, GuideId.TMT2, GuideId.SOULGOLD,
-    GuideId.MARIOMON -> emptyList()
+    GuideId.GLAZED, GuideId.IMPERIUM, GuideId.QUETZAL, GuideId.QUETZAL_V084, GuideId.LAZARUS, GuideId.SEAGLASS, GuideId.TMT2, GuideId.SOULGOLD,
+    GuideId.MARIOMON, GuideId.RECHARGED_EMERALD -> emptyList()
 }
 
 /** Whether [guide] has area data at all (then HERE shows even without the ROM tables). */

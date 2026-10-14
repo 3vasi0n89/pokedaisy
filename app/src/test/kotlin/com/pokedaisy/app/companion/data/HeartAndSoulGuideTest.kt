@@ -16,7 +16,7 @@ import org.junit.Test
 class HeartAndSoulGuideTest {
     private val t = GUIDE_TABLES_HEART_AND_SOUL
 
-    private fun rom(): RomFileReader? = RomFileReader.load(RETAIL_ROM_DIR + "Pokémon Heart and Soul (v2.0.6).gba")?.also {
+    private fun rom(): RomFileReader? = RomFileReader.load(RETAIL_ROM_DIR + "Pokemon Heart and Soul (v2.0.6).gba")?.also {
         activeGame = GameKind.HEART_AND_SOUL
         PokedexSource.reader = it
     }

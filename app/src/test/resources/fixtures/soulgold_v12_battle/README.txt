@@ -1,6 +1,6 @@
 captured: 2026-10-07 (headless mgba_dump, by hand)
-rom: Pokemon SoulGold v1.2 (~/Downloads/Game ROMs & Emulation/gba/Soulgold (v1.2).gba)
-save: ~/Documents/RetroArch/saves/mGBA/Soulgold (v1.2).sav
+rom: Pokemon SoulGold v1.2 (~/Downloads/Game ROMs & Emulation/gba/Pokemon SoulGold (v1.2).gba)
+save: ~/Documents/RetroArch/saves/mGBA/Pokemon SoulGold (v1.2).sav
 boot: as the soulgold_v12 fixture, then two copies of the Cyndaquil poked into party slots 2-3
   (96 bytes apart from 0x02039024, HP 17 and 13; 0x020394D8 = 3 was poked too, mistaken for the count - the game
   recounts gPlayerPartyCount 0x02038DDD to 3 itself at battle start), and a

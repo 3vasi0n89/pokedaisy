@@ -29,7 +29,7 @@ Its GUIDE area data (GuideAreasRechargedYellow{V180,V190,V194,}Gen.kt) comes fro
 per release (each moved items and gifts), with the sizes of the script commands it added or changed:
 
     OPS=0e=1,94=1,aa=10,b1=3,c8=1,cc=1,d3=3,d4=1,d5=3,d6=1,d7=8,d8=1,d9=1,da=1,db=5,dc=3,dd=4,de=4,df=5,e0=8,e1=4,e2=6,e4=7,e5=3,e7=5
-    gen_guide_areas_rom.py "Recharged Yellow v1.8.0.gba" RECHARGED_YELLOW_V180 --items 0x08807a38,48,0x1e,6 \\
+    gen_guide_areas_rom.py "Pokemon Recharged Yellow (v1.8.0).gba" RECHARGED_YELLOW_V180 --items 0x08807a38,48,0x1e,6 \\
         --max-species 412 --no-hidden-flags --ops $OPS,67=25,e6=26 --kotlin
     ... v1.9.0 (V190, --items 0x088074ac) / v1.9.4 (V194, 0x088e74b0): --ops $OPS,67=25,e6=26,e8=5,e9=1
     ... v1.9.7 (RECHARGED_YELLOW, 0x0890f960): --ops $OPS,67=29,e6=30,e8=5,e9=1

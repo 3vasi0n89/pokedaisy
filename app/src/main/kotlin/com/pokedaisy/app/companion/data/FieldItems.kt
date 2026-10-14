@@ -37,6 +37,13 @@ data class FieldItemFns(
     val itemNameLen: Int = 14,
     /** FLY from the MAP tab (Fly.kt); null = none. */
     val fly: FlyFns? = null,
+    /** holdEffectParam's offset in struct Item where a build moved it off [itemNameLen] + 5 (Recharged Emerald dropped
+     * the itemId field: 0x15 after its name[18]); null = the usual place. */
+    val itemParamOffset: Int? = null,
+    /** Variables the game's own Task_UseRepel sets to 0 before the steps (Recharged Emerald: its Lure's), in its order. */
+    val repelClearVars: List<Int> = emptyList(),
+    /** Where Task_UseRepel keeps the Repel just used, for the game's "use another?" when it wears off; 0 = none. */
+    val lastRepelVar: Int = 0,
     /** PC anywhere from the BAG tab (Pc.kt); null = none. */
     val pc: PcFns? = null,
     /** USE / GIVE / TAKE from the bag; false = the table is there for FLY and the PC only (a game whose items the app
@@ -47,7 +54,7 @@ data class FieldItemFns(
     val functions get() = listOf(varGet, varSet, checkBagHasItem, removeBagItem, fieldControlsLocked).filter { it != 0L }
     val itemSize get() = itemNameLen + 30
     /** Offsets in struct Item: holdEffectParam, importance, pocket, fieldUseFunc. */
-    val itemParamOff get() = itemNameLen + 5
+    val itemParamOff get() = itemParamOffset ?: (itemNameLen + 5)
     val itemImportanceOff get() = itemNameLen + 10
     val itemPocketOff get() = itemNameLen + 12
     val itemFieldUseOff get() = itemNameLen + 14
@@ -110,9 +117,16 @@ data class PartyItemFns(
      * _PpUp / _Repel, Emerald's ItemUseOutOfBattle_*): an item is offered only if its gItems entry points at one
      * of them - a hack that turned an id into something else keeps it off. Empty = the id sets alone. */
     val useFuncs: Set<Long> = emptySet(),
+    /** How far GetMonData's field ids from MON_DATA_SPECIES on sit past pokeemerald's: Recharged Emerald put 9 fields of
+     * its own before MON_DATA_ENCRYPT_SEPARATOR (SPECIES 20, HELD_ITEM 21, MOVE1 22, IS_EGG 54). PERSONALITY stays 0. */
+    val monFieldShift: Int = 0,
 ) {
     val functions get() = listOfNotNull(getMonData, setMonData, itemNoEffect, itemEffect, addBagItem).filter { it != 0L }
     val usable get() = medicine + ppOneMove + ppAllMoves
+    val speciesField get() = MON_DATA_SPECIES + monFieldShift
+    val heldItemField get() = MON_DATA_HELD_ITEM + monFieldShift
+    val move1Field get() = MON_DATA_MOVE1 + monFieldShift
+    val isEggField get() = MON_DATA_IS_EGG + monFieldShift
 }
 
 /** Whether the running ROM has [fns]' functions (its party ones too) where they're expected. */
@@ -488,11 +502,15 @@ private fun cfru(items: Long, unholdablePockets: Set<Int> = setOf(2, 4)): FieldI
 private fun FieldItemFns.u16Mapsecs() = copy(fly = fly?.copy(getMapsecTypeAltCrc = GET_MAPSEC_TYPE_U16))
 
 /**
- * The tables for the running game: by [kind] for the hacks built on retail code (Glazed on Emerald; Orange Islands,
- * Ultra Violet and the CFRU hacks on FireRed rev 0), else by header code and revision for the retail games, which
- * run as FIRERED / EMERALD. The code CRCs still decide ([fieldItemSupport]).
+ * The tables for the running game: its config's own ([configured]: NativeConfig.fieldItems, a rebuild like Recharged
+ * Emerald's, which shares retail's game code but none of its code), else by [kind] for the hacks built on retail code
+ * (Glazed on Emerald; Orange Islands, Ultra Violet and the CFRU hacks on FireRed rev 0), else by header code and
+ * revision for the retail games, which run as FIRERED / EMERALD. The code CRCs still decide ([fieldItemSupport]).
  */
-fun fieldItemsForGame(kind: GameKind?, gameCode: String, revision: Int): FieldItemFns? = when (kind) {
+fun fieldItemsForGame(kind: GameKind?, gameCode: String, revision: Int, configured: FieldItemFns? = null): FieldItemFns? =
+    configured ?: fieldItemsByKind(kind, gameCode, revision)
+
+private fun fieldItemsByKind(kind: GameKind?, gameCode: String, revision: Int): FieldItemFns? = when (kind) {
     GameKind.GLAZED -> FIELD_ITEMS_GLAZED.takeIf { gameCode == "BPEE" }
     GameKind.ORANGE_ISLANDS -> FIELD_ITEMS_PORTS["BPRE0"]?.u16Mapsecs().takeIf { gameCode == "BPRE" && revision == 0 }
     GameKind.HEART_AND_SOUL -> FIELD_ITEMS_HEART_AND_SOUL.takeIf { gameCode == "BPEE" }
@@ -503,6 +521,7 @@ fun fieldItemsForGame(kind: GameKind?, gameCode: String, revision: Int): FieldIt
     GameKind.ODYSSEY, GameKind.GAIA -> cfru(0x083DB028L)
     GameKind.AMETHYST -> cfru(0x0872DB0CL)
     GameKind.SWORD_SHIELD -> cfru(0x093C0000L, unholdablePockets = setOf(4))
+    GameKind.GS_CHRONICLES -> cfru(0x08F70000L)
     GameKind.FIRERED -> if (gameCode == "PUVV") FIELD_ITEMS_PORTS["BPRE0"] else fieldItemsFor(gameCode, revision)
     // Emerald Kaizo: retail's FLY code, but its map reload crashed when the game's ReturnToField came straight from the
     // field (headless, on retail's save: the first flight, or the fourth once the overworld's windows were freed first),
@@ -514,11 +533,11 @@ fun fieldItemsForGame(kind: GameKind?, gameCode: String, revision: Int): FieldIt
 
 /** Every table a game may need, for the games whose builds share a [GameKind] and game code (SoulGold's four): the
  * code CRCs pick the build ([fieldItemSupport] returns null for the others). Otherwise [fieldItemsForGame]'s one. */
-fun fieldItemsCandidatesForGame(kind: GameKind?, gameCode: String, revision: Int): List<FieldItemFns> = when (kind) {
+fun fieldItemsCandidatesForGame(kind: GameKind?, gameCode: String, revision: Int, configured: FieldItemFns? = null): List<FieldItemFns> = when (kind) {
     GameKind.SOULGOLD -> if (gameCode == "BPEE") listOf(
         FIELD_ITEMS_SOULGOLD, FIELD_ITEMS_SOULGOLD_V1_2, FIELD_ITEMS_SOULGOLD_V1_2B, FIELD_ITEMS_SOULGOLD_V1_2C,
     ) else emptyList()
-    else -> listOfNotNull(fieldItemsForGame(kind, gameCode, revision))
+    else -> listOfNotNull(fieldItemsForGame(kind, gameCode, revision, configured))
 }
 
 /** The tables for a ROM by its header's game code and revision byte; the code CRCs still decide ([fieldItemSupport]). */
@@ -654,7 +673,10 @@ fun useFieldItem(fns: FieldItemFns, itemId: Int, busy: Boolean, g: GameCalls): I
     if (g.call(fns.checkBagHasItem, itemId, 1) != 1L) return ItemUseOutcome(ItemUseResult.NONE_LEFT)
     val steps = g.read(fns.items + itemId.toLong() * fns.itemSize + fns.itemParamOff, 1)[0].toInt() and 0xFF
     if (steps == 0) return ItemUseOutcome(ItemUseResult.FAILED)
-    if (g.call(fns.varSet, fns.repelVar, steps) < 0 || g.call(fns.removeBagItem, itemId, 1) != 1L) {
+    // Task_UseRepel's order: its other variables cleared, the steps, the Repel used, then one out of the bag.
+    val sets = fns.repelClearVars.map { it to 0 } + (fns.repelVar to steps) +
+        listOfNotNull(fns.lastRepelVar.takeIf { it != 0 }?.let { it to itemId })
+    if (sets.any { (v, value) -> g.call(fns.varSet, v, value) < 0 } || g.call(fns.removeBagItem, itemId, 1) != 1L) {
         return ItemUseOutcome(ItemUseResult.FAILED)
     }
     return ItemUseOutcome(ItemUseResult.USED, steps)
@@ -676,7 +698,7 @@ private fun PartyItemFns.get(g: GameCalls, slot: Int, field: Int): Long =
 
 /** Whether USE of [itemId] on [slot] would do something (move [move] for a PP item). */
 private fun PartyItemFns.helps(g: GameCalls, itemId: Int, slot: Int, move: Int): Boolean {
-    if (itemId == hpUp && get(g, slot, MON_DATA_SPECIES) == shedinja.toLong()) return false
+    if (itemId == hpUp && get(g, slot, speciesField) == shedinja.toLong()) return false
     itemNoEffect?.let { return g.call(it, mon(slot), itemId, slot, move) == 0L }
     // The effect itself, undone: the Pokémon's struct is all it touches on the field (HP, status, PP, EVs and
     // stats, friendship). Whatever happens, its bytes go back.
@@ -701,15 +723,15 @@ fun partyTargets(support: FieldItemSupport, itemId: Int, give: Boolean, busy: Bo
         val count = (g.read(p.partyCount, 1)[0].toInt() and 0xFF).coerceAtMost(6)
         PartyTargets(ItemUseResult.USED, (0 until count).map { slot ->
             val personality = p.get(g, slot, MON_DATA_PERSONALITY)
-            val held = p.get(g, slot, MON_DATA_HELD_ITEM).toInt()
-            val egg = p.get(g, slot, MON_DATA_IS_EGG) != 0L
+            val held = p.get(g, slot, p.heldItemField).toInt()
+            val egg = p.get(g, slot, p.isEggField) != 0L
             when {
                 egg -> PartyTarget(slot, personality, held, SlotVerdict.EGG)
                 give && held in p.mail -> PartyTarget(slot, personality, held, SlotVerdict.HOLDS_MAIL)
                 give && held == itemId -> PartyTarget(slot, personality, held, SlotVerdict.HOLDS_IT)
                 give -> PartyTarget(slot, personality, held, SlotVerdict.OK)
                 itemId in p.ppOneMove -> {
-                    val moves = (0 until 4).map { m -> p.get(g, slot, MON_DATA_MOVE1 + m) != 0L && p.helps(g, itemId, slot, m) }
+                    val moves = (0 until 4).map { m -> p.get(g, slot, p.move1Field + m) != 0L && p.helps(g, itemId, slot, m) }
                     PartyTarget(slot, personality, held, if (moves.any { it }) SlotVerdict.OK else SlotVerdict.NO_EFFECT, moves)
                 }
                 else -> PartyTarget(slot, personality, held, if (p.helps(g, itemId, slot, 0)) SlotVerdict.OK else SlotVerdict.NO_EFFECT)
@@ -721,7 +743,7 @@ fun partyTargets(support: FieldItemSupport, itemId: Int, give: Boolean, busy: Bo
 /** Whether [slot] still holds the Pokémon the pick showed (and isn't an egg). */
 private fun PartyItemFns.stillThere(g: GameCalls, slot: Int, personality: Long): Boolean =
     slot in 0 until (g.read(partyCount, 1)[0].toInt() and 0xFF) &&
-        get(g, slot, MON_DATA_PERSONALITY) == personality && get(g, slot, MON_DATA_IS_EGG) == 0L
+        get(g, slot, MON_DATA_PERSONALITY) == personality && get(g, slot, isEggField) == 0L
 
 /**
  * USE of medicine / a PP item on the Pokémon in [target] ([move] for a one-move PP item): the game's
@@ -756,7 +778,7 @@ fun giveToMon(support: FieldItemSupport, itemId: Int, target: PartyTarget, busy:
     val slot = target.slot
     val old = runCatching {
         if (!p.stillThere(g, slot, target.personality)) return ItemUseOutcome(ItemUseResult.PARTY_CHANGED)
-        p.get(g, slot, MON_DATA_HELD_ITEM).toInt()
+        p.get(g, slot, p.heldItemField).toInt()
     }.getOrElse { return ItemUseOutcome(ItemUseResult.FAILED) }
     if (old in p.mail) return ItemUseOutcome(ItemUseResult.FAILED)
     if (old == itemId) return ItemUseOutcome(ItemUseResult.NO_EFFECT)
@@ -776,9 +798,9 @@ fun giveToMon(support: FieldItemSupport, itemId: Int, target: PartyTarget, busy:
 private fun setHeldItem(p: PartyItemFns, g: GameCalls, slot: Int, item: Int): Boolean = runCatching {
     val before = g.read(p.scratch, 2)
     if (!g.write(p.scratch, byteArrayOf(item.toByte(), (item shr 8).toByte()))) return false
-    val called = g.call(p.setMonData, p.mon(slot), MON_DATA_HELD_ITEM, p.scratch.toInt())
+    val called = g.call(p.setMonData, p.mon(slot), p.heldItemField, p.scratch.toInt())
     g.write(p.scratch, before)
-    called >= 0 && p.get(g, slot, MON_DATA_HELD_ITEM) == item.toLong()
+    called >= 0 && p.get(g, slot, p.heldItemField) == item.toLong()
 }.getOrDefault(false)
 
 /**
@@ -821,9 +843,9 @@ fun partyHeldItems(support: FieldItemSupport, g: GameCalls): PartyTargets {
     return runCatching {
         val count = (g.read(p.partyCount, 1)[0].toInt() and 0xFF).coerceAtMost(6)
         PartyTargets(ItemUseResult.USED, (0 until count).map { slot ->
-            val held = p.get(g, slot, MON_DATA_HELD_ITEM).toInt()
+            val held = p.get(g, slot, p.heldItemField).toInt()
             val verdict = when {
-                p.get(g, slot, MON_DATA_IS_EGG) != 0L -> SlotVerdict.EGG
+                p.get(g, slot, p.isEggField) != 0L -> SlotVerdict.EGG
                 held == 0 -> SlotVerdict.NO_EFFECT
                 held in p.mail -> SlotVerdict.HOLDS_MAIL
                 p.bagHasRoom(g, held) == false -> SlotVerdict.BAG_FULL
@@ -843,7 +865,7 @@ fun takeFromMon(support: FieldItemSupport, target: PartyTarget, busy: Boolean, g
     if (busy || g.call(fns.fieldControlsLocked) != 0L) return ItemUseOutcome(ItemUseResult.NOT_NOW)
     val held = runCatching {
         if (!p.stillThere(g, target.slot, target.personality)) return ItemUseOutcome(ItemUseResult.PARTY_CHANGED)
-        p.get(g, target.slot, MON_DATA_HELD_ITEM).toInt()
+        p.get(g, target.slot, p.heldItemField).toInt()
     }.getOrElse { return ItemUseOutcome(ItemUseResult.FAILED) }
     if (held == 0) return ItemUseOutcome(ItemUseResult.NO_EFFECT)
     if (held in p.mail) return ItemUseOutcome(ItemUseResult.FAILED)

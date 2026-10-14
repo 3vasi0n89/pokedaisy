@@ -56,6 +56,24 @@ test('Game Boy: Yellow only', () => {
   assert.equal(verdict(data, { platform: 'gb', sha1: '0'.repeat(40) }).reason, 'gb');
 });
 
+test('Game Boy Color: Crystal, all three English releases', () => {
+  for (const sha1 of ['f4cd194bdee0d04ca4eac29e09b8e4e9d818c133', 'f2f52230b536214ef7c9924f483392993e226cfb', 'a0fc810f1d4e124434f7be2c989ab5b5892ddf36']) {
+    assert.equal(verdict(data, { platform: 'gb', sha1 }).title, 'Pokémon Crystal');
+  }
+});
+
+test('Game Boy Color: Crystal Clear, both versions in both colour builds', () => {
+  for (const sha1 of ['a1c4da6b0057c98fe4ebea45d6812a484fc69abd', '6fc677bf7a9db103cb9ee11ac08d26782e69ae41',
+    '84d5c4924c3f1f3fc690669148b7e392948fb23d', '534876e4e4d0d79a82fef3bbe5bea11c40451727']) {
+    assert.equal(verdict(data, { platform: 'gb', sha1 }).title, 'Pokémon Crystal Clear');
+  }
+});
+
+test('Game Boy Color: Prism v0.95 build 254, and not the "LOL PRISM" file', () => {
+  assert.equal(verdict(data, { platform: 'gb', sha1: '752076692ae3387cf426ce5f51a98c6b60e8df6a' }).title, 'Pokémon Prism');
+  assert.notEqual(verdict(data, { platform: 'gb', sha1: '3569e15d76bcb0c1062f1c242e1d263ca6b6411d' }).title, 'Pokémon Prism');
+});
+
 test('a zipped ROM is judged by the ROM inside', async () => {
   const rom = gba('AXPE', 1);
   const name = new TextEncoder().encode('Sapphire.gba');

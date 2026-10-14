@@ -27,11 +27,17 @@ class BattleCursorTest {
             "odyssey_battle" to NATIVE_ODYSSEY, "amethyst_battle" to NATIVE_AMETHYST, "sword_shield_up_battle" to NATIVE_SWORD_SHIELD,
             "emerald_seaglass_battle" to NATIVE_EMERALD_SEAGLASS, "tmt2_battle" to NATIVE_TMT2, "heart_and_soul_battle" to NATIVE_HEART_AND_SOUL,
             "orange_islands_battle" to NATIVE_ORANGE_ISLANDS, "ultra_violet_battle" to NATIVE_ULTRA_VIOLET, "celia_battle" to NATIVE_CELIA,
+            "rocket_edition_battle" to NATIVE_ROCKET_EDITION, "ash_gray_battle" to NATIVE_ASH_GRAY, "ash_gray_fork_battle" to NATIVE_ASH_GRAY,
             "recharged_yellow_v180_battle" to NATIVE_RECHARGED_YELLOW_V1_8_0, "recharged_yellow_v190_battle" to NATIVE_RECHARGED_YELLOW_V1_9_0,
             "recharged_yellow_v194_battle" to NATIVE_RECHARGED_YELLOW_V1_9_4, "recharged_yellow_battle" to NATIVE_RECHARGED_YELLOW_V1_9_7,
             "mariomon_v1_5_1_battle" to NATIVE_MARIOMON_V1_5_1, "mariomon_v1_5_2_battle" to NATIVE_MARIOMON_V1_5_2, "mariomon_v1_3_battle" to NATIVE_MARIOMON_V1_3,
             "mariomon_v1_2_2_battle" to NATIVE_MARIOMON_V1_2_2, "mariomon_v1_2_1_battle" to NATIVE_MARIOMON_V1_2_1,
             "quetzal_battle" to NATIVE_QUETZAL, "quetzal_es_battle" to NATIVE_QUETZAL_ES, "imperium_battle" to NATIVE_IMPERIUM, "rowe_battle" to NATIVE_ROWE,
+            "quetzal_084_battle" to NATIVE_QUETZAL_V084, "quetzal_es_084_battle" to NATIVE_QUETZAL_V084_ES,
+            "quetzal_moemon_084_battle" to NATIVE_QUETZAL_MOEMON_V084, "quetzal_moemon_es_084_battle" to NATIVE_QUETZAL_MOEMON_V084_ES,
+            "gs_chronicles_battle" to NATIVE_GS_CHRONICLES,
+            "recharged_emerald_v225_battle" to NATIVE_RECHARGED_EMERALD_V2_2_5, "recharged_emerald_battle" to NATIVE_RECHARGED_EMERALD_V2_2_8,
+            "recharged_emerald_rebalanced_battle" to NATIVE_RECHARGED_EMERALD_REBALANCED_V2_2_8,
             "sapphire_rev1_battle" to NATIVE_SAPPHIRE,
         ).forEach { (fixture, cfg) ->
             val ram = FixtureMemoryReader.load(fixture)

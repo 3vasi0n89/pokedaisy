@@ -16,6 +16,9 @@ import java.security.MessageDigest
  */
 object Gen1Art {
     const val YELLOW_FONT = "gen1/yellow-font.ttf"
+
+    /** The running Yellow's font: the European carts' own letters (à, Ä, Ñ, ...) are in theirs ([romLanguage]). */
+    fun yellowFont(language: Char): String = if (language == 'E') YELLOW_FONT else "gen1/yellow-font-${language.lowercaseChar()}.ttf"
     const val YELLOW_ICONS = "gen1/yellow/pokemon"
     /** The player on the town map: Red's standing sprite (MapScreen's head asset). */
     const val YELLOW_PLAYER = "regionmap/player_yellow.png"
@@ -44,6 +47,7 @@ object Gen1Art {
         /** The player's overworld sprite: its first 16x16 frame (facing down) is the town map's player. */
         val playerSprite: Pair<Int, Int>,
         val playerPath: String,
+        val charset: Gen1Charset = Gen1Charset.EN,
     )
 
     val YELLOW = Gen1ArtTables(
@@ -65,22 +69,26 @@ object Gen1Art {
         playerSprite = 0x05 to 0x4571,         // RedSprite: 16x16 frames of 4 tiles (TL, TR, BL, BR)
         playerPath = YELLOW_PLAYER,
     )
-    private val GAMES = listOf(YELLOW)
 
     /**
-     * The game's text characters for its font tiles 0x80-0xFF (constants/charmap.asm):
-     * letters, digits and the punctuation the companion prints. Ligatures ('d, PK, MN)
-     * and unused kana are left out; Pixel Operator stands in for anything else.
+     * The German, French, Italian and Spanish Yellows: English's art, some of it moved (scripts/port_gen1.py,
+     * checked: their icons, town map and player are English's pixel for pixel - `Gen1ArtTest` - so they share
+     * its files), their own font (its accented letters).
      */
-    private val CHARS: Map<Int, Char> = buildMap {
-        for (i in 0 until 26) { put(0x80 + i, 'A' + i); put(0xA0 + i, 'a' + i) }
-        for (i in 0 until 10) put(0xF6 + i, '0' + i)
-        putAll(mapOf(
-            0x9A to '(', 0x9B to ')', 0x9C to ':', 0x9D to ';', 0x9E to '[', 0x9F to ']', 0xBA to 'é',
-            0xE0 to '\'', 0xE3 to '-', 0xE6 to '?', 0xE7 to '!', 0xE8 to '.', 0xEC to '▷', 0xED to '▶',
-            0xEE to '▼', 0xEF to '♂', 0xF0 to '¥', 0xF1 to '×', 0xF3 to '/', 0xF4 to ',', 0xF5 to '♀',
-        ))
-    }
+    private fun europe(sha1: String, language: Char, icons: Int, monParty: Int, townMap: Int, charset: Gen1Charset) =
+        Gen1ArtTables(
+            sha1 = sha1, font = YELLOW.font, fontPath = yellowFont(language),
+            iconPointers = 0x1C to icons, iconPointerCount = YELLOW.iconPointerCount, monPartyData = 0x1C to monParty,
+            dexCount = YELLOW.dexCount, iconsDir = YELLOW.iconsDir, iconColors = YELLOW.iconColors,
+            townMap = 0x1C to townMap, townMapTiles = 0x04 to 0x5148, townMapPath = YELLOW.townMapPath,
+            townMapColors = YELLOW.townMapColors, playerSprite = YELLOW.playerSprite, playerPath = YELLOW.playerPath,
+            charset = charset,
+        )
+    val YELLOW_DE = europe(TelemetrySampler.YELLOW_DE_SHA1, 'D', 0x582C, 0x5999, 0x5188, Gen1Charset.DF)
+    val YELLOW_FR = europe(TelemetrySampler.YELLOW_FR_SHA1, 'F', 0x581E, 0x598B, 0x518D, Gen1Charset.DF)
+    val YELLOW_IT = europe(TelemetrySampler.YELLOW_IT_SHA1, 'I', 0x588D, 0x59FA, 0x518B, Gen1Charset.IS)
+    val YELLOW_ES = europe(TelemetrySampler.YELLOW_ES_SHA1, 'S', 0x583D, 0x59AA, 0x518E, Gen1Charset.IS)
+    private val GAMES = listOf(YELLOW, YELLOW_DE, YELLOW_FR, YELLOW_IT, YELLOW_ES)
 
     private fun off(bank: Int, addr: Int) = if (bank == 0) addr else bank * 0x4000 + (addr - 0x4000)
 
@@ -88,7 +96,7 @@ object Gen1Art {
     fun font(rom: ByteArray, t: Gen1ArtTables): ByteArray {
         val base = off(t.font.first, t.font.second)
         val glyphs = HashMap<Char, ByteArray>()
-        for ((tile, c) in CHARS) {
+        for ((tile, c) in t.charset.glyphs) {
             val o = base + (tile - 0x80) * 8
             glyphs[c] = rom.copyOfRange(o, o + 8)
         }

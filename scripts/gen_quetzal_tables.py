@@ -4,6 +4,7 @@
 
     scripts/gen_quetzal_tables.py <rom.gba> [out_dir]
     scripts/gen_quetzal_tables.py <rom.gba> --languages [<spanish rom.gba>]
+    scripts/gen_quetzal_tables.py <rom.gba> --v084 <0.8.4 rom.gba>...
 
 Writes {SpeciesNames,SpeciesTypes,GenderRatios,ItemNames,ItemPockets,MoveData,
 TypeChart,MapSecData}Quetzal.kt (default: the app's data package).
@@ -18,6 +19,10 @@ fe346b5b...) is the same engine with Spanish dialogue, descriptions and dex text
 and the same name tables (checked when its ROM is given); only its LUGARES default
 differs (Spanish, not English). Portuguese isn't written: its names use glyphs
 past the Western charmap (ã, õ).
+--v084 checks Quetzal Alpha 0.8.4's builds (English / Spanish and their Moemon
+Hotfix builds) against Alpha 9 and writes QuetzalV084Gen.kt: the few moves whose
+power or type 0.8.4 has its own way. It shares every other table by id (its
+species / items are Alpha 9's first 1520 / 879).
 Item descriptions aren't written: the app reads them from the player's ROM
 (RomItemText, NativeConfig.itemDescs).
 
@@ -249,8 +254,113 @@ def languages(rom, es_rom):
     print(", ".join(f"{k}/{l} {len(m)}" for (k, l), m in out.items()))
 
 
+# Quetzal Alpha 0.8.4, the release before Alpha 9: English / Spanish, and their Moemon Hotfix builds (the same
+# code and tables, other Pokémon pictures). Its tables are where its GF header (and these) say.
+V084 = {
+    "6806c7146aff457a4be85ef2030e9ddcdb17b665": dict(label="English Alpha 0.8.4", lang="en", item_names=0x08F9B248,
+                                                     region_map_entries=0x08FD0B18),
+    "b6542c7dbb40cf6ea96714a7a0e30cb468102861": dict(label="Spanish Alpha 0.8.4", lang="es", item_names=0x08F9A968,
+                                                     region_map_entries=0x08FD043C),
+    "f1035f615c13c46394a18fa99181c24c3cd15e12": dict(label="Moemon English Alpha 0.8.4 Hotfix", lang="en",
+                                                     item_names=0x08F9B22C, region_map_entries=0x08FD0AFC),
+    "ae5d88bb823a8f9d0d07e8784da2376ff7c1ae43": dict(label="Moemon Spanish Alpha 0.8.4 Hotfix", lang="es",
+                                                     item_names=0x08F9A94C, region_map_entries=0x08FD0420),
+}
+V084_SPECIES = 1520  # 0..1519; 1520 is its egg (Alpha 9 added Browt / Pombon / Gecqua's lines there)
+V084_ITEMS = 879     # 0..878; Alpha 9 added Johto's key items from 879
+V084_MOVES = 849     # the same 1..848 as Alpha 9
+
+
+def v084(rom, paths):
+    """Checks Quetzal 0.8.4's tables against Alpha 9's (rom) and writes QuetzalV084Gen.kt: the moves whose
+    power or type it has its own way. Everything else it shares by id: species names (and the Spanish table),
+    types, gender ratios, item names (all three languages), pockets, the type chart, move names (all three) and
+    map section names (its gRegionMapEntries are vanilla Emerald's {x, y, w, h, name*}, one language per build,
+    Hoenn's rects Emerald's own)."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from gen_emerald_lang_tables import CHARS as WESTERN
+    em = open(os.path.join(OUT_DIR, "MapSecDataEmerald.kt"), encoding="utf-8").read()
+    import re
+    em_rects = {int(m.group(1)): tuple(int(m.group(k)) for k in range(2, 7))
+                for m in re.finditer(r"(\d+) to MapSecInfo\(\"[^\"]*\", (-?\d+), (\d+), (\d+), (\d+), (\d+)\)", em)}
+    es_names = re.search(r"mapSecNamesQuetzalEs.*?mapOf\((.*?)\n    \)", open(os.path.join(OUT_DIR, "QuetzalNamesGen.kt"),
+                                                                       encoding="utf-8").read(), re.S).group(1)
+    es_names = {int(m.group(1)): m.group(2) for m in re.finditer(r"(\d+) to \"([^\"]*)\"", es_names)}
+
+    def rtext(r, a, n=30):
+        out = []
+        for b in r[a - 0x08000000:a - 0x08000000 + n]:
+            if b == 0xFF:
+                break
+            out.append(" " if b in (0xFA, 0xFB, 0xFE) else WESTERN.get(b, "?"))
+        return " ".join("".join(out).split())
+
+    def same(r, a, b, stride, count, src=rom):
+        return [i for i in range(1, count) if src[a - 0x08000000 + stride * i:a - 0x08000000 + stride * (i + 1)] !=
+                r[b - 0x08000000 + stride * i:b - 0x08000000 + stride * (i + 1)]]
+
+    mapsec_names = {}
+    for i in range(MAPSEC_COUNT):
+        p = u32(rom, REGION_MAP_ENTRIES + 8 * i)
+        if is_ptr(rom, p) and is_ptr(rom, u32(rom, p)):
+            mapsec_names[i] = title(text(rom, u32(rom, p), 30) or "")
+    changes = None
+    for path in paths:
+        r = open(path, "rb").read()
+        meta = V084.get(hashlib.sha1(r).hexdigest())
+        if meta is None:
+            sys.exit(f"{path} isn't a Quetzal 0.8.4 build this knows")
+        hdr = lambda o: u32(r, 0x08000100 + o)
+        species, move_names, info, items, moves = hdr(0x44), hdr(0x48), hdr(0xBC), hdr(0xC8), hdr(0xCC)
+        # English, then the other languages' tables right after (Spanish species; Spanish / Latin American moves, items).
+        assert not same(r, SPECIES_NAMES, species, 13, V084_SPECIES), "species names differ"
+        assert not same(r, LANG_TABLES["species"]["Es"], species + 13 * V084_SPECIES, 13, V084_SPECIES), "Spanish species differ"
+        for k, lang in enumerate(("En", "Es", "La")):
+            src = MOVE_NAMES if lang == "En" else LANG_TABLES["moves"][lang]
+            assert not same(r, src, move_names + 17 * 936 * k, 17, V084_MOVES), f"move names ({lang}) differ"
+            src = ITEM_NAMES if lang == "En" else LANG_TABLES["items"][lang]
+            assert not same(r, src, meta["item_names"] + 20 * V084_ITEMS * k, 20, V084_ITEMS), f"item names ({lang}) differ"
+        for i in range(1, V084_SPECIES):
+            a, b = SPECIES_INFO + 0x24 * i, info + 0x24 * i
+            assert (u8(rom, a + 6), u8(rom, a + 7), u8(rom, a + 0x12)) == (u8(r, b + 6), u8(r, b + 7), u8(r, b + 0x12)), i
+        for i in range(1, V084_ITEMS):
+            assert u8(rom, ITEMS + 0x1C * i + 0x12) == u8(r, items + 0x1C * i + 0x12), f"item {i}'s pocket"
+        chart = rom[TYPE_CHART - 0x08000000:TYPE_CHART - 0x08000000 + 4 * TYPE_COUNT * TYPE_COUNT]
+        assert r.count(chart) == 1, "type chart differs"
+        mine = {}
+        for i in range(1, V084_MOVES):
+            a, b = BATTLE_MOVES + 0x18 * i, moves + 0x18 * i
+            if (u8(rom, a + 2), u8(rom, a + 3)) != (u8(r, b + 2), u8(r, b + 3)):
+                mine[i] = (text(rom, MOVE_NAMES + 17 * i, 17), u8(r, b + 3), u8(r, b + 2))
+        assert changes is None or changes == mine, "the builds' moves differ"
+        changes = mine
+        e = meta["region_map_entries"]
+        for i in range(MAPSEC_COUNT):
+            x, y, w, h = r[e + 8 * i - 0x08000000:e + 8 * i + 4 - 0x08000000]
+            name = title(rtext(r, u32(r, e + 8 * i + 4)))
+            want = mapsec_names[i] if meta["lang"] == "en" else es_names.get(i, mapsec_names.get(i))
+            if i not in (0x42, 0x57):  # {AQUA} HIDEOUT's glyph; Alpha 9's empty "Dynamic"
+                assert name == want, (hex(i), name, want)
+            rect = em_rects.get(i)
+            if rect and rect[0] >= 0:
+                assert (x + 1, y + 2, w, h) == rect[1:], (hex(i), (x, y, w, h), rect)
+        print(f"{meta['label']}: shares Alpha 9's tables; {len(mine)} moves of its own")
+    body = header("Quetzal Alpha 0.8.4's moves whose power or type differ from\n"
+                  "// Alpha 9's (laid over moveDataQuetzal by ActiveTables' quetzalV084). Everything else it shares\n"
+                  "// by id - see gen_quetzal_tables.py's v084().\n")
+    body += ("internal val moveDataQuetzalV084Changes: Map<Int, MoveInfo> = mapOf(\n" +
+             "".join(f"    {i} to MoveInfo({kstr(n)}, {t}, {p}),\n" for i, (n, t, p) in sorted(changes.items())) + ")\n")
+    write("QuetzalV084Gen.kt", body)
+
+
 def main():
     global OUT_DIR
+    if "--v084" in sys.argv:
+        rom = open(sys.argv[1], "rb").read()
+        if hashlib.sha1(rom).hexdigest() != SHA1:
+            sys.exit(f"not {LABEL} (sha1 {SHA1})")
+        v084(rom, [a for a in sys.argv[2:] if a != "--v084"])
+        return
     if "--languages" in sys.argv:
         rom = open(sys.argv[1], "rb").read()
         if hashlib.sha1(rom).hexdigest() != SHA1:

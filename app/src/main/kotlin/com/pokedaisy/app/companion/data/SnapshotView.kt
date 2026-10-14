@@ -62,7 +62,18 @@ fun expProgress(species: Int, level: Int, exp: Long?): ExpProgress? {
     // Gen 1's growth rates and curves are Gen 3's for the first 151 (Yellow's species are Dex numbers here).
     if (activeGame != GameKind.FIRERED && activeGame != GameKind.EMERALD && activeGame != GameKind.YELLOW &&
         activeGame != GameKind.ORANGE_ISLANDS && activeGame != GameKind.RECHARGED_YELLOW &&
-        activeGame != GameKind.MARIOMON) return null
+        activeGame != GameKind.MARIOMON &&
+        // Crystal's growth rates for its 251 are Gen 3's, byte for byte, and its curves the same formulas (CrystalDecodeTest);
+        // Crystal Clear kept Crystal's base data (gen_gen2_tables.py checks it).
+        !activeGame.isCrystalFamily) return null
+    // Prism's species are its own ids, with its own growth rates (BaseData): the four Gen 3 shares by id (0 medium
+    // fast, 3 medium slow, 4 fast, 5 slow); its others (1, 2, 6, 7) have no curve here.
+    if (activeGame == GameKind.PRISM) {
+        val rate = activeGen2.growthRates?.getOrNull(species)?.takeIf { it in setOf(0, 3, 4, 5) } ?: return null
+        val table = gen3ExperienceTables.getOrNull(rate) ?: return null
+        val start = table[level].toLong()
+        return ExpProgress(exp, start, if (level < 100) table[level + 1].toLong() else start)
+    }
     // Recharged Yellow kept FireRed's growth rates and gExperienceTables (both checked byte for byte).
     // Orange Islands kept FireRed's growth rates but for its CRYSTAL ONIX slots.
     if (activeGame == GameKind.ORANGE_ISLANDS && species >= 409) return null
@@ -227,8 +238,7 @@ private val gamesWithoutRegionData = setOf(GameKind.ODYSSEY)
 fun lookupLocation(regionMapSectionId: Int): LocationView {
     // A FireRed-engine hack's own map, read from its ROM, over the bundled
     // tables; FireRed itself keeps those (they carry its title-cased names).
-    val rom = if (activeGame == GameKind.FIRERED || activeGame == GameKind.YELLOW || activeGame == GameKind.RECHARGED_YELLOW) null
-        else RomRegionMap.current
+    val rom = if (readsRomRegionMap) RomRegionMap.current else null
     if (rom == null && activeGame in gamesWithoutRegionData) return LocationView("", null, 0, 0, 0, 0)
     val images = rom?.images ?: activeRegionMapImages
     val info = (rom?.sections ?: activeMapSecData)[regionMapSectionId]
@@ -453,7 +463,7 @@ fun isVanillaEgg(species: Int): Boolean =
     species == SPECIES_EGG_VANILLA && !emeraldLegacy && when (activeGame) {
         GameKind.FIRERED, GameKind.EMERALD,
         GameKind.UNBOUND, GameKind.RADICAL_RED, GameKind.ODYSSEY, GameKind.AMETHYST, GameKind.ORANGE_ISLANDS,
-        GameKind.SWORD_SHIELD, GameKind.RECHARGED_YELLOW -> true
+        GameKind.SWORD_SHIELD, GameKind.RECHARGED_YELLOW, GameKind.GS_CHRONICLES -> true
         else -> false
     }
 

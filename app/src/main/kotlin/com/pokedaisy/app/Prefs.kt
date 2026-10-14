@@ -136,10 +136,10 @@ class Prefs(context: Context) {
         get() = p.getBoolean("run_indoors", false)
         set(v) = p.edit().putBoolean("run_indoors", v).apply()
 
-    /** WILD ENCOUNTERS: the percent of wild encounters left ([com.pokedaisy.app.companion.data.WildEncounters.STEPS]:
-     * 100 = the game's own rate, 0 = none). */
+    /** WILD ENCOUNTERS: the percent of wild encounters left - 100 = the game's own rate (ON), 0 = none (OFF). The
+     * setting is ON / OFF now (the user's call): a 75 / 50 / 25 % saved before reads as ON, with nothing left to change it. */
     var wildEncounters: Int
-        get() = p.getInt("wild_encounters", 100)
+        get() = if (p.getInt("wild_encounters", 100) == 0) 0 else 100
         set(v) = p.edit().putInt("wild_encounters", v).apply()
 
     /** Remembered speed-cycle index per ROM (keyed by CRC32). */
@@ -347,6 +347,13 @@ class Prefs(context: Context) {
     var swapScreens: Boolean
         get() = p.getBoolean("swap_screens", false)
         set(v) = p.edit().putBoolean("swap_screens", v).apply()
+
+    /** Two screens: play on one anyway - the second is left free for other apps and the companion opens over the
+     * game, as on a one-screen device (see PokeDaisyActivity.syncPresentation). A player's request: multitask
+     * without closing PokéDaisy. */
+    var singleScreen: Boolean
+        get() = p.getBoolean("single_screen", false)
+        set(v) = p.edit().putBoolean("single_screen", v).apply()
 
     /** Single-screen devices: the companion's side panel is locked beside the game (see [SidePanel]). */
     var sidePanelDocked: Boolean

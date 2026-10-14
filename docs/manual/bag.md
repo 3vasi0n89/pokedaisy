@@ -8,13 +8,13 @@ keywords: [items, inventory, cube, pockets, tm, hm, description, sort, use item,
 
 The bag tab shows everything you're carrying, pocket by pocket, as the game has it right now. It's handy for a quick count before a long cave, or for reading what an item does without digging through the game's menus.
 
-The tab's name follows the game: `BAG` in most games, `CUBE` in Unbound, `INVENTORY` in R.O.W.E. and `POCKETS` in Super Mariomon. The screen itself is drawn like that game's bag.
+The tab's name follows the game: `BAG` in most games, `PACK` in Crystal, Crystal Clear and Prism, `CUBE` in Unbound, `INVENTORY` in R.O.W.E. and `POCKETS` in Super Mariomon. The screen itself is drawn like that game's bag.
 
 ## Pockets and sorting
 
 The pockets run down the left like folder tabs. `ALL` shows everything at once; the others are the game's own pockets (items, balls, TMs and HMs, berries, key items, and whatever extra pockets a hack adds). Only pockets with something in them get a tab.
 
-Each row has the item's name and how many you have. TMs and HMs show the move they teach after their number, the way the game's TM case does.
+Each row has the item's name and how many you have. TMs and HMs show the move they teach after their number, the way the game's TM case does. In Prism TMs never run out, so each one shows a count of 1.
 
 The button under the pockets changes the order. Each tap moves to the next: the game's own order, by name, by type, or by count (most first).
 
@@ -26,7 +26,7 @@ Tap an item to open its description at the bottom of the screen, with the item's
 
 ![SODA SPRAY selected in the bag, its icon and description in a box along the bottom](shots/companion-bag-item.png "An item's description")
 
-Descriptions are read from your own ROM, in your game's words and language. That means a hack's changed items describe themselves correctly. If an item has no text here, the game's description couldn't be found in that ROM.
+Descriptions are read from your own ROM, in your game's words and language. That means a hack's changed items describe themselves correctly. If an item has no text here, the game's description couldn't be found in that ROM. In Crystal, Crystal Clear and Prism a TM shows the description of the move it teaches, as those games' own TM pocket does.
 
 ## Favorites
 
@@ -56,12 +56,18 @@ Under the icons, a line names the best fit and, if its moves are full, which mov
 
 ## Using an item from the companion
 
-In the English FireRed (rev 1) and Emerald, the description box of an item that keeps wild Pokémon away has a `USE` button. Tap it and the item is used as if you'd picked it from the game's bag: one leaves your bag, and the game counts the steps down as usual.
+In many games you can use an item, or hand one to a Pokémon, without opening the game's bag. Rows you can do something with carry a small ball mark, and the line under the list says so. Open the item's description and its bar has the buttons that apply:
 
-It only works while you're walking around. If a menu, a conversation or a battle is open, it tells you so (close the game's menus first). If the last one is still working, it says that too, and nothing is used.
+- `USE` on an item that keeps wild Pokémon away uses it on the spot, as if you'd picked it from the game's bag: one leaves your bag, and the game counts the steps down as usual. If the last one is still working, it says so and nothing is used.
+- `USE` on a healing item, a status cure, a vitamin or an item that restores PP asks which Pokémon, and for some PP items which move. The ones it wouldn't help are dimmed, just as the game would say it won't have any effect.
+- `GIVE` hands the item to a Pokémon to hold. If it was already holding something, that item goes back to your bag.
 
-> [!TIP]
-> Other items and other games don't have `USE` yet. For everything else, use the item in the game as normal; the bag tab updates by itself.
+To take a held item back, open the Pokémon's summary on the party tab and tap `TAKE` (see [Party and summaries](party.md)).
+
+It only works while you're walking around. If a menu, a conversation or a battle is open, it tells you so (close the game's menus first). Items that need the game's own screens, like the ones that raise a level or make a Pokémon evolve, and letters, aren't offered here.
+
+> [!NOTE]
+> This works in FireRed, LeafGreen, Ruby, Sapphire and Emerald (in every language PokeDaisy supports, except the Japanese Ruby, Sapphire and Emerald), and in Unbound, Radical Red, Gaia, Odyssey, Amethyst, Orange Islands, Ultra Violet, FireRed Rocket Edition, Ash Gray, Sword and Shield Ultimate Plus, GS Chronicles, Glazed, Emerald Kaizo and Recharged Emerald. In other games, use items in the game as normal; the bag tab updates by itself.
 
 ## The PC from anywhere
 

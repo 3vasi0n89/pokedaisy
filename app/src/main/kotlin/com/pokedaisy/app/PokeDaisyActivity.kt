@@ -61,6 +61,7 @@ import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+import com.pokedaisy.app.companion.data.isCrystalFamily
 
 /**
  * Phase 1 shell: full-screen GBA emulation with RetroArch-style savestate slots
@@ -272,9 +273,10 @@ class PokeDaisyActivity : Activity() {
     }
 
     /** USE / GIVE / TAKE, the way the game does them (FieldItems.kt): the retail games in every language mapped so
-     * far, and the hacks that are retail code edited in place; the code CRCs decide the rest. */
+     * far, the hacks that are retail code edited in place and the rebuilds whose config carries its own (Recharged
+     * Emerald); the code CRCs decide the rest. */
     private fun fieldItemsFor(game: com.pokedaisy.app.companion.data.GameKind?): List<com.pokedaisy.app.companion.data.FieldItemFns> =
-        com.pokedaisy.app.companion.data.fieldItemsCandidatesForGame(game, romCode, romRev)
+        com.pokedaisy.app.companion.data.fieldItemsCandidatesForGame(game, romCode, romRev, telemetry.knownFieldItems())
 
     /** WHICH GAME IS THIS?: the player's answers, taken by the sampler on its next pass (the emulator thread). */
     private val gamePick get() = telemetry.gamePick
@@ -300,10 +302,12 @@ class PokeDaisyActivity : Activity() {
 
     private fun fieldItemSupport(): com.pokedaisy.app.companion.data.FieldItemSupport? {
         val game = telemetry.snapshot.value.game
-        // The config's text key too: Emerald Kaizo runs as EMERALD and keeps no FLY (fieldItemsForGame).
-        val key = "$romCode/$romRev/$game/${com.pokedaisy.app.companion.data.romGameCode}"
-        fieldSupport?.let { (k, v) -> if (k == key) return v }
+        // The config's text key and tables too: Emerald Kaizo runs as EMERALD and keeps no FLY (fieldItemsForGame);
+        // Recharged Emerald shares retail Emerald's code, revision and kind, but not its functions.
         val candidates = fieldItemsFor(game).ifEmpty { return null }
+        val key = "$romCode/$romRev/$game/${com.pokedaisy.app.companion.data.romGameCode}/" +
+            candidates.joinToString(",") { "${it.varGet}/${it.items}" }
+        fieldSupport?.let { (k, v) -> if (k == key) return v }
         if (!::engine.isInitialized || !engine.running) return null
         // ROM bytes only (the core lock keeps a closing game's core safe); a read that fails isn't cached. The first
         // table whose code is in the ROM (SoulGold's builds share one game).
@@ -573,8 +577,15 @@ class PokeDaisyActivity : Activity() {
      * stay out.
      */
     private fun switchAddrsFor(game: com.pokedaisy.app.companion.data.GameKind?): BattleInputController.SwitchAddrs? = when {
+        // Yellow and the Crystal family: their own party menus, read through GbPartySwitch (no gPartyMenu, no personality).
+        game == com.pokedaisy.app.companion.data.GameKind.YELLOW || game.isCrystalFamily ->
+            telemetry.gbPartySwitch()?.let { BattleInputController.SwitchAddrs(gb = it) }
         game == com.pokedaisy.app.companion.data.GameKind.FIRERED && romCode == "BPRE" && romRev == 1 ->
             BattleInputController.SwitchAddrs(partyMenu = 0x0203B0A0L, party = 0x02024284L)
+        // Recharged Emerald runs as Emerald (BPEE) but is a rebuild with its own RAM: its config carries gPartyMenu (Emerald's
+        // list; headless on all three builds: a written POKéMON cell, DOWN, A, SHIFT sent party slot 1 in).
+        game == com.pokedaisy.app.companion.data.GameKind.EMERALD && com.pokedaisy.app.companion.data.runningEmeraldHack != null ->
+            telemetry.knownPartyMenu()?.let { (menu, party) -> BattleInputController.SwitchAddrs(partyMenu = menu, party = party) }
         // Japanese Emerald: its own RAM (NATIVE_EMERALD_JA).
         game == com.pokedaisy.app.companion.data.GameKind.EMERALD && romCode == "BPEJ" ->
             BattleInputController.SwitchAddrs(partyMenu = 0x0203CB94L, party = 0x02024190L)
@@ -588,8 +599,9 @@ class PokeDaisyActivity : Activity() {
         // Orange Islands is retail FireRed rev 0's RAM and party menu, edited in place.
         game == com.pokedaisy.app.companion.data.GameKind.ORANGE_ISLANDS ->
             BattleInputController.SwitchAddrs(partyMenu = 0x0203B0A0L, party = 0x02024284L)
-        // So is Ultra Violet (FireRed 1.0 under its own game code, NATIVE_ULTRA_VIOLET).
-        game == com.pokedaisy.app.companion.data.GameKind.FIRERED && romCode == com.pokedaisy.app.companion.data.TelemetrySampler.ULTRA_VIOLET_CODE ->
+        // So are Ultra Violet, Rocket Edition and Ash Gray (FireRed 1.0 edited in place, ActiveTables' fireRedHack;
+        // their fixtures' READMEs: a written POKéMON cell + DOWN, A, SHIFT sent party slot 1 in).
+        game == com.pokedaisy.app.companion.data.GameKind.FIRERED && com.pokedaisy.app.companion.data.runningFireRedHack != null ->
             BattleInputController.SwitchAddrs(partyMenu = 0x0203B0A0L, party = 0x02024284L)
         game == com.pokedaisy.app.companion.data.GameKind.TMT2 ->
             BattleInputController.SwitchAddrs(partyMenu = 0x0203242CL, party = 0x02032C94L)
@@ -606,8 +618,9 @@ class PokeDaisyActivity : Activity() {
         // Gaia: FireRed's addresses and FireRed's own one-column list (DOWN 0 -> 1; gaia_battle's README).
         game == com.pokedaisy.app.companion.data.GameKind.GAIA ->
             BattleInputController.SwitchAddrs(partyMenu = 0x0203B0A0L, party = 0x02024284L)
-        // Odyssey and Sword and Shield: CFRU's grid at FireRed's addresses, like Unbound (their fixtures' READMEs).
-        game == com.pokedaisy.app.companion.data.GameKind.ODYSSEY || game == com.pokedaisy.app.companion.data.GameKind.SWORD_SHIELD ->
+        // Odyssey, Sword and Shield and GS Chronicles: CFRU's grid at FireRed's addresses, like Unbound (their fixtures' READMEs).
+        game == com.pokedaisy.app.companion.data.GameKind.ODYSSEY || game == com.pokedaisy.app.companion.data.GameKind.SWORD_SHIELD ||
+            game == com.pokedaisy.app.companion.data.GameKind.GS_CHRONICLES ->
             BattleInputController.SwitchAddrs(partyMenu = 0x0203B0A0L, party = 0x02024284L, grid = true)
         // Heart and Soul: gPartyMenu found by its slotId walking 0 -> 7 -> 0 with one Pokémon (CANCEL at 7); a list
         // (DOWN 0 -> 1 with three). Headless: a written POKéMON cell opened it, DOWN, A, SHIFT sent slot 1 in.
@@ -619,8 +632,10 @@ class PokeDaisyActivity : Activity() {
             BattleInputController.SwitchAddrs(partyMenu = 0x0203B368L, party = 0x0202433CL)
         game == com.pokedaisy.app.companion.data.GameKind.ROWE ->
             BattleInputController.SwitchAddrs(partyMenu = 0x0203E774L, party = 0x02025128L, monStride = 0x4C, grid = true)
+        // Quetzal: Emerald's list (DOWN walks slotId 0 -> 1), gPartyMenu by release - Alpha 9's 0x0203E9FC, 0.8.4's
+        // 0x0203EA08 (its config; headless on all four 0.8.4 builds: DOWN, A, SHIFT sent slot 1 in).
         game == com.pokedaisy.app.companion.data.GameKind.QUETZAL ->
-            BattleInputController.SwitchAddrs(partyMenu = 0x0203E9FCL, party = 0x020235CCL, monStride = 0x68)
+            telemetry.knownPartyMenu()?.let { (menu, party) -> BattleInputController.SwitchAddrs(partyMenu = menu, party = party, monStride = 0x68) }
         game == com.pokedaisy.app.companion.data.GameKind.IMPERIUM ->
             BattleInputController.SwitchAddrs(partyMenu = 0x020370E0L, party = 0x020375F8L, grid = true)
         // Glazed is retail Emerald's RAM and party menu code (NATIVE_GLAZED).
@@ -764,7 +779,7 @@ class PokeDaisyActivity : Activity() {
         override fun closeGame() {
             exitGame()   // drives the normal onPause()/onStop() lifecycle, which already suspends+saves
         }
-        override val canCloseCompanion get() = Screens.second(this@PokeDaisyActivity) != null && !Prefs(this@PokeDaisyActivity).swapScreens
+        override val canCloseCompanion get() = secondScreen() != null && !Prefs(this@PokeDaisyActivity).swapScreens
         override fun closeCompanion() {
             runOnUiThread {
                 companionClosed = true
@@ -878,6 +893,18 @@ class PokeDaisyActivity : Activity() {
         // here before the new presentation is assigned, and the remembered rows then lost
         // SWAP SCREENS until the page was rebuilt.
         override val hasSecondScreen get() = Screens.second(this@PokeDaisyActivity) != null
+        override val singleScreen get() = Prefs(this@PokeDaisyActivity).singleScreen
+        override fun setSingleScreen(on: Boolean) {
+            Prefs(this@PokeDaisyActivity).singleScreen = on
+            // Off again: the companion that comes back on the second screen opens on SETTINGS, on this row.
+            companionStartTab = "SETTINGS"
+            companionStartRow = "SINGLE SCREEN"
+            runOnUiThread {
+                syncPresentation()
+                // On: the companion leaves the second screen; it opens over the game, so it doesn't just vanish.
+                if (on && ::sidePanel.isInitialized && sidePanel.enabled) sidePanel.openPanel()
+            }
+        }
         override val swapScreens get() = Prefs(this@PokeDaisyActivity).swapScreens
         override val portraitUnderGame get() =
             if (::portraitPanel.isInitialized && portraitPanel.enabled) Prefs(this@PokeDaisyActivity).portraitCompanionUnderGame else null
@@ -1080,7 +1107,7 @@ class PokeDaisyActivity : Activity() {
         }
         // Two screens: the game stays on the landscape top one. One screen (a phone): it turns
         // with the device (the user's rotation setting), the companion under the game upright.
-        syncOrientation(Screens.hasSecond(this))
+        syncOrientation(secondScreen() != null)
         syncGameScreen()
 
         hotkeys = Hotkeys.load(getExternalFilesDir(null) ?: filesDir)
@@ -1156,6 +1183,7 @@ class PokeDaisyActivity : Activity() {
         // FireRed / Emerald party-menu art and region maps come from the ROM
         // itself, once per ROM (see RomArt) - nothing of the game is bundled.
         if (!gameBoy) RomArt.prefetch(filesDir, crc, r) else com.pokedaisy.app.companion.data.Gen1Art.prefetch(filesDir, r)
+        if (gameBoy) com.pokedaisy.app.companion.data.Gen2Art.prefetch(filesDir, r)   // a Color cart's (Crystal): its own scan
         // A Game Boy cart's POKéDEX pages are read from its bytes (bank-switched: not on the bus whole); a few MB at most.
         val gbRom = if (gameBoy) runCatching { r.readBytes() }.getOrNull() else null
         com.pokedaisy.app.companion.data.Gen1Dex.rom = gbRom
@@ -1237,7 +1265,8 @@ class PokeDaisyActivity : Activity() {
                 // The menus' cursors, so a FIGHT / move tap goes straight to its cell (NativeConfig.actionCursor).
                 if (snap.connected) battleCursorAddrs = telemetry.knownCursorAddrs()
                     ?.let { (action, move) -> BattleInputController.CursorAddrs(action = action, move = move) }
-                if (snap.connected) battleGen1Menus = snap.game == com.pokedaisy.app.companion.data.GameKind.YELLOW
+                if (snap.connected) battleGen1Menus = snap.game == com.pokedaisy.app.companion.data.GameKind.YELLOW ||
+                    snap.game.isCrystalFamily   // the same 2x2 menu and move column
                 // party.isNotEmpty(), not just connected: `connected` flips true as
                 // soon as the native addresses are found, which can be
                 // well before the save's party has actually loaded into RAM (e.g.
@@ -1485,7 +1514,7 @@ class PokeDaisyActivity : Activity() {
 
     private fun syncPresentation() {
         if (!::engine.isInitialized) return
-        val target: Display? = Screens.second(this)
+        val target: Display? = secondScreen()
         val swap = target != null && Prefs(this).swapScreens && !debugMirror
         if (companionClosed && target != null && !swap) {
             presentation?.let { it.dismiss(); it.releaseContent() }
@@ -1522,6 +1551,9 @@ class PokeDaisyActivity : Activity() {
             syncSingleScreen(!debugMirror)
         }
     }
+
+    /** The second display the companion goes on, or null: none, or SINGLE SCREEN keeps the game to this one. */
+    private fun secondScreen(): Display? = Screens.second(this)?.takeIf { !Prefs(this).singleScreen }
 
     /** The companion on the game's screen: beside the game held sideways, under it upright. */
     private fun syncSingleScreen(on: Boolean) {

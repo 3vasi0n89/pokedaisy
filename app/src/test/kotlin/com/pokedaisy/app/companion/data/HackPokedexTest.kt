@@ -53,6 +53,18 @@ class HackPokedexTest {
         assertTrue(johto.caught.containsAll(listOf(4, 215, 408, 442, 627)))
     }
 
+    /** Quetzal Alpha 0.8.4 (every build) with Spanish Alpha 9's save: its own POKéDEX said SEEN 466 / OWN 347 (the
+     * continue screen 347) - two fewer than Alpha 9, which counts species 0.8.4 doesn't have. */
+    @Test
+    fun `Quetzal 0_8_4 - Alpha 9's save, its own counts`() {
+        for ((key, cfg) in listOf("quetzal_084" to NATIVE_QUETZAL_V084, "quetzal_es_084" to NATIVE_QUETZAL_V084_ES,
+            "quetzal_moemon_084" to NATIVE_QUETZAL_MOEMON_V084, "quetzal_moemon_es_084" to NATIVE_QUETZAL_MOEMON_V084_ES)) {
+            val dex = state(key, cfg)
+            assertEquals(key, 466 to 347, dex.seen.size to dex.caught.size)
+            assertTrue(dex.caught.containsAll(listOf(6, 130)))
+        }
+    }
+
     /** Unbound FR: CFRU's flags, as English's - its dex said Seen 6 Borrius / 8 National, Caught 2 / 3. */
     @Test
     fun `Unbound FR - seen 8, caught 3`() {
@@ -82,6 +94,35 @@ class HackPokedexTest {
             assertTrue(dex.caught.containsAll(listOf(1, 8, 25, 27, 37))) // its party's
             assertTrue(dex.seen.containsAll(dex.caught))
             assertFalse(dex.national)
+        }
+    }
+
+    /** Recharged Emerald: retail Emerald's save converted keeps its SaveBlock2 dex - SEEN 108 / OWN 28 as retail's
+     * POKéDEX said (EmeraldPokedexTest), in every build (Rebalanced's 4 bytes later). */
+    @Test
+    fun `Recharged Emerald - seen 108, owned 28`() {
+        for ((key, cfg) in listOf(
+            "recharged_emerald_v225" to NATIVE_RECHARGED_EMERALD_V2_2_5, "recharged_emerald" to NATIVE_RECHARGED_EMERALD_V2_2_8,
+            "recharged_emerald_rebalanced" to NATIVE_RECHARGED_EMERALD_REBALANCED_V2_2_8,
+        )) {
+            val dex = state(key, cfg)
+            assertEquals(key, 108 to 28, dex.seen.size to dex.caught.size)
+            assertTrue(dex.seen.containsAll(dex.caught))
+        }
+    }
+
+    /** Recharged Emerald's entries: Emerald's shape at its own addresses, its own casing ("Seed"). */
+    @Test
+    fun `Recharged Emerald entries - every build`() {
+        for ((file, t) in listOf(
+            "Pokemon Recharged Emerald (v2.2.5).gba" to POKEDEX_RECHARGED_EMERALD_V2_2_5,
+            "Pokemon Recharged Emerald (v2.2.8).gba" to POKEDEX_RECHARGED_EMERALD_V2_2_8,
+            "Pokemon Recharged Emerald Rebalanced (v2.2.8).gba" to POKEDEX_RECHARGED_EMERALD_REBALANCED_V2_2_8,
+        )) roms(file, GameKind.EMERALD, t) {
+            assertTrue(file, pokedexMatchesRom(PokedexSource.reader!!, t))
+            val bulbasaur = PokedexSource.entry(t, 1)!!
+            assertEquals("Seed" to (7 to 69), bulbasaur.category to (bulbasaur.heightDm to bulbasaur.weightHg))
+            assertEquals(202, PokedexSource.regionalOrder(t)!!.size)
         }
     }
 
@@ -189,7 +230,7 @@ class HackPokedexTest {
     }
 
     @Test
-    fun `Odyssey entries`() = roms("Pokémon Odyssey (English) (v4.1.1).gba", GameKind.ODYSSEY, POKEDEX_ODYSSEY) { t ->
+    fun `Odyssey entries`() = roms("Pokemon Odyssey (v4.1.1).gba", GameKind.ODYSSEY, POKEDEX_ODYSSEY) { t ->
         assertEquals("Seed", PokedexSource.entry(t, 1)!!.category)
         val roserade = PokedexSource.entry(t, 387)!!
         assertEquals(252, roserade.species)
@@ -199,7 +240,7 @@ class HackPokedexTest {
     }
 
     @Test
-    fun `Radical Red entries`() = roms("Pokemon - Radical Red (v4.1).gba", GameKind.RADICAL_RED, POKEDEX_RADICAL_RED) { t ->
+    fun `Radical Red entries`() = roms("Pokemon Radical Red (v4.1).gba", GameKind.RADICAL_RED, POKEDEX_RADICAL_RED) { t ->
         val charmander = PokedexSource.entry(t, 4)!!
         assertEquals("Lizard", charmander.category)
         assertEquals("Solar Power", charmander.hiddenAbility)
@@ -225,7 +266,7 @@ class HackPokedexTest {
     }
 
     @Test
-    fun `Gaia entries`() = roms("Pokemon - Gaia (v3.2).gba", GameKind.GAIA, POKEDEX_GAIA) { t ->
+    fun `Gaia entries`() = roms("Pokemon Gaia (v3.2).gba", GameKind.GAIA, POKEDEX_GAIA) { t ->
         val chimchar = PokedexSource.entry(t, 390)!!
         assertEquals(443, chimchar.species)
         assertEquals("Chimp", chimchar.category)
@@ -243,7 +284,7 @@ class HackPokedexTest {
 
     @Test
     fun `Heart and Soul entries and the Johto order`() =
-        roms("Pokémon Heart and Soul (v2.0.6).gba", GameKind.HEART_AND_SOUL, POKEDEX_HEART_AND_SOUL) { t ->
+        roms("Pokemon Heart and Soul (v2.0.6).gba", GameKind.HEART_AND_SOUL, POKEDEX_HEART_AND_SOUL) { t ->
             val johto = PokedexSource.regionalOrder(t)!!
             assertEquals(listOf(152, 153, 154, 155, 156, 157, 158, 159, 160, 16), johto.take(10))
             assertEquals(251, johto.last())
@@ -264,7 +305,7 @@ class HackPokedexTest {
     }
 
     @Test
-    fun `SoulGold entries and the Johto order`() = roms("Pokemon-SoulGold-v1.1.4.gba", GameKind.SOULGOLD, POKEDEX_SOULGOLD) { t ->
+    fun `SoulGold entries and the Johto order`() = roms("Pokemon SoulGold (v1.1.4).gba", GameKind.SOULGOLD, POKEDEX_SOULGOLD) { t ->
         val pikachu = PokedexSource.entry(t, 25)!!
         assertEquals(listOf("Static"), pikachu.abilities)
         assertEquals("Lightning Rod", pikachu.hiddenAbility)
@@ -276,7 +317,7 @@ class HackPokedexTest {
     }
 
     @Test
-    fun `SoulGold v1_2 entries and the Johto order`() = roms("Soulgold (v1.2).gba", GameKind.SOULGOLD, POKEDEX_SOULGOLD_V1_2) { t ->
+    fun `SoulGold v1_2 entries and the Johto order`() = roms("Pokemon SoulGold (v1.2).gba", GameKind.SOULGOLD, POKEDEX_SOULGOLD_V1_2) { t ->
         val pikachu = PokedexSource.entry(t, 25)!!
         assertEquals(listOf("Static"), pikachu.abilities)
         assertEquals("Lightning Rod", pikachu.hiddenAbility)
@@ -285,7 +326,7 @@ class HackPokedexTest {
     }
 
     @Test
-    fun `SoulGold v1_2 second build entries and the Johto order`() = roms("Pokemon-SoulGold-v1.2.gba", GameKind.SOULGOLD, POKEDEX_SOULGOLD_V1_2B) { t ->
+    fun `SoulGold v1_2 second build entries and the Johto order`() = roms("Pokemon SoulGold (v1.2) (Alt 1).gba", GameKind.SOULGOLD, POKEDEX_SOULGOLD_V1_2B) { t ->
         val pikachu = PokedexSource.entry(t, 25)!!
         assertEquals(listOf("Static"), pikachu.abilities)
         assertEquals("Lightning Rod", pikachu.hiddenAbility)
@@ -294,7 +335,7 @@ class HackPokedexTest {
     }
 
     @Test
-    fun `SoulGold v1_2 third build entries and the Johto order`() = roms("Soulgold (v1.2) (1).gba", GameKind.SOULGOLD, POKEDEX_SOULGOLD_V1_2C) { t ->
+    fun `SoulGold v1_2 third build entries and the Johto order`() = roms("Pokemon SoulGold (v1.2) (Alt 2).gba", GameKind.SOULGOLD, POKEDEX_SOULGOLD_V1_2C) { t ->
         val pikachu = PokedexSource.entry(t, 25)!!
         assertEquals(listOf("Static"), pikachu.abilities)
         assertEquals("Lightning Rod", pikachu.hiddenAbility)
@@ -329,7 +370,7 @@ class HackPokedexTest {
     }
 
     @Test
-    fun `Quetzal entries`() = roms("PokemonQuetzalEnglishAlpha9v0.gba", GameKind.QUETZAL, POKEDEX_QUETZAL) { t ->
+    fun `Quetzal entries`() = roms("Pokemon Quetzal (Alpha 9.0) (English).gba", GameKind.QUETZAL, POKEDEX_QUETZAL) { t ->
         val charmander = PokedexSource.entry(t, 4)!!
         assertEquals("Lizard" to (6 to 85), charmander.category to (charmander.heightDm to charmander.weightHg))
         assertEquals(listOf("Blaze"), charmander.abilities)
@@ -339,7 +380,7 @@ class HackPokedexTest {
     }
 
     @Test
-    fun `Quetzal Spanish entries`() = roms("QuetzalDaisy/PokemonQuetzalSpanishAlpha9v0.gba", GameKind.QUETZAL, POKEDEX_QUETZAL_ES) { t ->
+    fun `Quetzal Spanish entries`() = roms("Pokemon Quetzal (Alpha 9.0) (Spanish).gba", GameKind.QUETZAL, POKEDEX_QUETZAL_ES) { t ->
         val charmander = PokedexSource.entry(t, 4)!!
         assertEquals("Lagartija" to (6 to 85), charmander.category to (charmander.heightDm to charmander.weightHg))
         assertTrue(charmander.description.startsWith("Prefiere las cosas calientes"))
@@ -347,7 +388,26 @@ class HackPokedexTest {
     }
 
     @Test
-    fun `Unbound FR entries in French`() = roms("Pokémon Unbound v2.1.1.1 FR.gba", GameKind.UNBOUND, POKEDEX_UNBOUND_FR) { t ->
+    fun `Quetzal 0_8_4 entries - every build`() {
+        for ((file, t) in listOf("Pokemon Quetzal (Alpha 0.8.4) (English).gba" to POKEDEX_QUETZAL_V084,
+            "Moemon Quetzal (Alpha 0.8.4 Hotfix) (English).gba" to POKEDEX_QUETZAL_MOEMON_V084)) roms(file, GameKind.QUETZAL, t) { t ->
+            val charmander = PokedexSource.entry(t, 4)!!
+            assertEquals("Lizard" to (6 to 85), charmander.category to (charmander.heightDm to charmander.weightHg))
+            assertEquals(listOf("Blaze"), charmander.abilities)
+            assertEquals("Solar Power", charmander.hiddenAbility)
+            assertEquals(1244, PokedexSource.speciesFor(t, 915)) // LECHONK
+            assertEquals(0, PokedexSource.speciesFor(t, 1026)) // no Alpha 9 starters
+        }
+        for ((file, t) in listOf("Pokemon Quetzal (Alpha 0.8.4) (Spanish).gba" to POKEDEX_QUETZAL_V084_ES,
+            "Moemon Quetzal (Alpha 0.8.4 Hotfix) (Spanish).gba" to POKEDEX_QUETZAL_MOEMON_V084_ES)) roms(file, GameKind.QUETZAL, t) { t ->
+            val charmander = PokedexSource.entry(t, 4)!!
+            assertEquals("Lagartija" to (6 to 85), charmander.category to (charmander.heightDm to charmander.weightHg))
+            assertEquals(1244, PokedexSource.speciesFor(t, 915))
+        }
+    }
+
+    @Test
+    fun `Unbound FR entries in French`() = roms("Pokemon Unbound (v2.1.1.1) (French).gba", GameKind.UNBOUND, POKEDEX_UNBOUND_FR) { t ->
         val charmander = PokedexSource.entry(t, 4)!!
         assertEquals("Lézard" to (6 to 85), charmander.category to (charmander.heightDm to charmander.weightHg))
         assertEquals(listOf("Brasier"), charmander.abilities)
@@ -366,7 +426,7 @@ class HackPokedexTest {
         for ((v, t) in listOf(
             "1.8.0" to POKEDEX_RECHARGED_YELLOW_V1_8_0, "1.9.0" to POKEDEX_RECHARGED_YELLOW_V1_9_0,
             "1.9.4" to POKEDEX_RECHARGED_YELLOW_V1_9_4, "1.9.7" to POKEDEX_RECHARGED_YELLOW_V1_9_7,
-        )) roms("Recharged Yellow v$v.gba", GameKind.RECHARGED_YELLOW, t) {
+        )) roms("Pokemon Recharged Yellow (v$v).gba", GameKind.RECHARGED_YELLOW, t) {
             assertTrue(pokedexMatchesRom(PokedexSource.reader!!, t))
             val bulbasaur = PokedexSource.entry(t, 1)!!
             assertEquals("Seed" to (7 to 69), bulbasaur.category to (bulbasaur.heightDm to bulbasaur.weightHg))
@@ -378,14 +438,29 @@ class HackPokedexTest {
     }
 
     @Test
-    fun `Ultra Violet entries - FireRed rev 0's tables`() = roms("ultra-violet-v1.22.gba", GameKind.FIRERED, POKEDEX_ULTRA_VIOLET) { t ->
+    fun `Ultra Violet entries - FireRed rev 0's tables`() = roms("Pokemon Ultra Violet (v1.22).gba", GameKind.FIRERED, POKEDEX_ULTRA_VIOLET) { t ->
         val charmander = PokedexSource.entry(t, 4)!!
         assertEquals("LIZARD" to (6 to 85), charmander.category to (charmander.heightDm to charmander.weightHg))
         assertEquals(listOf("BLAZE"), charmander.abilities)
     }
 
     @Test
-    fun `Sword and Shield entries - one national dex`() = roms("Sword and Shield Ultimate Plus (1.2.1.2).gba", GameKind.SWORD_SHIELD, POKEDEX_SWORD_SHIELD) { t ->
+    fun `Rocket Edition entries - rev 0's tables, its own ability names`() =
+        roms("Pokemon FireRed Rocket Edition.gba", GameKind.FIRERED, POKEDEX_ROCKET_EDITION) { t ->
+            val clefairy = PokedexSource.entry(t, 35)!!
+            assertEquals(35 to "Fairy", clefairy.species to clefairy.category)
+            assertTrue(clefairy.abilities.isNotEmpty())
+        }
+
+    @Test
+    fun `Ash Gray entries - rev 0's tables`() = roms("Pokemon Ash Gray (v4.5.3).gba", GameKind.FIRERED, POKEDEX_ULTRA_VIOLET) { t ->
+        val pikachu = PokedexSource.entry(t, 25)!!
+        assertEquals(25 to "MOUSE", pikachu.species to pikachu.category)
+        assertEquals(listOf("STATIC"), pikachu.abilities)
+    }
+
+    @Test
+    fun `Sword and Shield entries - one national dex`() = roms("Pokemon Sword and Shield Ultimate Plus (v1.2.1.2).gba", GameKind.SWORD_SHIELD, POKEDEX_SWORD_SHIELD) { t ->
         val scorbunny = PokedexSource.entry(t, 813)!!
         assertEquals(1105 to "Rabbit", scorbunny.species to scorbunny.category)
         assertEquals(3 to 45, scorbunny.heightDm to scorbunny.weightHg)
@@ -393,8 +468,21 @@ class HackPokedexTest {
         assertEquals("Seed", PokedexSource.entry(t, 1)!!.category)
     }
 
+    /** GS Chronicles: its own Johto list of 501 species ids (the game's POKéDEX: No001 Chikorita, No004 Cyndaquil, No007 Totodile). */
     @Test
-    fun `Imperium entries and the Hoenn order`() = roms("Emerald Imperium (v1.3.1).gba", GameKind.IMPERIUM, POKEDEX_IMPERIUM) { t ->
+    fun `GS Chronicles entries and the Johto order`() = roms("Pokemon GS Chronicles (v2.7.6).gba", GameKind.GS_CHRONICLES, POKEDEX_GS_CHRONICLES) { t ->
+        val johto = PokedexSource.regionalOrder(t)!!
+        assertEquals(501, johto.size)
+        assertEquals(listOf(152, 153, 154, 155), johto.take(4).toList())
+        val cyndaquil = PokedexSource.entry(t, 155)!!
+        assertEquals(155 to "Fire Mouse", cyndaquil.species to cyndaquil.category)
+        assertEquals(5 to 79, cyndaquil.heightDm to cyndaquil.weightHg)
+        assertEquals("Blaze", cyndaquil.abilities.first())
+        assertEquals("Seed", PokedexSource.entry(t, 1)!!.category)
+    }
+
+    @Test
+    fun `Imperium entries and the Hoenn order`() = roms("Pokemon Emerald Imperium (v1.3.1).gba", GameKind.IMPERIUM, POKEDEX_IMPERIUM) { t ->
         assertEquals(252, PokedexSource.regionalOrder(t)!!.first())
         val charmander = PokedexSource.entry(t, 4)!!
         assertEquals("Lizard" to (6 to 85), charmander.category to (charmander.heightDm to charmander.weightHg))
@@ -402,7 +490,7 @@ class HackPokedexTest {
     }
 
     @Test
-    fun `Glazed entries in its own numbering`() = roms("Glazed (9.2.0).gba", GameKind.GLAZED, POKEDEX_EMERALD) { t ->
+    fun `Glazed entries in its own numbering`() = roms("Pokemon Glazed (v9.2.0).gba", GameKind.GLAZED, POKEDEX_EMERALD) { t ->
         val chimchar = PokedexSource.entry(t, 322)!!
         assertEquals(298 to "CHIMP", chimchar.species to chimchar.category)
         assertEquals(5 to 62, chimchar.heightDm to chimchar.weightHg)
@@ -411,7 +499,7 @@ class HackPokedexTest {
     /** Its TATTLEDEX: No.1 PIRANHA P. (species 906), BOB-OMB's page as the game prints it, the WORLD list's
      * 152 (v1.5: ends at No.152 TIPTRON) / 151 (v1.3: No.151 SONIC). */
     @Test
-    fun `Super Mariomon v1_5_1 entries and the WORLD list`() = roms("Super Mariomon v1.5.1-Anniversary.gba", GameKind.MARIOMON, POKEDEX_MARIOMON_V1_5_1) { t ->
+    fun `Super Mariomon v1_5_1 entries and the WORLD list`() = roms("Super Mariomon (v1.5.1 Anniversary).gba", GameKind.MARIOMON, POKEDEX_MARIOMON_V1_5_1) { t ->
         mariomonV13 = false
         assertTrue(pokedexMatchesRom(PokedexSource.reader, t))
         assertEquals(906, PokedexSource.speciesFor(t, 1))
@@ -425,8 +513,8 @@ class HackPokedexTest {
 
     @Test
     fun `Super Mariomon v1_3, v1_2_2, v1_2_1, v1_5_2 entries`() {
-        for ((file, t) in listOf("Super Mariomon v1.3.gba" to POKEDEX_MARIOMON_V1_3, "Super Mariomon v1.2.2.gba" to POKEDEX_MARIOMON_V1_2_2,
-                "Super Mariomon v1.2.1.gba" to POKEDEX_MARIOMON_V1_2_1, "Super Mariomon v1.5.2-Anniversary.gba" to POKEDEX_MARIOMON_V1_5_2)) {
+        for ((file, t) in listOf("Super Mariomon (v1.3).gba" to POKEDEX_MARIOMON_V1_3, "Super Mariomon (v1.2.2).gba" to POKEDEX_MARIOMON_V1_2_2,
+                "Super Mariomon (v1.2.1).gba" to POKEDEX_MARIOMON_V1_2_1, "Super Mariomon (v1.5.2 Anniversary).gba" to POKEDEX_MARIOMON_V1_5_2)) {
             mariomonV13 = t !== POKEDEX_MARIOMON_V1_5_2
             roms(file, GameKind.MARIOMON, t) {
                 assertTrue(file, pokedexMatchesRom(PokedexSource.reader, t))

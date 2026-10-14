@@ -306,7 +306,7 @@ class LibraryActivity : ComponentActivity() {
         expandIntro = !prefs.expandIntroSeen && prefs.gameAspect != com.pokedaisy.app.companion.GameAspect.WIDE
 
         setContent {
-            AppTheme {
+            AppTheme { com.pokedaisy.app.companion.ui.CompactTextOnSmallWindows {
                 // The library's windows (INFO, RENAME, the pick-lists...) register their BACK here, as on the companion.
                 androidx.compose.runtime.CompositionLocalProvider(com.pokedaisy.app.companion.ui.LocalCompanionBack provides libraryBack) {
                     val s = setup
@@ -316,7 +316,7 @@ class LibraryActivity : ComponentActivity() {
                         else -> LibraryScreen()
                     }
                 }
-            }
+            } }
         }
 
         // Once ever, from the third open on and two days after the install: may we send crash reports?
@@ -412,7 +412,7 @@ class LibraryActivity : ComponentActivity() {
             // The lists scroll to the screen's edges (their margin is padding inside them), so a card
             // slides off the screen rather than being cut at an inner box's edge.
             Column(modifier = Modifier.fillMaxSize()) {
-                OptionTitleWindow("POKéDAISY", m, Modifier.padding(start = SCREEN_MARGIN, end = SCREEN_MARGIN, top = SCREEN_MARGIN), leading = {
+                OptionTitleWindow(if (narrowHeader) "" else "POKéDAISY", m, Modifier.padding(start = SCREEN_MARGIN, end = SCREEN_MARGIN, top = SCREEN_MARGIN), leading = {
                     PixelArt(LOGO_ROWS, LOGO_PALETTE, Modifier.size(m.lineHeight))
                 }) {
                     // The header's first button: where UP from the top of the games lands.
@@ -655,9 +655,17 @@ class LibraryActivity : ComponentActivity() {
         cursor: Boolean = false,
         onClick: () -> Unit,
     ) {
-        Spacer(Modifier.width(m.u * 4))
-        OptionButton(null, m, onClick = onClick, modifier = modifier.gbaFocusRing(cursor, PixelRoundedShape(m.u * 3)), icon = icon, contentDescription = label)
+        // A phone held upright: tighter buttons, so all six fit beside the logo (the gear was pushed off the end).
+        val narrow = narrowHeader
+        Spacer(Modifier.width(m.u * (if (narrow) 2 else 4)))
+        OptionButton(
+            null, m, onClick = onClick, modifier = modifier.gbaFocusRing(cursor, PixelRoundedShape(m.u * 3)), icon = icon,
+            contentDescription = label, sidePadding = if (narrow) 4 else 8,
+        )
     }
+
+    /** The library is narrower than [NARROW_HEADER] (a phone held upright): its header drops the name, keeps the logo. */
+    private val narrowHeader get() = screenSize.width > 0.dp && screenSize.width < NARROW_HEADER
 
     /** One of the launcher header's buttons: drawn in [LauncherList], pressed by A there ([launcherKey]). */
     private class HeaderButton(val icon: ImageVector, val label: String, val onClick: () -> Unit)
@@ -857,6 +865,7 @@ class LibraryActivity : ComponentActivity() {
     }
     /** About a menu column's width (Material's menus are 112-280 dp). */
     private val MENU_COLUMN_WIDTH = 280.dp
+    private val NARROW_HEADER = 600.dp
 
     /** The library screen's size, for a game's menu to pick one or two columns. */
     private var screenSize by mutableStateOf(DpSize.Zero)

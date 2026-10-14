@@ -1,6 +1,6 @@
 captured: 2026-10-13 (headless mgba_dump, by hand)
-rom: Pokemon Gaia v3.2 (~/Downloads/Game ROMs & Emulation/gba/Pokemon - Gaia (v3.2).gba)
-save: ~/Documents/RetroArch/saves/mGBA/Pokemon - Gaia (v3.2).sav
+rom: Pokemon Gaia v3.2 (~/Downloads/Game ROMs & Emulation/gba/Pokemon Gaia (v3.2).gba)
+save: ~/Documents/RetroArch/saves/mGBA/Pokemon Gaia (v3.2).sav
 boot: native-capture/boot/default.txt (the field), wait 60, then a scripted wild battle: B6 1900 05 0000 B7 02
   (setwildbattle SPECIES_PIKACHU, 5; dowildbattle; end) poked at 0x0203FF00 and `call 0x08069AE5 0x0203FF00`
   (ScriptContext_SetupScript, FireRed rev 0's), wait 600, A, wait 300 (its intro is slower than Unbound's: at 300 the

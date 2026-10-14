@@ -44,6 +44,7 @@ import com.pokedaisy.app.companion.ui.GameArt
 import com.pokedaisy.app.companion.ui.PixelRoundedShape
 import com.pokedaisy.app.companion.ui.rememberArtGeneration
 import com.pokedaisy.app.companion.ui.soundClickable
+import com.pokedaisy.app.companion.data.isCrystalFamily
 
 /**
  * A named "chrome" palette — one of 9 selectable reskins (PokéDaisy default, then
@@ -223,6 +224,9 @@ object AppColors {
         "Grass" to Color(0xFF78C850), "Electric" to Color(0xFFF8D030), "Psychic" to Color(0xFFF85888),
         "Ice" to Color(0xFF98D8D8), "Dragon" to Color(0xFF7038F8), "Dark" to Color(0xFF705848),
         "Fairy" to Color(0xFFEE99AC),
+        // Pokémon Prism's own types (none of the official games has them): colours of ours.
+        "Gas" to Color(0xFF9C8CB4), "Sound" to Color(0xFF58A8C0), "Tri" to Color(0xFFC89878),
+        "Prism" to Color(0xFFE070D8),
     )
 
     /** By the game's own type name: title-cased ("Fire"), or Gen 1's capitals ("FIRE", and its unused BIRD as Flying). */
@@ -293,13 +297,13 @@ val LocalGameFontWidth = androidx.compose.runtime.staticCompositionLocalOf { 1f 
 
 /** [LocalGameFontWidth] for [game]'s own font. */
 fun gameFontWidth(game: GameKind?): Float = when (game) {
-    GameKind.YELLOW -> 0.75f
+    GameKind.YELLOW, GameKind.CRYSTAL, GameKind.CRYSTAL_CLEAR, GameKind.PRISM -> 0.75f
     else -> 1f
 }
 
 /** [LocalGameTextScale] for [game]'s own font. */
 fun gameTextScale(game: GameKind?): Float = when (game) {
-    GameKind.YELLOW -> 9f / 7f
+    GameKind.YELLOW, GameKind.CRYSTAL, GameKind.CRYSTAL_CLEAR, GameKind.PRISM -> 9f / 7f
     else -> 1f
 }
 
@@ -308,9 +312,13 @@ fun gameTextScale(game: GameKind?): Float = when (game) {
 fun rememberGameFont(game: GameKind?): FontFamily? {
     val context = LocalContext.current
     val gen = com.pokedaisy.app.companion.ui.rememberArtGeneration()
-    return remember(game, gen) {
+    val language = com.pokedaisy.app.companion.data.romLanguage
+    return remember(game, gen, language) {
         val path = when (game) {
-            GameKind.YELLOW -> com.pokedaisy.app.companion.data.Gen1Art.YELLOW_FONT
+            GameKind.YELLOW -> com.pokedaisy.app.companion.data.Gen1Art.yellowFont(com.pokedaisy.app.companion.data.romLanguage)
+            GameKind.CRYSTAL -> com.pokedaisy.app.companion.data.Gen2Art.CRYSTAL_FONT
+            GameKind.CRYSTAL_CLEAR -> com.pokedaisy.app.companion.data.Gen2Art.CRYSTAL_CLEAR_FONT
+            GameKind.PRISM -> com.pokedaisy.app.companion.data.Gen2Art.PRISM_FONT
             else -> null
         } ?: return@remember null
         com.pokedaisy.app.companion.data.RomArt.file(context.filesDir, path)?.let { com.pokedaisy.app.gameFontFamily(context, it) }
@@ -360,8 +368,15 @@ fun AppTheme(content: @Composable () -> Unit) {
             onBackground = AppColors.text,
         ),
         typography = typography,
-        content = content,
-    )
+    ) {
+        // Left to right everywhere, whatever the device's language: every text the app has reads that way (on a Hebrew
+        // phone the English windows came out right-aligned, the periods at the start of lines). The manifest's
+        // supportsRtl="false" does the same for plain views.
+        androidx.compose.runtime.CompositionLocalProvider(
+            androidx.compose.ui.platform.LocalLayoutDirection provides androidx.compose.ui.unit.LayoutDirection.Ltr,
+            content = content,
+        )
+    }
 }
 
 /**
@@ -425,25 +440,27 @@ private fun recolorBackdrop(bmp: android.graphics.Bitmap?, to: IntArray): androi
 fun rememberGameBackground(game: GameKind): GameBackground? {
     val context = LocalContext.current
     val gen = rememberArtGeneration()
-    return remember(game, gen) {
+    // Recharged Emerald runs as EMERALD with its own backdrop.
+    val hack = com.pokedaisy.app.companion.data.runningEmeraldHack != null
+    return remember(game, gen, hack) {
         // Kept across visits: the ITEMS backdrop crossfade unmounts this one, and
         // rebuilding it recoloured 38k pixels on the main thread each time.
-        backgroundCache[game to gen]?.let { return@remember it }
+        backgroundCache[Triple(game, hack, gen)]?.let { return@remember it }
         buildGameBackground(context, game)?.also {
-            backgroundCache.keys.removeAll { (_, g) -> g != gen }
-            backgroundCache[game to gen] = it
+            backgroundCache.keys.removeAll { (_, _, g) -> g != gen }
+            backgroundCache[Triple(game, hack, gen)] = it
         }
     }
 }
 
 /** [rememberGameBackground]'s backdrops by game and art generation (main thread only). */
-private val backgroundCache = HashMap<Pair<GameKind, Int>, GameBackground>()
+private val backgroundCache = HashMap<Triple<GameKind, Boolean, Int>, GameBackground>()
 
 private fun buildGameBackground(context: android.content.Context, game: GameKind): GameBackground? {
     // Gen 1's screens are plain white: one pixel, stretched over the tab in a single draw.
     // (Never tiled - GameBackdrop draws a tiled backdrop tile by tile, and a 1px tile at
     // the Thor's 5x was ~53,000 draws a frame: 77 ms per frame on the RenderThread.)
-    if (game == GameKind.YELLOW) {
+    if (game == GameKind.YELLOW || game.isCrystalFamily) {
         return GameBackground(android.graphics.Bitmap.createBitmap(intArrayOf(-1), 1, 1, android.graphics.Bitmap.Config.ARGB_8888).asImageBitmap(), false)
     }
     // Sword and Shield Ultimate Plus: CFRU's grid in its own red, one 32px cell tiled (RomArt).
@@ -454,9 +471,11 @@ private fun buildGameBackground(context: android.content.Context, game: GameKind
         return GameBackground(recolorBackdrop(GameArt.get(context, "partybg/firered.png"), to).asImageBitmap(), false)
     }
     val (asset, tiled) = when (game) {
-        GameKind.EMERALD -> "partybg/emerald.png" to false
+        // Recharged Emerald's own (teal stripes), from its ROM.
+        GameKind.EMERALD -> (if (com.pokedaisy.app.companion.data.runningEmeraldHack != null) com.pokedaisy.app.companion.data.RomArt.RE_BACKDROP
+            else "partybg/emerald.png") to false
         GameKind.HEART_AND_SOUL -> "partybg/hns.png" to false
-        GameKind.UNBOUND, GameKind.RADICAL_RED, GameKind.ODYSSEY, GameKind.AMETHYST -> "partybg/cfru_tile.png" to true
+        GameKind.UNBOUND, GameKind.RADICAL_RED, GameKind.ODYSSEY, GameKind.AMETHYST, GameKind.GS_CHRONICLES -> "partybg/cfru_tile.png" to true
         else -> "partybg/firered.png" to false
     }
     // Every backdrop comes from a ROM the player has run (RomArt): until the

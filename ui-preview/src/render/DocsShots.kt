@@ -312,7 +312,7 @@ fun docsShots(all: List<Shot>, bw: Int, bh: Int, bd: Float, tw: Int, th: Int, td
             onNodeWithText("TAB BAR").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
         Shot("companion-settings-shaders", bw, bh, bd, docsCompanion("SETTINGS")) {
-            onNodeWithText("SHADERS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithText("DISPLAY OPTIONS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick); onNodeWithText("SHADERS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
         Shot("companion-settings-hotkeys", bw, bh, bd, docsCompanion("SETTINGS")) {
             onNodeWithText("HOTKEYS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)

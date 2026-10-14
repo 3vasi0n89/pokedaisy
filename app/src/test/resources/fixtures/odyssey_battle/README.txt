@@ -1,5 +1,5 @@
 captured: 2026-10-13 (headless mgba_dump, by hand)
-rom: Pokemon Odyssey v4.1.1 (~/Downloads/Game ROMs & Emulation/gba/Pokémon Odyssey (English) (v4.1.1).gba)
+rom: Pokemon Odyssey v4.1.1 (~/Downloads/Game ROMs & Emulation/gba/Pokemon Odyssey (v4.1.1).gba)
 save: ~/Documents/RetroArch/saves/mGBA/odyssey.sav
 boot: native-capture/boot/default.txt (the field), wait 60, then a scripted wild battle: B6 1900 05 0000 B7 02
   (setwildbattle SPECIES_PIKACHU, 5; dowildbattle; end) poked at 0x0203FF00 and `call 0x08069AE5 0x0203FF00`

@@ -4,7 +4,7 @@ Two GitHub Actions workflows guard `main` and the releases:
 
 | Workflow | Runs on | What it does |
 | --- | --- | --- |
-| **CI** (`.github/workflows/ci.yml`) | every PR, every push to `main` | translations check, all JVM unit tests, the debug APK (Kotlin + native mGBA/rcheevos build), `ui-preview` render of every screen and the tab-switch `stress` budgets |
+| **CI** (`.github/workflows/ci.yml`) | every PR, every push to `main` | translations check, all JVM unit tests, the debug APK (Kotlin + native mGBA/rcheevos build), `ui-preview`'s tab-switch `stress` budgets (which compile it) and docs search check; no screen render (`make preview` locally) |
 | **Release** (`.github/workflows/release.yml`) | a pushed `v<versionName>` tag | checks the tag, runs CI again on that commit, runs the ROM-backed tests on your ROM runner, builds and signs the APK, checks the signing key, uploads native symbols to Crashlytics, publishes the GitHub release, then starts the **Website** workflow for that tag (not for a pre-release) |
 
 `make check` runs the same thing as CI locally.

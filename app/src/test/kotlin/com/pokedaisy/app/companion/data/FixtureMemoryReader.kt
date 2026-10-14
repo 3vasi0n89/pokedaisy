@@ -53,7 +53,12 @@ class FixtureMemoryReader private constructor(
             fun read(name: String): ByteArray = stream(name)?.use { it.readBytes() }
                 ?: error("missing test fixture fixtures/$key/$name - run scripts/capture_fixture.sh $key first")
             if (stream("wram.bin") != null) {
-                return FixtureMemoryReader(ByteArray(0), ByteArray(0), listOf(0xC000L to read("wram.bin"), 0xFF80L to read("hram.bin")))
+                // A Color cart's whole WRAM (mgba_dump's wramx.bin, 8 banks): bank B's D000-DFFF at
+                // (B << 16) | 0xD000, the way the app's native reader takes them (Gen2Reader's wramx).
+                val banks = if (stream("wramx.bin") != null) read("wramx.bin").let { x ->
+                    (0 until x.size / 0x1000).map { b -> ((b.toLong() shl 16) or 0xD000L) to x.copyOfRange(b * 0x1000, b * 0x1000 + 0x1000) }
+                } else emptyList()
+                return FixtureMemoryReader(ByteArray(0), ByteArray(0), listOf(0xC000L to read("wram.bin"), 0xFF80L to read("hram.bin")) + banks)
             }
             return FixtureMemoryReader(read("ewram.bin"), read("iwram.bin"))
         }

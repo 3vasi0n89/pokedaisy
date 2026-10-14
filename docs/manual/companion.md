@@ -24,7 +24,7 @@ Along the bottom of the companion is a row of tabs, with the SETTINGS gear at th
 
 A few more are off the bar to begin with: `CARD` (your [trainer card](trainer-card.md)), `STATES` (save states) and `CHEEVOS` ([RetroAchievements](achievements.md)).
 
-Some tabs only appear when the game has what they need. `DEX` needs the game's Pokédex data and `GUIDE` needs a guide for that game, so a game without them has fewer tabs. The bag tab also takes the game's own word for it: `CUBE` in Unbound, `INVENTORY` in R.O.W.E., `POCKETS` in Super Mariomon, `BAG` everywhere else.
+Some tabs only appear when the game has what they need. `DEX` needs the game's Pokédex data and `GUIDE` needs a guide for that game, so a game without them has fewer tabs. The bag tab also takes the game's own word for it: `PACK` in Crystal, Crystal Clear and Prism, `CUBE` in Unbound, `INVENTORY` in R.O.W.E., `POCKETS` in Super Mariomon, `BAG` everywhere else.
 
 ### Choosing your tabs
 
@@ -59,17 +59,18 @@ Companion buttons play your game's own menu click, recorded from the ROM itself,
 
 ## The SETTINGS tab
 
-The gear opens the companion's SETTINGS, laid out like FireRed's OPTION screen. The title shows the game's name and your battery. Tap a row to change it: on / off rows flip, and rows with more choices open a short list to pick from. SETTINGS remembers where you were, so a trip to another tab and back lands on the same row.
+The gear opens the companion's SETTINGS, laid out like FireRed's OPTION screen. The title shows the game's name and your battery. Tap a row to change it: on / off rows flip, rows with more choices open a short list to pick from, and rows with an arrow at their right end open a page of their own. SETTINGS remembers where you were, so a trip to another tab and back lands on the same row.
 
-![The companion's SETTINGS tab, with the FAST-FORWARD and CONTROLS groups at the top](shots/companion-settings.png "The companion's SETTINGS")
+![The companion's SETTINGS tab, with the FF / SPEED group at the top](shots/companion-settings.png "The companion's SETTINGS")
 
-The options come in groups:
+The options come in groups, the ones you change while playing first:
 
-- **FAST-FORWARD**: `FF`, `FF SPEED`, `GAME SPEED`, `SCENE SPEEDS`, `FF MODE`, `FF MUSIC` and `REWIND`. See [Fast-forward](fast-forward.md).
-- **CONTROLS**: `TOUCH PAD`, `AUTO-RUN`, `RUN INDOORS`, `WILD ENCOUNTERS`, `GAME BUTTONS` and `HOTKEYS`. See [Controls](controls.md).
-- **COMPANION**: `LANGUAGE`, `TAB BAR`, `BATTLE HINTS`, `ONE-TAP MOVES`, `FOE IVS`, `CLICK SOUND`, `TWEAKS` and `HELP` (this manual).
-- **SCREEN**: `STATUS BAR`, `ASPECT`, `SHADERS`, `OVERLAY`, `FPS / CPU`, `DARK MODE` and, with two screens, `SWAP SCREENS`. See [Screen and display](screen.md).
-- **GAME**: `CHEATS`. See [Cheats](cheats.md).
+- **FF / SPEED**: `FF`, `FF SPEED`, `GAME SPEED`, `REWIND` and `SPEED OPTIONS` (a page with `SCENE SPEEDS`, `FF MODE` and `FF MUSIC`). See [Fast-forward](fast-forward.md).
+- **GAMEPLAY**: `WILD ENCOUNTERS`, `AUTO-RUN`, `RUN INDOORS` and `CHEATS`. See [Controls](controls.md) and [Cheats](cheats.md).
+- **SCREEN**: `ASPECT`, `HUD`, `DISPLAY OPTIONS` (a page with `STATUS BAR`, `SHADERS` and `OVERLAY`), `DARK MODE`, `FPS / CPU` and, depending on your device, `BATTLE BUTTONS`, `COMPANION VIEW`, `SWAP SCREENS` or `SINGLE SCREEN`. See [Screen and display](screen.md).
+- **COMPANION**: `BATTLE HINTS`, `ONE-TAP MOVES`, `FOE IVS`, `TAB BAR`, `CLICK SOUND` and `TWEAKS`.
+- **CONTROLS**: `GAME BUTTONS`, `HOTKEYS`, `QUICK MENU` and `TOUCH PAD`. See [Controls](controls.md).
+- **APP**: `LANGUAGE` and `HELP` (this manual).
 
 Every option is explained in the [Settings reference](settings-reference.md). The top screen has its own Settings too, with more options and a search box.
 
@@ -106,4 +107,4 @@ Both ask before they do anything.
 On a device with two screens there's also `CLOSE COMPANION`. It hands the bottom screen back to Android while the game keeps running, so you can use another app down there. Press BACK on the game to bring the companion back.
 
 > [!TIP]
-> Not sure what a row does? `HELP` in the COMPANION group opens this manual right on the bottom screen.
+> Not sure what a row does? `HELP`, the last row of SETTINGS, opens this manual right on the bottom screen.

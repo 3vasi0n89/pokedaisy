@@ -29,51 +29,58 @@ class BestEffortTest {
         Game("Pokemon - Emerald Version (USA, Europe).gba", "emerald_vanilla", "BPEE", "EMERALD"),
         Game("emerald-multilang/Pokemon - Edicion Esmeralda (Spain).gba", "emerald_es", "BPES", "EMERALD_ES"),
         Game("Pokemon - Ruby Version (USA, Europe) (Rev 1).gba", "ruby_rev1", "AXVE", "RUBY"),
-        Game("Pokémon Unbound (v2.1.1.1).gba", "unbound", "BPRE", "UNBOUND"),
-        Game("Pokémon Unbound v2.1.1.1 FR.gba", "unbound_fr", "BPRE", "UNBOUND_FR"),
+        Game("Pokemon Unbound (v2.1.1.1).gba", "unbound", "BPRE", "UNBOUND"),
+        Game("Pokemon Unbound (v2.1.1.1) (French).gba", "unbound_fr", "BPRE", "UNBOUND_FR"),
         Game("Pokemon Orange Islands.gba", "orange_islands", "BPRE", "ORANGE_ISLANDS"),
+        Game("Pokemon FireRed Rocket Edition.gba", "rocket_edition", "BPRE", "ROCKET_EDITION"),
+        Game("Pokemon Ash Gray (v4.5.3).gba", "ash_gray", "BPRE", "ASH_GRAY"),
         // Recharged Yellow's ROM carries other languages' name tables too (French species after its own): no config's
         // names cover it, so never sure - but its own reads the party name for name and comes first (below).
-        Game("Recharged Yellow v1.8.0.gba", "recharged_yellow_v180", "BPRE", null),
-        Game("Recharged Yellow v1.9.0.gba", "recharged_yellow_v190", "BPRE", null),
-        Game("Recharged Yellow v1.9.4.gba", "recharged_yellow_v194", "BPRE", null),
-        Game("Recharged Yellow v1.9.7.gba", "recharged_yellow", "BPRE", null),
-        Game("Pokemon - Gaia (v3.2).gba", "gaia", "BPRE", "GAIA_V3_2"),
-        Game("Pokemon - Radical Red (v4.1).gba", "radical_red", "BPRE", "RADICAL_RED_V4_1"),
-        Game("Pokémon Odyssey (English) (v4.1.1).gba", "odyssey", "BPRE", "ODYSSEY"),
+        Game("Pokemon Recharged Yellow (v1.8.0).gba", "recharged_yellow_v180", "BPRE", null),
+        Game("Pokemon Recharged Yellow (v1.9.0).gba", "recharged_yellow_v190", "BPRE", null),
+        Game("Pokemon Recharged Yellow (v1.9.4).gba", "recharged_yellow_v194", "BPRE", null),
+        Game("Pokemon Recharged Yellow (v1.9.7).gba", "recharged_yellow", "BPRE", null),
+        Game("Pokemon Gaia (v3.2).gba", "gaia", "BPRE", "GAIA_V3_2"),
+        Game("Pokemon Radical Red (v4.1).gba", "radical_red", "BPRE", "RADICAL_RED_V4_1"),
+        Game("Pokemon Odyssey (v4.1.1).gba", "odyssey", "BPRE", "ODYSSEY"),
         Game("Pokemon Amethyst (v1.3.0).gba", "amethyst", "BPRE", "AMETHYST"),
         Game("Pokemon Amethyst (v1.4.1).gba", "amethyst_v141", "BPRE", "AMETHYST_V1_4_1"),
         // The app's Celia tables stop at 385 species and its ROM has more: never sure, but first.
         Game("Pokemon Celia's Stupid Romhack (v1.1.4).gba", "celia", "BPRE", null),
-        Game("Pokemon-SoulGold-v1.1.4.gba", "soulgold", "BPEE", "SOULGOLD"),
-        Game("Soulgold (v1.2).gba", "soulgold_v12", "BPEE", "SOULGOLD_V1_2"),
-        Game("Pokemon-SoulGold-v1.2.gba", "soulgold_v12b", "BPEE", "SOULGOLD_V1_2B"),
-        Game("Pokémon Heart and Soul (v2.0.6).gba", "heart_and_soul", "BPEE", "HEART_AND_SOUL"),
+        Game("Pokemon SoulGold (v1.1.4).gba", "soulgold", "BPEE", "SOULGOLD"),
+        Game("Pokemon SoulGold (v1.2).gba", "soulgold_v12", "BPEE", "SOULGOLD_V1_2"),
+        Game("Pokemon SoulGold (v1.2) (Alt 1).gba", "soulgold_v12b", "BPEE", "SOULGOLD_V1_2B"),
+        Game("Pokemon Heart and Soul (v2.0.6).gba", "heart_and_soul", "BPEE", "HEART_AND_SOUL"),
         Game("Pokemon Lazarus (v2.0).gba", "lazarus", "BPEE", "LAZARUS"),
         Game("Pokemon Emerald Seaglass (v3.0).gba", "emerald_seaglass", "BPEE", "EMERALD_SEAGLASS"),
         Game("Pokemon Too Many Types 2 (v1.5.2).gba", "tmt2", "BPEE", "TMT2"),
         Game("Pokemon Emerald Rogue (v2.2.1-EX).gba", "emerald_rogue", "BPEE", "EMERALD_ROGUE"),
-        Game("Glazed (9.2.0).gba", "glazed", "BPEE", "GLAZED"),
-        Game("Emerald Imperium (v1.3.1).gba", "imperium", "BPEE", "IMPERIUM"),
-        Game("Pokémon R.O.W.E. (v2.1.9.1 Experimental).gba", "rowe", "BPEE", "ROWE"),
-        Game("PokemonQuetzalEnglishAlpha9v0.gba", "quetzal", "BPEE", "QUETZAL"),
+        Game("Pokemon Glazed (v9.2.0).gba", "glazed", "BPEE", "GLAZED"),
+        Game("Pokemon Emerald Imperium (v1.3.1).gba", "imperium", "BPEE", "IMPERIUM"),
+        Game("Pokemon R.O.W.E. (v2.1.9.1 Experimental).gba", "rowe", "BPEE", "ROWE"),
+        Game("Pokemon Quetzal (Alpha 9.0) (English).gba", "quetzal", "BPEE", "QUETZAL"),
         // FireRed 1.0 under its own game code: only its own config is tried.
-        Game("ultra-violet-v1.22.gba", "ultra_violet", "PUVV", "ULTRA_VIOLET"),
-        Game("Sword and Shield Ultimate Plus (1.2.1.2).gba", "sword_shield_up", "BPRE", "SWORD_SHIELD"),
-        Game("Super Mariomon v1.5.1-Anniversary.gba", "mariomon_v1_5_1", "BPEE", "MARIOMON_V1_5_1"),
-        Game("Super Mariomon v1.3.gba", "mariomon_v1_3", "BPEE", "MARIOMON_V1_3"),
+        Game("Pokemon Ultra Violet (v1.22).gba", "ultra_violet", "PUVV", "ULTRA_VIOLET"),
+        Game("Pokemon Sword and Shield Ultimate Plus (v1.2.1.2).gba", "sword_shield_up", "BPRE", "SWORD_SHIELD"),
+        Game("Pokemon GS Chronicles (v2.7.6).gba", "gs_chronicles", "BPRE", "GS_CHRONICLES"),
+        Game("Super Mariomon (v1.5.1 Anniversary).gba", "mariomon_v1_5_1", "BPEE", "MARIOMON_V1_5_1"),
+        Game("Super Mariomon (v1.3).gba", "mariomon_v1_3", "BPEE", "MARIOMON_V1_3"),
     )
 
     /**
      * With its own game's configs gone, these read as an engine sibling - and every name they'd
      * show is confirmed at its id: Orange Islands and Odyssey are in-place edits of FireRed rev 0
-     * (how Orange Islands read before it had a config). Unbound reads as well through Amethyst's
+     * (how Orange Islands read before it had a config); FireRed Rocket Edition and Ash Gray, two more, read through
+     * Orange Islands' tables (rev 0's, its moves found where they moved). Unbound reads as well through Amethyst's
      * CFRU tables as through Sword and Shield Ultimate Plus' (the same species ids), so neither
      * is used quietly: the player picks. Sword and Shield Ultimate Plus reads through Amethyst's
-     * (the other CFRU configs' moves don't hold), with its ROM-side parts switched off.
+     * (the other CFRU configs' moves don't hold), with its ROM-side parts switched off. GS Chronicles
+     * reads through Unbound's (DPE's species ids; its DEX, GUIDE and item text switched off).
      */
     private val siblings = mapOf(
-        "orange_islands" to GameKind.FIRERED, "odyssey" to GameKind.FIRERED, "sword_shield_up" to GameKind.AMETHYST,
+        "orange_islands" to GameKind.FIRERED, "odyssey" to GameKind.FIRERED, "rocket_edition" to GameKind.ORANGE_ISLANDS,
+        "ash_gray" to GameKind.ORANGE_ISLANDS, "sword_shield_up" to GameKind.AMETHYST,
+        "gs_chronicles" to GameKind.UNBOUND,
     )
 
     private class Loaded(val reader: MemoryReader, val size: Long, val text: BestEffort.RomText)
@@ -147,7 +154,7 @@ class BestEffortTest {
 
     /** A new game: no party yet, so nothing is sure - but a ROM whose names are one game's gets it as a guess. */
     @Test fun aNewGameGetsAGuessFromItsNames() {
-        val (r, size) = romOnly("Pokemon-SoulGold-v1.2.gba") ?: return
+        val (r, size) = romOnly("Pokemon SoulGold (v1.2) (Alt 1).gba") ?: return
         val v = BestEffort.evaluate(r, "BPEE", size, BestEffort.romText(r, "BPEE", size))
         assertNull(v.sure)
         assertEquals(BestEffort.Miss.NO_PARTY, v.miss)

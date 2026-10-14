@@ -454,12 +454,15 @@ private val STAT_LABELS_GEN1 = listOf(tk("HP"), tk("ATTACK"), tk("DEFENSE"), tk(
 private fun BaseStats(stats: List<Int>, small: GbaTextMetrics) {
     val u = small.u
     // Room for "DEFENSE" in a fixed-width game font (Gen 1's 8px letters).
-    val labelU = if (com.pokedaisy.app.companion.ui.theme.LocalGameFont.current != null) 64 else 58
+    val gameFont = com.pokedaisy.app.companion.ui.theme.LocalGameFont.current != null
+    val labelU = if (gameFont) 64 else 58
+    // And for three digits in it (a base stat of 100 or more read "1..." there).
+    val valueU = if (gameFont) 28 else 22
     Column(verticalArrangement = Arrangement.spacedBy(u)) {
         stats.forEachIndexed { i, v ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 GbaText(tr((if (stats.size == 5) STAT_LABELS_GEN1 else STAT_LABELS)[i]), OptionColors.label, OptionColors.labelShadow, small, Modifier.width(u * labelU))
-                GbaText("$v", OptionColors.value, OptionColors.valueShadow, small, Modifier.width(u * 22))
+                GbaText("$v", OptionColors.value, OptionColors.valueShadow, small, Modifier.width(u * valueU))
                 StatBar(v, Modifier.weight(1f).height(u * 6), u)
             }
         }

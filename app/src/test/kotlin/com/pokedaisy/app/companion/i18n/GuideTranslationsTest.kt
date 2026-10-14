@@ -16,7 +16,7 @@ import java.io.File
  */
 class GuideTranslationsTest {
     private val localized = listOf(
-        GuideId.FIRERED, GuideId.LEAFGREEN, GuideId.EMERALD, GuideId.RUBY, GuideId.SAPPHIRE, GuideId.UNBOUND, GuideId.QUETZAL,
+        GuideId.FIRERED, GuideId.LEAFGREEN, GuideId.EMERALD, GuideId.RUBY, GuideId.SAPPHIRE, GuideId.UNBOUND, GuideId.QUETZAL, GuideId.QUETZAL_V084,
     )
 
     private fun hasLetters(s: String) = s.any { it.isLetter() }

@@ -208,25 +208,26 @@ fun UpdateDialog(flow: AppUpdateFlow, m: GbaTextMetrics, small: GbaTextMetrics) 
             Spacer(Modifier.height(m.u * 4))
             OptionListWindow(m, Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(horizontal = m.u * 6, vertical = m.u * 2)) {
-                    GbaText(
-                        tr("PokéDaisy {0} is out - you have {1}.", r.version, BuildConfig.VERSION_NAME),
-                        OptionColors.label, OptionColors.labelShadow, m, maxLines = Int.MAX_VALUE,
-                    )
-                    if (r.notes.isNotEmpty()) {
-                        Spacer(Modifier.height(m.u * 4))
-                        Column(Modifier.heightIn(max = 220.dp).verticalScroll(rememberScrollState())) {
+                    // On a small screen everything above the buttons scrolls, so the buttons stay on screen.
+                    Column(Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState())) {
+                        GbaText(
+                            tr("PokéDaisy {0} is out - you have {1}.", r.version, BuildConfig.VERSION_NAME),
+                            OptionColors.label, OptionColors.labelShadow, m, maxLines = Int.MAX_VALUE,
+                        )
+                        if (r.notes.isNotEmpty()) {
+                            Spacer(Modifier.height(m.u * 4))
                             GbaText(r.notes, OptionColors.muted, OptionColors.mutedShadow, small, maxLines = Int.MAX_VALUE)
                         }
-                    }
-                    flow.error?.let {
-                        Spacer(Modifier.height(m.u * 4))
-                        GbaText(it, OptionColors.value, OptionColors.valueShadow, small, maxLines = Int.MAX_VALUE)
-                    }
-                    if (downloading != null) {
-                        Spacer(Modifier.height(m.u * 4))
-                        GbaText(tr("DOWNLOADING… {0}%", (downloading * 100).toInt()), OptionColors.label, OptionColors.labelShadow, m)
-                        Spacer(Modifier.height(m.u * 3))
-                        SyncProgressBar(downloading, m)
+                        flow.error?.let {
+                            Spacer(Modifier.height(m.u * 4))
+                            GbaText(it, OptionColors.value, OptionColors.valueShadow, small, maxLines = Int.MAX_VALUE)
+                        }
+                        if (downloading != null) {
+                            Spacer(Modifier.height(m.u * 4))
+                            GbaText(tr("DOWNLOADING… {0}%", (downloading * 100).toInt()), OptionColors.label, OptionColors.labelShadow, m)
+                            Spacer(Modifier.height(m.u * 3))
+                            SyncProgressBar(downloading, m)
+                        }
                     }
                     Row(
                         Modifier.fillMaxWidth().padding(top = m.u * 6, bottom = m.u * 2),

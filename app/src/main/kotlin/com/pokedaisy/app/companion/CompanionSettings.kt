@@ -234,8 +234,16 @@ interface CompanionSettings {
     /** Whether this device can run SMOOTHING (OpenGL ES 3); without it the row is greyed out. */
     val smoothingAvailable: Boolean get() = true
 
-    /** Whether there's a second screen - SWAP SCREENS only shows then. */
+    /** Whether there's a second screen - SINGLE SCREEN only shows then. */
     val hasSecondScreen: Boolean get() = false
+
+    /** A second screen played on one anyway - see [com.pokedaisy.app.Prefs.singleScreen]. */
+    val singleScreen: Boolean get() = false
+    fun setSingleScreen(on: Boolean) {}
+
+    /** The companion is on the second screen (there is one, and SINGLE SCREEN is off): SWAP SCREENS shows, the
+     * one-screen rows (BATTLE BUTTONS, COMPANION VIEW) don't. */
+    val usesSecondScreen: Boolean get() = hasSecondScreen && !singleScreen
 
     /**
      * A phone held upright: the companion right under the game (true; the touch pad gets the

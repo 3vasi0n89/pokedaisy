@@ -12,6 +12,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.isRoot
 import androidx.compose.ui.test.performClick
@@ -56,6 +57,7 @@ import com.pokedaisy.app.companion.BattleInput
 import com.pokedaisy.app.companion.StateSlots
 import com.pokedaisy.app.companion.data.BATTLE_INPUT_ACTION_SELECT
 import com.pokedaisy.app.companion.data.CardStyle
+import com.pokedaisy.app.companion.data.isGameBoyGame
 import com.pokedaisy.app.companion.data.TrainerCardArt
 import com.pokedaisy.app.companion.data.TrainerCardInfo
 import com.pokedaisy.app.companion.data.BATTLE_INPUT_MOVE_SELECT
@@ -653,7 +655,7 @@ fun withCheats(seeded: Boolean = true, make: () -> SettingsActivity): androidx.a
 fun withHidden(make: () -> androidx.activity.ComponentActivity): androidx.activity.ComponentActivity {
     val ctx = android.content.Context()
     val roms = File(ctx.filesDir, "roms")
-    Prefs(ctx).hiddenRoms = setOf(File(roms, "Pokemon - Gaia (v3.2).gba").absolutePath, File(roms, "1636 - Pokemon Radical Red.gba").absolutePath)
+    Prefs(ctx).hiddenRoms = setOf(File(roms, "Pokemon Gaia (v3.2).gba").absolutePath, File(roms, "1636 - Pokemon Radical Red.gba").absolutePath)
     return make()
 }
 
@@ -665,7 +667,7 @@ fun datedLibrary() {
     val now = System.currentTimeMillis()
     val hour = 3_600_000L
     val roms = File(ctx.filesDir, "roms").listFiles().orEmpty().filter { it.isFile }
-    val fresh = mapOf("Pokemon - Gaia (v3.2).gba" to now - hour, "Pokemon Lazarus (v2.0).gba" to now - 36 * hour, "Pokemon - Unbound (v2.1.1.1).gba" to now)
+    val fresh = mapOf("Pokemon Gaia (v3.2).gba" to now - hour, "Pokemon Lazarus (v2.0).gba" to now - 36 * hour, "Pokemon Unbound (v2.1.1.1).gba" to now)
     File(ctx.filesDir, "rom-added.tsv").writeText(roms.joinToString("") { f ->
         val at = fresh[f.name]
         "${f.absolutePath}\t${at ?: now - 7 * 24 * hour}\t${if (at == null) 1 else 0}\n"
@@ -713,8 +715,8 @@ fun activity(expandIntro: Boolean = false, start: Boolean = false, make: () -> a
     val roms = File(ctx.filesDir, "roms").apply { mkdirs() }
     // Dump-style file names, as players have them; firered-hack stays unrecognised (a hack it doesn't know).
     val names = listOf(
-        "firered-hack.gba", "Pokemon - Unbound (v2.1.1.1).gba", "Pokemon - Emerald Version (USA, Europe).gba",
-        "1636 - Pokemon Radical Red.gba", "Pokemon - Gaia (v3.2).gba", "Pokemon Emerald Imperium (World) (v1.3.1).gba",
+        "firered-hack.gba", "Pokemon Unbound (v2.1.1.1).gba", "Pokemon - Emerald Version (USA, Europe).gba",
+        "1636 - Pokemon Radical Red.gba", "Pokemon Gaia (v3.2).gba", "Pokemon Emerald Imperium (v1.3.1).gba",
     )
     roms.listFiles()?.forEach { it.delete() }
     names.forEach { File(roms, it).apply { writeText("x"); setLastModified(1_700_000_000_000L) } }
@@ -796,9 +798,9 @@ fun fakeMedia(ctx: android.content.Context) {
     val real = System.getProperty("ssMedia").orEmpty().takeIf { it.isNotBlank() }?.let(::File)
     if (real != null) {
         mapOf(
-            "firered-hack.gba" to "Pokémon FireRed", "Pokemon - Unbound (v2.1.1.1).gba" to "Pokémon Unbound",
+            "firered-hack.gba" to "Pokémon FireRed", "Pokemon Unbound (v2.1.1.1).gba" to "Pokémon Unbound",
             "Pokemon - Emerald Version (USA, Europe).gba" to "Pokémon Emerald", "1636 - Pokemon Radical Red.gba" to "Pokémon Radical Red",
-            "Pokemon - Gaia (v3.2).gba" to "Pokémon Gaia", "Pokemon Emerald Imperium (World) (v1.3.1).gba" to "Pokémon Emerald Imperium",
+            "Pokemon Gaia (v3.2).gba" to "Pokémon Gaia", "Pokemon Emerald Imperium (v1.3.1).gba" to "Pokémon Emerald Imperium",
         ).forEach { (rom, title) -> File(real, title).takeIf { it.isDirectory }?.copyRecursively(File(root, rom), overwrite = true) }
         return
     }
@@ -812,7 +814,7 @@ fun fakeMedia(ctx: android.content.Context) {
     }
     listOf(
         Triple("firered-hack.gba", java.awt.Color(0xD8, 0x50, 0x30), "Preview Quest Red"),
-        Triple("Pokemon - Unbound (v2.1.1.1).gba", java.awt.Color(0x60, 0x40, 0xB0), "Preview Quest Violet"),
+        Triple("Pokemon Unbound (v2.1.1.1).gba", java.awt.Color(0x60, 0x40, 0xB0), "Preview Quest Violet"),
     ).forEach { (rom, tint, name) ->
         val dir = File(root, rom)
         png(File(dir, "box.img"), 480, 480) { g ->
@@ -931,6 +933,8 @@ fun main(args: Array<String>) {
     // -Pdark=true: DARK MODE on for every shot.
     if (System.getProperty("dark") == "true") com.pokedaisy.app.companion.ui.theme.DarkMode.override = true
     val g = game.name.lowercase()
+    // The battle menu's POKéMON button: PkMn on the Game Boy games (drawn twice there, bold: the first copy is tapped).
+    val pokemonButton = if (game.isGameBoyGame) "PkMn" else "POKéMON"
     val live = liveGuide()
     // AYN Thor: bottom screen 1240x1080 (landscape), top screen 1920x1080.
     // -PcompanionW / -PcompanionH: a single-screen device's side panel instead, at its density.
@@ -1054,7 +1058,7 @@ fun main(args: Array<String>) {
         Shot("$g-battle-onetap", bw, bh, bd, companion("PARTY", oneTap = true) { battle(BATTLE_INPUT_ACTION_SELECT) }),
         // The POKéMON pane: from the action menu, and over the game's own party menu.
         Shot("$g-battle-switch", bw, bh, bd, companion("PARTY") { battle(BATTLE_INPUT_ACTION_SELECT) }) {
-            onNodeWithText("POKéMON").performClick()
+            onAllNodesWithText(pokemonButton)[0].performClick()
         },
         // A fuller party against Onix: BEST on the pick, OUT on the lead, a fainted Pidgey.
         Shot("$g-battle-switch-trainer", bw, bh, bd, companion("PARTY") {
@@ -1062,7 +1066,7 @@ fun main(args: Array<String>) {
                 s.copy(party = s.party.mapIndexed { i, m -> m.copy(personality = 0x1000L + i, hp = if (i == 1) 0 else m.hp) })
             }
         }) {
-            onNodeWithText("POKéMON").performClick()
+            onAllNodesWithText(pokemonButton)[0].performClick()
         },
         Shot("$g-battle-party-open", bw, bh, bd, companion("PARTY") { battle(BATTLE_INPUT_PARTY_OPEN) }),
         Shot("$g-battle-busy", bw, bh, bd, companion("PARTY", busy = true) { battle(BATTLE_INPUT_ACTION_SELECT) }),
@@ -1157,7 +1161,7 @@ fun main(args: Array<String>) {
         Shot("$g-settings-ffspeed", bw, bh, bd, companion("SETTINGS")) { onNodeWithText("FF SPEED").performClick() },
         // GAME BUTTONS' subtitle, further down the list.
         Shot("$g-settings-subtitles", bw, bh, bd, companion("SETTINGS")) { onNodeWithText("TWEAKS").performScrollTo() },
-        Shot("$g-settings-ffmusic", bw, bh, bd, companion("SETTINGS")) { onAllNodesWithText("FF MUSIC").onFirst().performClick() },
+        Shot("$g-settings-ffmusic", bw, bh, bd, companion("SETTINGS")) { onNodeWithText("SPEED OPTIONS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick); onAllNodesWithText("FF MUSIC").onFirst().performScrollTo().performClick() },
         // ASPECT's pick-list: WIDE tagged NOT YET (the preview's settings know no game).
         Shot("$g-settings-aspect", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText("ASPECT").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
@@ -1205,19 +1209,23 @@ fun main(args: Array<String>) {
         Shot("$g-settings-companion", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText("ONE-TAP MOVES").performScrollTo()
         },
-        // CONTROLS: AUTO-RUN, RUN INDOORS and WILD ENCOUNTERS under the FAST-FORWARD rows, then WILD ENCOUNTERS' pick-list.
+        // GAMEPLAY: WILD ENCOUNTERS, AUTO-RUN, RUN INDOORS, CHEATS, then WILD ENCOUNTERS flipped OFF.
         Shot("$g-settings-controls", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText("WILD ENCOUNTERS").performScrollTo()
         },
         Shot("$g-settings-wild", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText("WILD ENCOUNTERS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
-        // SCENE SPEEDS: its page (BATTLE / TEXT / MENU SPEED), then BATTLE SPEED's pick-list.
+        // DISPLAY OPTIONS: STATUS BAR, SHADERS, OVERLAY.
+        Shot("$g-settings-display", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText("DISPLAY OPTIONS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
+        // SPEED OPTIONS: SCENE SPEEDS (BATTLE / TEXT / MENU SPEED...) over FF MODE / FF MUSIC, then BATTLE SPEED's pick-list.
         Shot("$g-settings-scenes", bw, bh, bd, companion("SETTINGS")) {
-            onNodeWithText("SCENE SPEEDS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithText("SPEED OPTIONS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
         Shot("$g-settings-scenes-battle", bw, bh, bd, companion("SETTINGS")) {
-            onNodeWithText("SCENE SPEEDS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithText("SPEED OPTIONS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
             onNodeWithText("BATTLE SPEED").performClick()
         },
         // TWEAKS: the small on / off preferences.
@@ -1226,15 +1234,15 @@ fun main(args: Array<String>) {
         },
         // SHADERS: its page (FILTER, GBA COLORS), then after one FILTER tap (it cycles: NONE -> LCD).
         Shot("$g-settings-shaders", bw, bh, bd, companion("SETTINGS")) {
-            onNodeWithText("SHADERS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithText("DISPLAY OPTIONS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick); onNodeWithText("SHADERS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
         Shot("$g-settings-shaders-filter", bw, bh, bd, companion("SETTINGS")) {
-            onNodeWithText("SHADERS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithText("DISPLAY OPTIONS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick); onNodeWithText("SHADERS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
             onNodeWithText("FILTER").performClick()
         },
         // OVERLAY: its pick-list (NONE, the built-in frames, an import).
         Shot("$g-settings-overlay", bw, bh, bd, companion("SETTINGS")) {
-            onNodeWithText("OVERLAY").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithText("DISPLAY OPTIONS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick); onNodeWithText("OVERLAY").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
         Shot("$g-settings-cheats", bw, bh, bd, companion("SETTINGS")) { onNodeWithText("CHEATS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) },
         Shot("$g-settings-tabs", bw, bh, bd, companion("SETTINGS")) { onNodeWithText("TAB BAR").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) },
@@ -1398,6 +1406,16 @@ fun main(args: Array<String>) {
         Shot("trade-swap", tw, th, td, trade { selA = BoxSlot(0, 0); selB = BoxSlot(0, 0) }),
         Shot("trade-phone", 1080, 2400, 2.625f, trade { selA = BoxSlot(0, 0); selB = BoxSlot(0, 0) }),
         Shot("library-expand-intro", tw, th, td, activity(expandIntro = true) { LibraryActivity() }),
+        // A phone held upright (a Galaxy S9's 1080x2220 at 3x): the smaller text, the picture over the words, the buttons on screen.
+        Shot("library-expand-intro-phone", 1080, 2220, 3f, activity(expandIntro = true) { LibraryActivity() }),
+        Shot("settings-phone", 1080, 2220, 3f, activity { SettingsActivity() }),
+        // The top screen's SPEED OPTIONS (FF MODE, FF MUSIC) and DISPLAY OPTIONS (STATUS BAR, SHADERS, OVERLAY).
+        Shot("settings-speed", tw, th, td, activity { SettingsActivity() }) {
+            onNodeWithText("SPEED OPTIONS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
+        Shot("settings-display", tw, th, td, activity { SettingsActivity() }) {
+            onNodeWithText("DISPLAY OPTIONS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
         // A ROM imported with "add anyway?": the library tags what the second screen can't read.
         Shot("library-tag-unsupported", tw, th * 2, td, activity {
             val ctx = android.content.Context()
@@ -1405,7 +1423,7 @@ fun main(args: Array<String>) {
             File(ctx.filesDir, "rom-folder-scan.tsv").writeText("$hack\t1\t1700000000000\t0\n")
             LibraryActivity().apply {
                 unsupportedRoms = setOf(hack)
-                partialRoms = setOf(File(ctx.filesDir, "roms/Pokemon - Gaia (v3.2).gba").absolutePath)
+                partialRoms = setOf(File(ctx.filesDir, "roms/Pokemon Gaia (v3.2).gba").absolutePath)
             }
         }),
         Shot("library-tag-unsupported-grid", tw, th * 2, td, activity {
@@ -1660,24 +1678,24 @@ fun main(args: Array<String>) {
             onNodeWithText("AUTO ZOOM IN").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
         Shot("settings-shaders", tw, th, td, activity { SettingsActivity() }) {
-            onNodeWithText("SHADERS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithText("DISPLAY OPTIONS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick); onNodeWithText("SHADERS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
         Shot("settings-shaders-filter", tw, th, td, activity { SettingsActivity() }) {
-            onNodeWithText("SHADERS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithText("DISPLAY OPTIONS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick); onNodeWithText("SHADERS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
             onNodeWithText("FILTER").performClick()
         },
         Shot("settings-swap", tw, th, td, activity { SettingsActivity() }) { onNodeWithText("SWAP SCREENS").performScrollTo() },
         // OVERLAY: its page with one import (DAISY picked), then REMOVE's mode.
         Shot("settings-overlay", tw, th, td, activity { withOverlays { SettingsActivity() } }) {
-            onNodeWithText("OVERLAY").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithText("DISPLAY OPTIONS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick); onNodeWithText("OVERLAY").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
         },
         Shot("settings-overlay-remove", tw, th, td, activity { withOverlays { SettingsActivity() } }) {
-            onNodeWithText("OVERLAY").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithText("DISPLAY OPTIONS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick); onNodeWithText("OVERLAY").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
             onNodeWithText("REMOVE").performClick()
         },
         // REMOVE's mode > REMOVE ALL: the confirm.
         Shot("settings-overlay-remove-all", tw, th, td, activity { withOverlays { SettingsActivity() } }) {
-            onNodeWithText("OVERLAY").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithText("DISPLAY OPTIONS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick); onNodeWithText("OVERLAY").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
             onNodeWithText("REMOVE").performClick()
             onNodeWithText("REMOVE ALL").performClick()
         },

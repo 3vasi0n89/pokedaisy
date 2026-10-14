@@ -24,7 +24,9 @@
 //                        A,B,SELECT,START,UP,DOWN,LEFT,RIGHT,L,R)
 //   hold KEYS N        - hold KEYS for N frames then release
 //   dump DIR           - write DIR/ewram.bin and DIR/iwram.bin (DIR must exist);
-//                        a GB/GBC ROM writes DIR/wram.bin (C000-DFFF) + hram.bin (FF80-FFFE)
+//                        a GB/GBC ROM writes DIR/wram.bin (C000-DFFF) + hram.bin (FF80-FFFE),
+//                        a GBC one also wramx.bin (all 8 WRAM banks, 0x1000 each)
+//   savestate FILE     - save the core (RAM, CPU, RTC) for a later loadstate
 //   vdump DIR          - write DIR/{vram,pal,oam,io}.bin (video memory, palette
 //                        RAM, OAM and the first 0x400 I/O registers) - what the
 //                        PPU is drawing from, for pulling a screen's graphics - and
@@ -61,6 +63,10 @@
 //   gbcall FN A C RET  - GB: call FN with A / C until it returns to RET (pkRenderGbCall)
 //   gbloop N           - GB: run N frames and report where Gen 1's music channel state
 //                        (Gen1LoopWatch: Yellow's addresses) first repeats
+//   gbfar BANK ADDR A BC DE HL - GB (hex): call BANK:ADDR between frames to its return, registers put back
+//   gbinject TRAMP BANK ADDR [AT] - GB (hex): make the game call BANK:ADDR from its frame wait (runs on in `wait`s)
+//   gbpoke BANK ADDR BYTE.. - GB (hex): write WRAM bank BANK's bytes at ADDR
+//   gbvdump DIR        - GB: VRAM (both banks), OAM and the Color palettes into DIR
 //   romcheck ROMFILE   - compare the ROM as the companion reads it (bus +
 //                        pk_cheats_overlay) and as RA hashes it (swapped) with
 //                        the file
@@ -346,6 +352,15 @@ static void cmdDump(const char* outDir) {
         dumpRegion(0xC000, 0x2000, path);
         snprintf(path, sizeof(path), "%s/hram.bin", outDir);
         dumpRegion(0xFF80, 0x7F, path);
+        // A Color game's whole WRAM, all 8 banks (0x1000 each), whatever SVBK has mapped: Crystal keeps
+        // its game state in bank 1 but switches D000 to other banks mid-frame (FixtureMemoryReader maps
+        // bank B's D000-DFFF at 0xBD000).
+        struct GB* gb = (struct GB*) core->board;
+        if (gb->model >= GB_MODEL_CGB) {
+            snprintf(path, sizeof(path), "%s/wramx.bin", outDir);
+            FILE* f = fopen(path, "wb");
+            if (f) { fwrite(gb->memory.wram, 1, GB_SIZE_WORKING_RAM, f); fclose(f); }
+        }
         fprintf(stderr, "mgba_dump: dumped wram+hram to %s (frame %u)\n", outDir, core->frameCounter(core));
         return;
     }
@@ -422,6 +437,46 @@ static bool gb_call(struct mCore* core, uint16_t fn, uint8_t a, uint8_t c, uint1
     }
     gb->memory.ime = ime;
     cpu->irqPending = pending;
+    return ok;
+}
+
+// A Game Boy cart's function in ROM bank BANK at ADDR, called between frames with A / BC / DE / HL set, run to its
+// return and every register put back (unlike gb_call, which leaves the CPU where the function returned): the bank is
+// switched in and written to hROMBank (HROM, FF9D in the pokecrystal family) so the function's own far calls come back
+// to it, and WRAM bank 1 is mapped at D000. Interrupts stay off, so nothing that waits for a frame returns. How Prism's
+// new game got its first Pokémon (TryAddMonToParty) and items headless.
+static bool gb_far(struct mCore* core, uint8_t bank, uint16_t addr, uint8_t a, uint16_t bc, uint16_t de, uint16_t hl,
+                   uint16_t hrom, uint8_t* outA) {
+    struct GB* gb = (struct GB*) core->board;
+    struct SM83Core* cpu = (struct SM83Core*) core->cpu;
+    struct SM83Core saved = *cpu;
+    bool ime = gb->memory.ime;
+    uint8_t oldBank = core->busRead8(core, hrom), oldSvbk = core->busRead8(core, 0xFF70);
+    const uint16_t magic = 0x0003;   // inside rst $00's vector: never executed by the function itself
+    gb->memory.ime = false;
+    cpu->irqPending = false;
+    core->busWrite8(core, 0xFF70, 1);
+    core->busWrite8(core, hrom, bank);
+    core->busWrite8(core, 0x2000, bank);
+    cpu->sp -= 2;
+    core->busWrite8(core, cpu->sp, magic & 0xFF);
+    core->busWrite8(core, (uint16_t) (cpu->sp + 1), magic >> 8);
+    cpu->a = a; cpu->b = bc >> 8; cpu->c = bc & 0xFF; cpu->d = de >> 8; cpu->e = de & 0xFF; cpu->h = hl >> 8; cpu->l = hl & 0xFF;
+    cpu->halted = false;
+    cpu->pc = addr;
+    cpu->memory.setActiveRegion(cpu, cpu->pc);
+    bool ok = false;
+    for (int i = 0; i < 20000000 && !ok; i++) {
+        core->step(core);
+        ok = cpu->pc == magic;
+    }
+    *outA = cpu->a;
+    core->busWrite8(core, 0x2000, oldBank);
+    core->busWrite8(core, hrom, oldBank);
+    core->busWrite8(core, 0xFF70, oldSvbk);
+    *cpu = saved;
+    cpu->memory.setActiveRegion(cpu, cpu->pc);
+    gb->memory.ime = ime;
     return ok;
 }
 
@@ -741,6 +796,14 @@ int main(int argc, char** argv) {
             bool ok = sf && mCoreLoadStateNamed(core, sf, SAVESTATE_RTC);
             if (sf) sf->close(sf);
             printf("loadstate: %s %s (frame %u)\n", arg1, ok ? "loaded" : "FAILED", core->frameCounter(core));
+        } else if (!strcmp(cmd, "savestate")) {
+            // The other half of `loadstate`: play a new game in steps (each run picks up where the last left
+            // off). Without the save data, like loadstate: the save file passed on the command line keeps it.
+            sscanf(line, "%*s %255s", arg1);
+            struct VFile* sf = VFileOpen(arg1, O_CREAT | O_TRUNC | O_RDWR);
+            bool ok = sf && mCoreSaveStateNamed(core, sf, SAVESTATE_RTC);
+            if (sf) sf->close(sf);
+            printf("savestate: %s %s (frame %u)\n", arg1, ok ? "written" : "FAILED", core->frameCounter(core));
         } else if (!strcmp(cmd, "vdump")) {
             sscanf(line, "%*s %255s", arg1);
             cmdVdump(arg1);
@@ -840,6 +903,70 @@ int main(int argc, char** argv) {
             sscanf(line, "%*s %63s %63s %63s %63s", f, a, c, r);
             bool ok = gb_call(core, (uint16_t) strtoul(f, NULL, 0), (uint8_t) strtoul(a, NULL, 0), (uint8_t) strtoul(c, NULL, 0), (uint16_t) strtoul(r, NULL, 0));
             printf("gbcall %s(a=%s, c=%s): %s\n", f, a, c, ok ? "returned" : "DID NOT RETURN");
+        } else if (!strcmp(cmd, "gbfar")) {
+            unsigned bank = 0, addr = 0, a = 0, bc = 0, de = 0, hl = 0;
+            sscanf(line, "%*s %x %x %x %x %x %x", &bank, &addr, &a, &bc, &de, &hl);
+            uint8_t outA = 0;
+            bool ok = gb_far(core, (uint8_t) bank, (uint16_t) addr, (uint8_t) a, (uint16_t) bc, (uint16_t) de, (uint16_t) hl, 0xFF9D, &outA);
+            printf("gbfar %02x:%04x: %s, a=%02x\n", bank, addr, ok ? "returned" : "DID NOT RETURN", outA);
+        } else if (!strcmp(cmd, "gbinject")) {
+            // gbinject TRAMP BANK ADDR [AT]: make the game itself call BANK:ADDR from where it waits for the next frame,
+            // interrupts on, so a routine that runs for many frames (a script's battle) plays out in the following
+            // `wait`s. TRAMP is free RAM (C000-CFFF) for a trampoline that saves the registers, far-calls through the
+            // pokecrystal family's `rst $08` (bank and address inline) and returns to the interrupted code. Only
+            // while the CPU sits in a HALT (the frame wait), or once it reaches AT (DelayFrame's own `halt`, which
+            // mGBA may step over in one go): how Prism's trainer battle was started headless.
+            unsigned tramp = 0, bank = 0, addr = 0, at = 0;
+            sscanf(line, "%*s %x %x %x %x", &tramp, &bank, &addr, &at);
+            struct SM83Core* cpu = (struct SM83Core*) core->cpu;
+            bool there = false;
+            for (int i = 0; i < 2000000 && !there; i++) {
+                there = at ? cpu->pc == at : cpu->halted;
+                if (!there) core->step(core);
+            }
+            if (!there) {
+                printf("gbinject: the CPU never got there\n");
+            } else {
+                const uint8_t code[] = {0xF5, 0xC5, 0xD5, 0xE5, 0xCF, (uint8_t) bank, (uint8_t) (addr & 0xFF), (uint8_t) (addr >> 8),
+                                        0xE1, 0xD1, 0xC1, 0xF1, 0xC9};
+                for (unsigned k = 0; k < sizeof code; k++) core->busWrite8(core, (uint16_t) (tramp + k), code[k]);
+                uint16_t back = cpu->pc;
+                cpu->sp -= 2;
+                core->busWrite8(core, cpu->sp, back & 0xFF);
+                core->busWrite8(core, (uint16_t) (cpu->sp + 1), back >> 8);
+                cpu->halted = false;
+                cpu->pc = (uint16_t) tramp;
+                cpu->memory.setActiveRegion(cpu, cpu->pc);
+                printf("gbinject %02x:%04x via %04x (back to %04x)\n", bank, addr, tramp, back);
+            }
+        } else if (!strcmp(cmd, "gbvdump")) {
+            // gbvdump DIR: a Game Boy's VRAM (both Color banks, 0x2000 each), OAM, and the Color palettes (32 BG
+            // colours then 32 OBJ, as mGBA holds them) - what a sprite is drawn in (how Prism's icon colours were found).
+            char d[256] = {0}, path[300];
+            sscanf(line, "%*s %255s", d);
+            struct GB* gb = (struct GB*) core->board;
+            FILE* f;
+            snprintf(path, sizeof path, "%s/gbvram.bin", d);
+            if ((f = fopen(path, "wb"))) { fwrite(gb->video.vram, 1, 0x4000, f); fclose(f); }
+            snprintf(path, sizeof path, "%s/gboam.bin", d);
+            if ((f = fopen(path, "wb"))) { for (int k = 0; k < 0xA0; k++) fputc(core->busRead8(core, (uint16_t) (0xFE00 + k)), f); fclose(f); }
+            snprintf(path, sizeof path, "%s/gbpal.bin", d);
+            if ((f = fopen(path, "wb"))) { fwrite(gb->video.palette, 2, 64, f); fclose(f); }
+            printf("gbvdump %s\n", d);
+        } else if (!strcmp(cmd, "gbpoke")) {
+            // gbpoke BANK ADDR BYTE..: WRAM bank BANK's bytes at ADDR (D000-DFFF; C000-CFFF ignores the bank).
+            char* p = line;
+            unsigned bank = 0, addr = 0;
+            int used = 0;
+            sscanf(p, "%*s %x %x%n", &bank, &addr, &used);
+            p += used;
+            uint8_t oldSvbk = core->busRead8(core, 0xFF70);
+            core->busWrite8(core, 0xFF70, (uint8_t) bank);
+            unsigned v;
+            int k = 0;
+            while (sscanf(p, " %x%n", &v, &used) == 1) { core->busWrite8(core, (uint16_t) (addr + k++), (uint8_t) v); p += used; }
+            core->busWrite8(core, 0xFF70, oldSvbk);
+            printf("gbpoke %x:%04x: %d bytes\n", bank, addr, k);
         } else if (!strcmp(cmd, "gbloop")) {
             sscanf(line, "%*s %d", &n);
             gb_loop(core, n);
