@@ -89,6 +89,8 @@ Ruby, Sapphire, Emerald and the Pokémon hacks that use a clock get it from your
 
 The clock follows real time, not game speed: fast-forward doesn't make berries grow faster.
 
+A save copied off a real cartridge can carry that cartridge's clock with it, and an old cartridge's clock battery is often dead. PokeDaisy starts such a clock fresh from your device, so the game doesn't greet you with "The internal battery has run dry" and its clock events keep working.
+
 ## Rewind
 
 Missed a jump or walked into the wrong trainer? With `REWIND` on, holding the `REWIND HOLD` hotkey plays the last 20 seconds or so backwards. It's off by default and never touches your save file. See [Saves](saves.md) for how it works.

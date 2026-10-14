@@ -57,6 +57,26 @@ static void pk_gb_config(struct mCore* core) {
 static int pk_is_gba(const struct mCore* core) {
     return core && core->platform(core) == mPLATFORM_GBA;
 }
+/** A clock the save file brought back broken: mGBA keeps the cart RTC's state in 16 bytes after the save data and
+ * restores it on reset (GBASavedataRTCRead), so a save dumped from a real cartridge whose battery had died - its
+ * power-fail flag set - or written by a tool that left the 24-hour bit off made Ruby / Sapphire / Emerald say "The
+ * internal battery has run dry" on every boot (sErrorStatus 0x20 / 0x10), where emulators that ignore those bytes
+ * didn't. The emulated battery never runs dry: such a clock goes back to mGBA's fresh one (24-hour, the device's
+ * time), and mGBA writes it into the save with the next save. 12-hour is only undone for the Pokémon games (they
+ * always set 24-hour); a state loaded from before this keeps the old byte too, hence the call after a load. */
+static void pkHealRtc(struct mCore* core) {
+    if (!pk_is_gba(core)) return;
+    struct GBA* gba = (struct GBA*) core->board;
+    struct GBARTC* rtc = &gba->memory.hw.rtc;
+    if (!(gba->memory.hw.devices & HW_RTC)) return;
+    const char* code = gba->memory.rom && gba->memory.romSize > 0xB0 ? (const char*) gba->memory.rom + 0xAC : "";
+    bool pokemon = !strncmp(code, "AXV", 3) || !strncmp(code, "AXP", 3) || !strncmp(code, "BPE", 3);
+    if (!RTCControlIsPoweroff(rtc->control) && (RTCControlIsHour24(rtc->control) || !pokemon)) return;
+    LOGI("RTC from the save: control 0x%02x (%s), reset to a running 24-hour clock", (unsigned) rtc->control,
+         RTCControlIsPoweroff(rtc->control) ? "battery dead" : "12-hour");
+    rtc->control = RTCControlFillHour24(0);
+    rtc->offset = 0;
+}
 #define PK_AUDIO_SCRATCH_SAMPLES 8192   // per-channel; * 2 shorts for interleave
 
 static struct {
@@ -259,6 +279,7 @@ Java_com_pokedaisy_app_MgbaCore_pkInit(JNIEnv* env, jobject thiz,
     }
 
     core->reset(core);
+    pkHealRtc(core);
 
     pthread_rwlock_wrlock(&pk_coreLock);
     g.core = core;
@@ -871,6 +892,7 @@ Java_com_pokedaisy_app_MgbaCore_pkLoadState(JNIEnv* env, jobject thiz, jstring j
     }
     bool ok = mCoreLoadStateNamed(g.core, vf, SAVESTATE_SAVEDATA | SAVESTATE_RTC);
     vf->close(vf);
+    if (ok) pkHealRtc(g.core);
     pk_wide_reset();   // the RAM it kept from the last frame is another moment's
     return ok ? JNI_TRUE : JNI_FALSE;
 }

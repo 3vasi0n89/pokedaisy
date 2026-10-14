@@ -554,7 +554,11 @@ after the old five (saved indexes keep their meaning); SPEED CYCLE only cycles t
 back to 1x. Below 1x the timer paces frames and audio is muted (as SLOWMO HOLD's 0.5x always was); FF, when on, wins. FF SPEED
 gained 1.5x on both screens. The RTC needs no code of ours: mGBA's GBA reset applies its overrides - RTC for AXVE / AXPE /
 BPEE by code, and for any Pokémon ROM it doesn't know by CRC (the hacks) - reading the device's time(0); saves and states keep it
-(`SAVESTATE_RTC`). Verified headless: retail Emerald's `sErrorStatus` (0x03000DB8) is 0 and `sRtc` holds the real date / time.
+(`SAVESTATE_RTC`). Verified headless: retail Emerald's `sErrorStatus` (0x03000DB8) is 0 and `sRtc` holds the real date / time. One
+exception, `pkHealRtc` (pokedaisy_jni.c, after reset and state loads): mGBA restores the clock from the 16 bytes after the
+save data, and a save dumped off a real cartridge with a dead battery (power-fail bit) or a 12-hour control byte made R/S/E
+say "The internal battery has run dry" - such a clock goes back to a fresh 24-hour one (checked headless: sErrorStatus
+0x20 / 0x10 -> 0).
 **FF MODE** (SETTINGS,`FfMode`: SMART default / NORMAL). NORMAL = fast everywhere. SMART = 1x while a
 menu screen or the region map is up, FF (still on) resuming when it closes. **A battle stays fast** (the user's
 rule): in battle the game's own battle input state decides (`smartSlows`, `SmartFf.kt`, fed by
