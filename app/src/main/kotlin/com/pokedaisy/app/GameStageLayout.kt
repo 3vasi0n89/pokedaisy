@@ -24,7 +24,7 @@ class GameStageLayout(
     private val bar: View,
     /** The HUD's messages and the FPS / CPU readout: kept under the bar. */
     private val huds: List<View>,
-    /** Laid out exactly over [game], wherever it ends up (the FIELD HUD). */
+    /** Laid out exactly over [game], wherever it ends up (the FIELD HUD, the companion's rebind popup). */
     private val overGame: List<View> = emptyList(),
 ) : FrameLayout(context) {
 

@@ -94,6 +94,7 @@ import com.pokedaisy.app.companion.ui.GbaTextMetrics
 import com.pokedaisy.app.companion.ui.OptionButton
 import com.pokedaisy.app.companion.ui.OptionColors
 import com.pokedaisy.app.companion.ui.OptionConfirm
+import com.pokedaisy.app.companion.ui.KeyBindRow
 import com.pokedaisy.app.companion.ui.OptionLine
 import com.pokedaisy.app.companion.ui.OptionListWindow
 import com.pokedaisy.app.companion.ui.OptionRows
@@ -132,10 +133,8 @@ class SettingsActivity : ComponentActivity() {
     private var deletingFile by mutableStateOf<File?>(null)
     private var folderTick by mutableIntStateOf(0)
 
-    private var capturing by mutableStateOf<Hotkeys.Action?>(null)
-    private var capturingCtrl by mutableStateOf<GbaControls.Btn?>(null)
-    private var captured by mutableStateOf<List<Int>>(emptyList())
-    private val stillHeld = LinkedHashSet<Int>()
+    /** HOTKEYS / GAME BUTTONS: a row waiting for the keys to bind (KeyCapture takes every key meanwhile). */
+    private val capture = com.pokedaisy.app.companion.KeyCapture()
     /** A captured chord that other hotkeys already have exactly ([taken]): MOVE takes it off them. */
     private class HotkeyClash(val action: Hotkeys.Action, val keys: List<Int>, val taken: List<Hotkeys.Action>)
     private var hotkeyClash by mutableStateOf<HotkeyClash?>(null)
@@ -156,7 +155,8 @@ class SettingsActivity : ComponentActivity() {
     private var backTaken = false
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if ((event.keyCode == KeyEvent.KEYCODE_BUTTON_B || event.keyCode == KeyEvent.KEYCODE_BACK) && capturing == null && capturingCtrl == null) {
+        if (capture.onKey(event)) return true
+        if (event.keyCode == KeyEvent.KEYCODE_BUTTON_B || event.keyCode == KeyEvent.KEYCODE_BACK) {
             if (event.action == KeyEvent.ACTION_DOWN) {
                 if (event.repeatCount == 0) backTaken = overlays.dismissTop()
                 if (backTaken) return true
@@ -167,7 +167,7 @@ class SettingsActivity : ComponentActivity() {
         }
         val dpad = event.keyCode == KeyEvent.KEYCODE_DPAD_UP || event.keyCode == KeyEvent.KEYCODE_DPAD_DOWN ||
             event.keyCode == KeyEvent.KEYCODE_DPAD_LEFT || event.keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
-        if (dpad && event.action == KeyEvent.ACTION_DOWN && screen == Screen.HOME && !homeHasFocus && !overlays.isOpen && capturing == null && capturingCtrl == null) {
+        if (dpad && event.action == KeyEvent.ACTION_DOWN && screen == Screen.HOME && !homeHasFocus && !overlays.isOpen) {
             val first = homeFirstRow
             if (first != null && runCatching { first.requestFocus() }.isSuccess) return true
         }
@@ -197,7 +197,6 @@ class SettingsActivity : ComponentActivity() {
     private var cheatsOnly = false
     /** HOME's search box; kept while a sub-page it led to is open. */
     private var searchQuery by mutableStateOf("")
-    private var controlsOnly = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -209,11 +208,6 @@ class SettingsActivity : ComponentActivity() {
             cheatsOnly = true
             cheatRom = File(path)
             screen = Screen.CHEATS
-        }
-        // First-time setup's GAME BUTTONS step: the rebind page alone, BACK returns to setup.
-        if (intent?.getStringExtra(EXTRA_SCREEN) == SCREEN_CONTROLS) {
-            controlsOnly = true
-            screen = Screen.CONTROLS
         }
         if (intent?.getStringExtra(EXTRA_SCREEN) == SCREEN_HELP) {
             helpOnly = true
@@ -232,71 +226,27 @@ class SettingsActivity : ComponentActivity() {
         updates.onResume()
     }
 
-    // ---- physical-key capture (Hotkeys / Game buttons screens) ----------------
-
-    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
-        if (capturing == null && capturingCtrl == null) return super.onKeyDown(keyCode, event)
-        if (keyCode == KeyEvent.KEYCODE_BACK) { cancelCapture(); return true }
-        captureDown(keyCode)
-        return true
-    }
-
-    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
-        if (capturing == null && capturingCtrl == null) return super.onKeyUp(keyCode, event)
-        captureUp(keyCode)
-        return true
+    override fun onPause() {
+        super.onPause()
+        capture.cancel()
     }
 
     // Analog L2 / R2 (Retroid's triggers send no keys): captured as BUTTON_L2 / R2, the keys the game
     // screen turns them into.
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
-        if ((capturing == null && capturingCtrl == null) || !event.isFromSource(InputDevice.SOURCE_JOYSTICK)) {
-            return super.dispatchGenericMotionEvent(event)
-        }
-        captureTrigger(KeyEvent.KEYCODE_BUTTON_L2, maxOf(event.getAxisValue(MotionEvent.AXIS_LTRIGGER), event.getAxisValue(MotionEvent.AXIS_BRAKE)))
-        captureTrigger(KeyEvent.KEYCODE_BUTTON_R2, maxOf(
-            event.getAxisValue(MotionEvent.AXIS_RTRIGGER), event.getAxisValue(MotionEvent.AXIS_GAS),
-            event.getAxisValue(MotionEvent.AXIS_THROTTLE),
-        ))
-        return true
-    }
-
-    private fun captureTrigger(keyCode: Int, value: Float) {
-        val down = value > 0.5f
-        if (down == (keyCode in stillHeld)) return
-        if (down) captureDown(keyCode) else captureUp(keyCode)
-    }
-
-    private fun captureDown(keyCode: Int) {
-        if (keyCode !in captured) captured = captured + keyCode
-        stillHeld.add(keyCode)
-    }
-
-    private fun captureUp(keyCode: Int) {
-        if (capturing == null && capturingCtrl == null) return
-        stillHeld.remove(keyCode)
-        if (stillHeld.isEmpty() && captured.isNotEmpty()) {
-            capturing?.let { action ->
-                // The same chord on another hotkey: asked first, never two actions on one chord.
-                val taken = Hotkeys.clashes(Hotkeys.load(filesRoot).rawBindings, action, captured.map { Hotkeys.keyName(it) })
-                if (taken.isEmpty()) Hotkeys.setBinding(filesRoot, action, captured)
-                else hotkeyClash = HotkeyClash(action, captured, taken)
-            }
-            capturingCtrl?.let { GbaControls.setBinding(filesRoot, it, captured.first()) }
-            revision++
-            cancelCapture()
-        }
-    }
-
-    private fun cancelCapture() {
-        capturing = null; capturingCtrl = null; captured = emptyList(); stillHeld.clear()
+        if (event.isFromSource(InputDevice.SOURCE_JOYSTICK) && capture.onTriggers(
+                maxOf(event.getAxisValue(MotionEvent.AXIS_LTRIGGER), event.getAxisValue(MotionEvent.AXIS_BRAKE)),
+                maxOf(event.getAxisValue(MotionEvent.AXIS_RTRIGGER), event.getAxisValue(MotionEvent.AXIS_GAS), event.getAxisValue(MotionEvent.AXIS_THROTTLE)),
+            )
+        ) return true
+        return super.dispatchGenericMotionEvent(event)
     }
 
     // ---- shell --------------------------------------------------------------
 
     @Composable
     private fun Root() {
-        BackHandler(enabled = screen != Screen.HOME) { cancelCapture(); goBack() }
+        BackHandler(enabled = screen != Screen.HOME) { capture.cancel(); goBack() }
         BackHandler(enabled = aspectPicker) { aspectPicker = false }
         BackHandler(enabled = hotkeyClash != null) { hotkeyClash = null }
         val m = rememberGbaTextMetrics()
@@ -328,7 +278,7 @@ class SettingsActivity : ComponentActivity() {
                     },
                     m = m,
                     onBack = {
-                        cancelCapture()
+                        capture.cancel()
                         goBack()
                     },
                 )
@@ -391,7 +341,7 @@ class SettingsActivity : ComponentActivity() {
                     title = tk("KEY IN USE"),
                     message = tr(
                         "{0} is already {1}. Move it to {2}?",
-                        c.keys.joinToString(" + ") { keyLabel(Hotkeys.keyName(it)) },
+                        com.pokedaisy.app.companion.KeyCapture.chordLabel(c.keys),
                         c.taken.joinToString(", ") { tr(it.title) }, tr(c.action.title),
                     ),
                     confirmLabel = tk("MOVE"),
@@ -495,7 +445,7 @@ class SettingsActivity : ComponentActivity() {
             screen == Screen.CHEAT_ADD -> screen = Screen.CHEATS
             screen == Screen.HELP && docsUi.back() -> {}
             screen == Screen.HELP && helpOnly -> finish()
-            screen == Screen.HOME || (screen == Screen.CHEATS && cheatsOnly) || (screen == Screen.CONTROLS && controlsOnly) -> finish()
+            screen == Screen.HOME || (screen == Screen.CHEATS && cheatsOnly) -> finish()
             else -> { cheatRemoveMode = false; overlayRemoveMode = false; screen = Screen.HOME }
         }
     }
@@ -1432,19 +1382,12 @@ class SettingsActivity : ComponentActivity() {
 
     // ---- hotkeys / game buttons -------------------------------------------
 
-    /** One rebindable row: tap to capture (the row turns white and the value
-     * reads PRESS KEYS…), tap again to cancel. */
-    @Composable
-    private fun CaptureRow(
-        label: String, keys: List<String>, isCapturing: Boolean, prompt: String, m: GbaTextMetrics,
-        divider: Boolean, enabled: Boolean = true, labelBadge: String? = null, onClick: () -> Unit,
-    ) {
-        val value = when {
-            isCapturing && captured.isEmpty() -> prompt
-            isCapturing -> captured.joinToString(" + ") { keyLabel(Hotkeys.keyName(it)) }
-            else -> keys.joinToString(" / ") { keyLabel(it) }.ifEmpty { "-" }
-        }
-        OptionLine(label, value, selected = isCapturing, m, height = m.rowHeight * 1.2f, labelWeight = 0.5f, divider = divider, enabled = enabled, labelBadge = labelBadge, onClick = onClick)
+    /** A hotkey bound to [keys] - asked first when other hotkeys have exactly that chord (MOVE takes it off them). */
+    private fun bindHotkey(action: Hotkeys.Action, keys: List<Int>) {
+        val taken = Hotkeys.clashes(Hotkeys.load(filesRoot).rawBindings, action, keys.map { Hotkeys.keyName(it) })
+        if (taken.isEmpty()) Hotkeys.setBinding(filesRoot, action, keys)
+        else hotkeyClash = HotkeyClash(action, keys, taken)
+        revision++
     }
 
     @Composable
@@ -1455,20 +1398,6 @@ class SettingsActivity : ComponentActivity() {
                 tr("Tap a hotkey, then press one or more keys/buttons together and release — e.g. hold Select and tap R1 for a chord. BACK cancels."),
                 m, small,
             )
-            // While a hotkey waits for keys: CLEAR leaves it unbound ("-").
-            capturing?.let { action ->
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(m.u * 8),
-                    modifier = Modifier.fillMaxWidth().padding(bottom = m.u * 4),
-                ) {
-                    OptionButton(tr("CLEAR {0}", tr(action.title)), m, modifier = Modifier.weight(1f), emphasis = true, onClick = {
-                        Hotkeys.clearBinding(filesRoot, action)
-                        revision++
-                        cancelCapture()
-                    })
-                    OptionButton(tk("CANCEL"), m, modifier = Modifier.weight(1f), onClick = ::cancelCapture)
-                }
-            }
             OptionListWindow(m, Modifier.fillMaxWidth().weight(1f, fill = false)) {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     // Off, the binds stay as they are, greyed out, and every key goes to the game.
@@ -1476,14 +1405,18 @@ class SettingsActivity : ComponentActivity() {
                     OptionLine(
                         tk("HOTKEYS"), if (on) tk("ON") else tk("OFF"), selected = false, m, height = m.rowHeight * 1.2f,
                         labelWeight = 0.5f, divider = true,
-                    ) { cancelCapture(); prefs.hotkeysEnabled = !on; revision++ }
+                    ) { capture.cancel(); prefs.hotkeysEnabled = !on; revision++ }
                     Hotkeys.Action.entries.forEachIndexed { i, action ->
-                        CaptureRow(
-                            action.title, hotkeys.rawBindings[action].orEmpty(),
-                            isCapturing = capturing == action, prompt = tk("PRESS KEYS…"), m = m,
+                        KeyBindRow(
+                            action.title, hotkeys.rawBindings[action], capture, m, small,
                             divider = i < Hotkeys.Action.entries.lastIndex, enabled = on, labelBadge = action.badge,
                         ) {
-                            if (capturing == action) cancelCapture() else { cancelCapture(); capturing = action }
+                            com.pokedaisy.app.companion.KeyCapture.Request(
+                                action.title, chord = true,
+                                onDone = { keys -> bindHotkey(action, keys) },
+                                // CLEAR leaves it unbound ("-").
+                                onClear = { Hotkeys.clearBinding(filesRoot, action); revision++ },
+                            )
                         }
                     }
                 }
@@ -1499,18 +1432,21 @@ class SettingsActivity : ComponentActivity() {
             OptionListWindow(m, Modifier.fillMaxWidth().weight(1f, fill = false)) {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
                     GbaControls.Btn.entries.forEachIndexed { i, btn ->
-                        CaptureRow(
-                            "GBA ${btn.label}", ctrls[btn].orEmpty(),
-                            isCapturing = capturingCtrl == btn, prompt = tk("PRESS A BUTTON…"), m = m,
+                        KeyBindRow(
+                            "GBA ${btn.label}", ctrls[btn], capture, m, small,
                             divider = i < GbaControls.Btn.entries.lastIndex,
-                        ) {
-                            if (capturingCtrl == btn) cancelCapture() else { cancelCapture(); capturingCtrl = btn }
-                        }
+                        ) { controlRequest(btn) }
                     }
                 }
             }
         }
     }
+
+    private fun controlRequest(btn: GbaControls.Btn) = com.pokedaisy.app.companion.KeyCapture.Request(
+        "GBA ${btn.label}", chord = false,
+        onDone = { keys -> GbaControls.setBinding(filesRoot, btn, keys.first()); revision++ },
+        onClear = if (btn.canClear) ({ GbaControls.clearBinding(filesRoot, btn); revision++ }) else null,
+    )
 
     // ---- folders --------------------------------------------------------
 
@@ -1715,9 +1651,8 @@ class SettingsActivity : ComponentActivity() {
         const val REPO_URL = "https://github.com/lidor30/pokedaisy"
         /** A ROM path: open straight on that game's CHEATS (its library menu). */
         const val EXTRA_CHEATS_ROM = "cheats_rom"
-        /** Opens one page alone ([SCREEN_CONTROLS]: GAME BUTTONS, for setup; [SCREEN_HELP]: the manual); BACK finishes. */
+        /** Opens one page alone ([SCREEN_HELP]: the manual); BACK finishes. */
         const val EXTRA_SCREEN = "screen"
-        const val SCREEN_CONTROLS = "CONTROLS"
         const val SCREEN_HELP = "HELP"
         /** Cheat files are text; anything bigger isn't one. */
         const val MAX_CHEAT_FILE = 1 shl 20
@@ -1748,8 +1683,6 @@ class SettingsActivity : ComponentActivity() {
         const val COFFEE_URL = "https://buymeacoffee.com/lidor30g"
 
         fun rateLabel(v: Float) = if (v <= 0f) tk("INFINITE") else if (v % 1f == 0f) "${v.toInt()}×" else "$v×"
-
-        fun keyLabel(name: String) = name.replace("BUTTON_", "").replace('_', ' ')
 
         fun humanSize(bytes: Long): String = when {
             bytes >= 1 shl 20 -> "%.1f MB".format(bytes / 1048576.0)

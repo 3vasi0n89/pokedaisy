@@ -3,7 +3,12 @@ package android.view
 class KeyEvent(val action: Int = ACTION_DOWN, val keyCode: Int = 0, val repeatCount: Int = 0) {
     companion object {
         fun keyCodeFromString(s: String): Int = s.hashCode() and 0xFFFF
-        fun keyCodeToString(c: Int): String = "KEYCODE_$c"
+        /** The real name for the constants below (the rebind shots show them), else the number. */
+        fun keyCodeToString(c: Int): String = "KEYCODE_" + (
+            KeyEvent::class.java.declaredFields.firstOrNull { f ->
+                f.name.startsWith("KEYCODE_") && runCatching { f.isAccessible = true; f.getInt(null) == c }.getOrDefault(false)
+            }?.name?.removePrefix("KEYCODE_") ?: c.toString()
+        )
         const val ACTION_DOWN = 0
         const val ACTION_UP = 1
         const val KEYCODE_DPAD_UP = 19
@@ -24,6 +29,16 @@ class KeyEvent(val action: Int = ACTION_DOWN, val keyCode: Int = 0, val repeatCo
         const val KEYCODE_BACK = 4
         const val KEYCODE_BUTTON_L2 = 104
         const val KEYCODE_BUTTON_R2 = 105
+        const val KEYCODE_HOME = 3
+        const val KEYCODE_VOLUME_UP = 24
+        const val KEYCODE_VOLUME_DOWN = 25
+        const val KEYCODE_POWER = 26
+        const val KEYCODE_VOLUME_MUTE = 164
+        const val KEYCODE_APP_SWITCH = 187
+        const val KEYCODE_DPAD_UP_LEFT = 268
+        const val KEYCODE_DPAD_DOWN_LEFT = 269
+        const val KEYCODE_DPAD_UP_RIGHT = 270
+        const val KEYCODE_DPAD_DOWN_RIGHT = 271
     }
 }
 

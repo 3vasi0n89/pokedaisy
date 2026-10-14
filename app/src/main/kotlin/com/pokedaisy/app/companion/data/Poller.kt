@@ -384,7 +384,7 @@ class TelemetrySampler {
                 nativeCfg = it
                 return
             }
-            retailHash = hash in RETAIL_SHA1S
+            retailHash = hash in RETAIL_SHA1S || retailDump(reader, code, size)
             smallHash = hash
         }
 
@@ -498,7 +498,7 @@ class TelemetrySampler {
                 ramVerified = true   // its build's own symbols; the battle cursors kept retail's EWRAM (checked headless)
                 return
             }
-            retailHash = hash in RETAIL_SHA1S
+            retailHash = hash in RETAIL_SHA1S || retailDump(reader, code, size)
             smallHash = hash
         }
 
@@ -521,6 +521,14 @@ class TelemetrySampler {
         }
         nativeCfg = withCheckedTables(reader, cfg)
         ramVerified = true
+    }
+
+    /** A trimmed / save-patched retail dump ([RetailDumps]): retail's RAM and code, so read as retail. */
+    private fun retailDump(reader: MemoryReader, code: String, size: Long): Boolean {
+        val rev = runCatching { reader.readCoreMemory(0x080000BCL, 1)[0].toInt() and 0xFF }.getOrNull()
+        return runCatching {
+            RetailDumps.match(code, rev, size) { off, len -> reader.readCoreMemory(0x08000000L + off, len) }
+        }.getOrNull()?.also { android.util.Log.i("pokedaisy", "$code: a retail dump with its save code patched / end trimmed (retail $it)") } != null
     }
 
     /** No DEX tab, and no HERE / NEXT BOSS guide pages, unless the config's

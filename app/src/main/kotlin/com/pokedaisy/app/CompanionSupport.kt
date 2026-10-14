@@ -9,7 +9,8 @@ import java.io.File
  * [TelemetrySampler]'s detect() makes live, made from the file at import so
  * the library can warn before adding a ROM the companion will only show a
  * "not supported" notice for. Retail LeafGreen / Ruby / Sapphire (the
- * revisions detect() has addresses for), retail FireRed / Emerald by their SHA1, and
+ * revisions detect() has addresses for), retail FireRed / Emerald by their SHA1 (or as a trimmed /
+ * save-patched dump of one, [com.pokedaisy.app.companion.data.RetailDumps]), and
  * a hack only when its SHA1 is one detect() knows. An archive is judged by the ROM
  * inside it ([RomArchive]). Blocking (hashes up to 32 MB) - never on the UI thread.
  * The website's ROM check (`website/src/lib/compat.js`) is the same rules in JavaScript, over
@@ -45,6 +46,10 @@ object CompanionSupport {
         if (code in TelemetrySampler.HACK_GAME_CODES) return RomIdentity.sha1(rom) in TelemetrySampler.SUPPORTED_HACK_SHA1S
         if (code != "BPRE" && code != "BPEE") return false
         val sha1 = RomIdentity.sha1(rom)
-        return (size <= 0x1000000L && sha1 in TelemetrySampler.RETAIL_SHA1S) || sha1 in TelemetrySampler.SUPPORTED_HACK_SHA1S
+        if (sha1 in TelemetrySampler.SUPPORTED_HACK_SHA1S) return true
+        if (size > 0x1000000L) return false
+        // Retail, or a retail dump with its end trimmed / save code patched (RetailDumps), as detect() takes them.
+        return sha1 in TelemetrySampler.RETAIL_SHA1S ||
+            com.pokedaisy.app.companion.data.RetailDumps.matchStream(code, RomIdentity.revision(rom), size) { RomArchive.open(rom) } != null
     }
 }

@@ -49,7 +49,8 @@ class GbaInput {
      * null = none. The companion's window reads keys through this, so it follows the player's bindings. */
     fun buttonFor(keyCode: Int): Int? = keyToBit(keyCode)?.let { it and GbaControls.TURBO.inv() }
 
-    /** Lets go of every key the player holds (not a script's): the companion's window took the buttons. */
+    /** Lets go of every key the player holds (not a script's): the companion's window took the buttons, or a rebind
+     *  the keys' releases. */
     fun releaseAll() {
         heldKeys.clear()
         turboKeys.clear()

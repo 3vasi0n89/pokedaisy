@@ -78,6 +78,11 @@
   "inProgress": [
 
   ],
+  "retailDumps": [
+    {"code": "BPRE", "rev": 0, "end": 15403806, "ranges": [[196, 202], [1120, 1124], [1959972, 1962280], [4283391, 4283535], [7323320, 7323708], [7447100, 13631488]], "sha1": "7c5ed3b3ce796ef2ef05878b31836b090dc7b7b5", "retailSha1": "41cb23d8dccc8ebd7c649cd8fbb58eeace6e2fdc"},
+    {"code": "BPRE", "rev": 1, "end": 15403806, "ranges": [[196, 202], [1136, 1140], [1960084, 1962392], [4283503, 4283647], [7323416, 7323804], [7447196, 13631488]], "sha1": "4b1c9554caf64c58055e7e7202fa5bf99f86bea1", "retailSha1": "dd5945db9b930750cb39d00c84da8571feebf417"},
+    {"code": "BPEE", "rev": 0, "end": 14929745, "ranges": [[196, 202], [1136, 1140], [3020896, 3025452], [6194102, 6194387], [10104932, 10105396]], "sha1": "09d7e7cbb3cfbf842c7663c63d3c8fb8eb6423f8", "retailSha1": "f3ae088181bf583e55daf962a92bb46f4f1d07b7"}
+  ],
   "gameBoy": [
     {"sha1": "cc7d03262ebfaf2f06772c1a480c7d9d5f4a38e1", "title": "Pokémon Yellow"}
   ],

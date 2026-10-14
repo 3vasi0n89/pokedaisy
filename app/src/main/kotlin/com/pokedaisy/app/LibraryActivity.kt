@@ -24,7 +24,9 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
+import android.view.InputDevice
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -113,6 +115,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import com.pokedaisy.app.companion.i18n.tk
+import com.pokedaisy.app.companion.KeyCapture
 import com.pokedaisy.app.companion.i18n.tr
 import com.pokedaisy.app.companion.ui.LOGO_PALETTE
 import com.pokedaisy.app.companion.ui.LOGO_ROWS
@@ -337,6 +340,7 @@ class LibraryActivity : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         isResumed = false
+        setup?.capture?.cancel()
     }
 
     override fun onResume() {
@@ -354,7 +358,7 @@ class LibraryActivity : ComponentActivity() {
             setup?.fromSettings = true
         }
         setup?.let { s ->
-            // Back from the rebind page: show what's bound now.
+            // Bindings changed elsewhere meanwhile (a game's companion): show what's bound now.
             if (s.step == SetupState.Step.BUTTONS) readButtons(s)
             // Back from Android's All files access page: carry on with the folder pick it was for.
             s.hasAccess = StorageAccess.hasAllFilesAccess(this)
@@ -1596,7 +1600,20 @@ class LibraryActivity : ComponentActivity() {
     /** B / BACK went to a window: its key up is that window's too (or Android's own BACK would follow). */
     private var backTaken = false
 
+    // Setup's GAME BUTTONS: analog L2 / R2 (Retroid's triggers send no keys) as BUTTON_L2 / R2, like the game takes them.
+    override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+        val capture = setup?.capture
+        if (capture != null && event.isFromSource(InputDevice.SOURCE_JOYSTICK) && capture.onTriggers(
+                maxOf(event.getAxisValue(MotionEvent.AXIS_LTRIGGER), event.getAxisValue(MotionEvent.AXIS_BRAKE)),
+                maxOf(event.getAxisValue(MotionEvent.AXIS_RTRIGGER), event.getAxisValue(MotionEvent.AXIS_GAS), event.getAxisValue(MotionEvent.AXIS_THROTTLE)),
+            )
+        ) return true
+        return super.dispatchGenericMotionEvent(event)
+    }
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // Setup's GAME BUTTONS row waiting for a button: every key is its, before the launcher, the windows or the focus.
+        if (setup?.capture?.onKey(event) == true) return true
         if (launcherOn && setup == null && !libraryDialogOpen && launcherKey(event)) return true
         // B (or BACK) with a window open closes that window, back to what opened it: the launcher's menu comes back
         // ([MenuReturnWatch]) - it used to drop to the games, or leave the library.
@@ -1996,8 +2013,13 @@ class LibraryActivity : ComponentActivity() {
             onBack = { setupBack(s) },
             onScreenScraperSignIn = { s.ssLogin.signIn(prefs, { r -> runOnUiThread { r() } }) { startMediaSync(s.covers) } },
             onScreenScraperSignOut = { s.ssLogin.signOut(prefs) },
-            onChangeButtons = {
-                startActivity(Intent(this, SettingsActivity::class.java).putExtra(SettingsActivity.EXTRA_SCREEN, SettingsActivity.SCREEN_CONTROLS))
+            buttonRequest = { btn ->
+                val dir = getExternalFilesDir(null) ?: filesDir
+                KeyCapture.Request(
+                    "GBA ${btn.label}", chord = false,
+                    onDone = { keys -> GbaControls.setBinding(dir, btn, keys.first()); readButtons(s) },
+                    onClear = if (btn.canClear) ({ GbaControls.clearBinding(dir, btn); readButtons(s) }) else null,
+                )
             },
             onNext = {
                 val steps = s.steps
@@ -2018,6 +2040,7 @@ class LibraryActivity : ComponentActivity() {
     }
 
     private fun enterStep(s: SetupState, step: SetupState.Step) {
+        s.capture.cancel()
         s.step = step
         if (step == SetupState.Step.BUTTONS) readButtons(s)
         if (step == SetupState.Step.SAVES) {
@@ -2030,12 +2053,11 @@ class LibraryActivity : ComponentActivity() {
 
     /** The GAME BUTTONS step's list: A, B, L, R, START, SELECT (+ the second START / SELECT, turbo) as bound now. */
     private fun readButtons(s: SetupState) {
-        s.buttons = GbaControls.rawBindings(getExternalFilesDir(null) ?: filesDir).map { (btn, keys) ->
-            btn.label to keys.joinToString(" / ") { it.removePrefix("BUTTON_").replace('_', ' ') }
-        }
+        s.buttons = GbaControls.rawBindings(getExternalFilesDir(null) ?: filesDir)
     }
 
     private fun finishSetup() {
+        setup?.capture?.cancel()
         prefs.setupDone = true
         // Setup had its own GAME MEDIA step: no ScreenScraper popup after it (none while ScreenScraper is off).
         if (ScreenScraperClient.enabled) prefs.screenScraperAsked = true

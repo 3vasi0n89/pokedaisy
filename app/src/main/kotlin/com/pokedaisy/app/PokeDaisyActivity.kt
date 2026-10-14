@@ -72,6 +72,10 @@ import kotlinx.coroutines.withContext
 class PokeDaisyActivity : Activity() {
 
     private val input = GbaInput()
+    /** The companion's GAME BUTTONS / HOTKEYS rows waiting for keys: every key comes here (the Presentation forwards
+     * them), so the capture runs here and [keyCapturePopup] shows it over the game. */
+    private val keyCapture = com.pokedaisy.app.companion.KeyCapture().apply { onActiveChanged = ::onKeyCapture }
+    private lateinit var keyCapturePopup: ComposeView
     private lateinit var hotkeys: Hotkeys
     /** [Prefs.hotkeysEnabled], read on resume; off, every key goes to the game. */
     private var hotkeysOn = true
@@ -734,9 +738,14 @@ class PokeDaisyActivity : Activity() {
             syncTouchControls()
         }
         override fun gbaControlBindings() = GbaControls.rawBindings(getExternalFilesDir(null) ?: filesDir)
+        override val keyCapture get() = this@PokeDaisyActivity.keyCapture
         override fun setGbaControlBinding(btn: GbaControls.Btn, keyName: String) {
             val code = keyCodeForName(keyName) ?: return
             GbaControls.setBinding(getExternalFilesDir(null) ?: filesDir, btn, code)
+            input.setControls(GbaControls.load(getExternalFilesDir(null) ?: filesDir))
+        }
+        override fun clearGbaControlBinding(btn: GbaControls.Btn) {
+            GbaControls.clearBinding(getExternalFilesDir(null) ?: filesDir, btn)
             input.setControls(GbaControls.load(getExternalFilesDir(null) ?: filesDir))
         }
         override val hotkeysEnabled get() = hotkeysOn
@@ -745,10 +754,10 @@ class PokeDaisyActivity : Activity() {
             setHotkeysOn(on)
         }
         override fun hotkeyBindings() = Hotkeys.load(getExternalFilesDir(null) ?: filesDir).rawBindings
-        override fun setHotkeyBinding(action: Hotkeys.Action, keyName: String?, takeFrom: List<Hotkeys.Action>) {
+        override fun setHotkeyBinding(action: Hotkeys.Action, keyNames: List<String>?, takeFrom: List<Hotkeys.Action>) {
             val dir = getExternalFilesDir(null) ?: filesDir
-            if (keyName == null) Hotkeys.clearBinding(dir, action)
-            else Hotkeys.setBinding(dir, action, listOf(keyCodeForName(keyName) ?: return), takeFrom)
+            if (keyNames.isNullOrEmpty()) Hotkeys.clearBinding(dir, action)
+            else Hotkeys.setBindingNamed(dir, action, keyNames, takeFrom)
             hotkeys = Hotkeys.load(getExternalFilesDir(null) ?: filesDir)
         }
         override fun restartGame() = this@PokeDaisyActivity.restartGame()
@@ -931,8 +940,8 @@ class PokeDaisyActivity : Activity() {
         override fun acceptGuideNotice(game: String) = Prefs(this@PokeDaisyActivity).acceptGuideNotice(game)
     }
 
-    /** Reverses [Hotkeys.keyName] — "BUTTON_A"/"Z"/etc. back to a keyCode, for the
-     * companion's tap-a-name rebind picker (see [CompanionSettings]). */
+    /** Reverses [Hotkeys.keyName] — "BUTTON_A"/"Z"/etc. back to a keyCode, for the companion's GAME BUTTONS
+     * (its capture hands over key names, see [CompanionSettings]). */
     private fun keyCodeForName(name: String): Int? {
         val code = KeyEvent.keyCodeFromString("KEYCODE_$name")
         return code.takeIf { it != KeyEvent.KEYCODE_UNKNOWN }
@@ -1000,7 +1009,11 @@ class PokeDaisyActivity : Activity() {
         statusBar = buildStatusBar()
         performance = buildPerformanceOverlay()
         fieldHud = buildFieldHud()
-        val root = GameStageLayout(this, view, statusBar, listOf(hud, performance), overGame = listOf(fieldHud)).apply {
+        keyCapturePopup = ComposeView(this).apply {
+            visibility = View.GONE
+            setContent { com.pokedaisy.app.companion.ui.KeyCapturePopup(keyCapture) }
+        }
+        val root = GameStageLayout(this, view, statusBar, listOf(hud, performance), overGame = listOf(fieldHud, keyCapturePopup)).apply {
             setBackgroundColor(Color.BLACK)
             // Shrink the game view to the left portion (instead of full-screen
             // underneath the mirror) so the whole GBA frame is actually
@@ -1023,6 +1036,8 @@ class PokeDaisyActivity : Activity() {
             })
             // FPS / CPU: flush in the top-left corner, like other emulators.
             addView(performance, FrameLayout.LayoutParams(-2, -2).apply { gravity = Gravity.TOP or Gravity.START })
+            // Over everything on the game: the companion's rebind asking for keys.
+            addView(keyCapturePopup, FrameLayout.LayoutParams(-1, -1))
             if (debugMirror) {
                 addView(buildDebugCompanionMirror(), debugMirrorLayoutParams())
                 addView(
@@ -1424,6 +1439,7 @@ class PokeDaisyActivity : Activity() {
 
     override fun onPause() {
         super.onPause()
+        keyCapture.cancel()
         runCatching { displayManager.unregisterDisplayListener(displayListener) }
         runCatching { inputManager.unregisterInputDeviceListener(inputDeviceListener) }
         runCatching { unregisterReceiver(batteryReceiver) }
@@ -1788,6 +1804,8 @@ class PokeDaisyActivity : Activity() {
     // --- input ---------------------------------------------------------------
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        // The companion's rebind waiting for keys: they're its alone - not the game's, the hotkeys' or BACK's.
+        if (keyCapture.onKey(event)) return true
         if (event.action != KeyEvent.ACTION_DOWN && event.action != KeyEvent.ACTION_UP) {
             return super.dispatchKeyEvent(event)
         }
@@ -1973,6 +1991,11 @@ class PokeDaisyActivity : Activity() {
     // A controller's stick / D-pad / triggers, before the views: with the companion in this
     // window (side panel, phone upright) a focused ComposeView would see them first.
     override fun dispatchGenericMotionEvent(event: MotionEvent): Boolean {
+        if (event.isFromSource(InputDevice.SOURCE_JOYSTICK) && keyCapture.onTriggers(
+                maxOf(event.getAxisValue(MotionEvent.AXIS_LTRIGGER), event.getAxisValue(MotionEvent.AXIS_BRAKE)),
+                maxOf(event.getAxisValue(MotionEvent.AXIS_RTRIGGER), event.getAxisValue(MotionEvent.AXIS_GAS), event.getAxisValue(MotionEvent.AXIS_THROTTLE)),
+            )
+        ) return true
         if (event.isFromSource(InputDevice.SOURCE_JOYSTICK) && onGenericMotionEvent(event)) return true
         return super.dispatchGenericMotionEvent(event)
     }
@@ -2016,6 +2039,17 @@ class PokeDaisyActivity : Activity() {
             return
         }
         if (!hotkeyTakes(keyCode, down)) input.onKey(keyCode, down)
+    }
+
+    /** A companion rebind started / ended: its popup over the game, and nothing left held - the game's keys, a held
+     * FF / slow-mo / rewind, a half-pressed chord, the right stick's look-around - since their releases go to it. */
+    private fun onKeyCapture(on: Boolean) {
+        if (::keyCapturePopup.isInitialized) keyCapturePopup.visibility = if (on) View.VISIBLE else View.GONE
+        input.releaseAll()
+        rtDown = false; ltDown = false
+        if (::view.isInitialized) { view.camera.stickX = 0f; view.camera.stickY = 0f }
+        if (::engine.isInitialized) { engine.setFastForwardHeld(false); engine.setSlowmoHeld(false); engine.setRewindHeld(false) }
+        hotkeys = Hotkeys.load(getExternalFilesDir(null) ?: filesDir)
     }
 
     /** Turns the hotkeys on/off from the companion. Off lets go of any held one (FF / slow-mo

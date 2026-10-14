@@ -1,5 +1,6 @@
 package com.pokedaisy.app
 
+import com.pokedaisy.app.companion.data.RETAIL_DUMPS
 import com.pokedaisy.app.companion.data.RETAIL_PORT_CODE_TITLES
 import com.pokedaisy.app.companion.data.TelemetrySampler
 import org.junit.Assert.assertEquals
@@ -104,6 +105,14 @@ class SiteDataExportTest {
                 })
                 append("\n  ],\n")
             }
+            // Retail FireRed / Emerald dumps with the end trimmed / save code patched (RetailDumps): read as retail.
+            append("  \"retailDumps\": [\n")
+            append(RETAIL_DUMPS.joinToString(",\n") { d ->
+                "    {\"code\": ${q(d.code)}, \"rev\": ${d.rev}, \"end\": ${d.end}, \"ranges\": [" +
+                    d.ranges.joinToString(", ") { "[${it.first}, ${it.last + 1}]" } +
+                    "], \"sha1\": ${q(d.sha1)}, \"retailSha1\": ${q(d.retailSha1)}}"
+            })
+            append("\n  ],\n")
             append("  \"gameBoy\": [\n")
             append(gameBoy.joinToString(",\n") { "    {\"sha1\": ${q(it)}, \"title\": ${q(GameTitles.BY_SHA1.getValue(it))}}" })
             append("\n  ],\n")

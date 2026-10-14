@@ -588,11 +588,17 @@ per-game table; captured headless on retail Emerald and FireRed (`fixtures/ff_sh
 a row matches on its label (English and translated), value, `subtitle` and its words in `SETTING_KEYWORDS` (by English
 label, shared by both screens: "rebind", "keybinds", "turbo"... - give a new row its words). The companion's SETTINGS has
 no search (the Presentation can't host a keyboard). `SettingRow.subtitle` / `OptionLine(subtitle)` draw a grey line
-under the label (GAME BUTTONS: key bindings; each TWEAKS switch its own `Tweak.description`, on a wider label column). HOTKEYS
-can be unbound (top screen: CLEAR while a row waits for keys; companion picker: NONE), and a chord another hotkey already has
+under the label (GAME BUTTONS: key bindings; each TWEAKS switch its own `Tweak.description`, on a wider label column). **Rebinding is always by pressing the keys,
+never a list of key names** (the user's rule: a list confused players): `KeyCapture` (companion/KeyCapture.kt) + `KeyBindRow` /
+`KeyCaptureBar` / `KeyCapturePopup` (companion/ui/KeyCaptureUi.kt), one per activity - top-screen Settings, first-time setup's
+GAME BUTTONS step (`SetupState.capture`: rows rebind in place, never another screen) and the game, which runs the companion's
+(`CompanionSettings.keyCapture`: the Presentation gets no keys, so `PokeDaisyActivity` takes every key / trigger first and shows
+`KeyCapturePopup` over the game screen, `GameStageLayout.overGame`, letting go of the game's keys / FF holds / chord state). While
+one waits every key is its (system keys aside): a hotkey takes a chord, a GBA button one key and never the D-pad; BACK cancels; a
+key held when it began, or still held when it ends, keeps its release there. HOTKEYS and TURBO A / B can be unbound (CLEAR
+while a row waits), and a chord another hotkey already has
 exactly (same keys, any order - sharing only some keys is fine) asks KEY IN USE / MOVE first (`Hotkeys.clashes`, `takeFrom`);
-clashes already in a file are left alone. First-time setup has a GAME BUTTONS step (`SetupState.Step.BUTTONS`)
-listing the bindings; CHANGE BUTTONS opens Settings' rebind page alone (`EXTRA_SCREEN` = CONTROLS, BACK returns).
+clashes already in a file are left alone. `KeyCaptureTest`; ui-preview `*-capture` shots.
 **SETTINGS layout**: the options come in titled groups (FAST-FORWARD / CONTROLS / COMPANION / SCREEN) in ONE
 scrolling column at the normal text size (a two-column, denser try was too small to tap - the user's call),
 ending in CLOSE GAME / RESTART GAME (under a `Separator`). The top-screen Settings uses the same
@@ -1347,6 +1353,12 @@ forks / PR builds have `BuildConfig.CRASHLYTICS = false` and no row or ask. ui-p
 debug APK, ui-preview render + stress); ROM-backed tests skip there and run on the release's self-hosted
 `pokedaisy-roms` runner (`POKEDAISY_ROM_DIR`, forwarded to the test JVM as `romDir`). `release.yml` fires on a
 `v<versionName>` tag from `make release`, checks the signing cert against `RELEASE_CERT_SHA256` and publishes.
+**Collection dumps of retail** (`RetailDumps`, `RetailDumpsGen.kt` from `scripts/gen_retail_dumps.py`): English
+FireRed rev 0 / 1 and Emerald with the end's padding trimmed and / or a flash-cart patch (flash code + its chip descriptors,
+Emerald's siirtc, the save warnings reworded, AgbMain's WAITCNT value) and things of a repack's own in retail's empty space
+(64 KB+ runs of 0xFF) read as retail - library, `detect()` and the website's `retailDumpOf` alike: bytes [0, data end) with
+those ranges (and the GPIO bytes) zeroed hash to the table's SHA-1. Anything else changed stays a hack.
+The pokefirered map in `$DECOMPS` isn't byte-identical to retail (code 0x93C off), so FireRed's ranges are found by bytes.
 **Unsupported ROMs**: `CompanionSupport.isSupported(file)` (FireRed/Emerald game code, ≤16 MB,
 retail LeafGreen rev 0/1 / Ruby / Sapphire rev 1/2 — `TelemetrySampler.OTHER_RETAIL_CODES`,
 read as FireRed / Emerald — or a >16 MB hack whose SHA1 is in `TelemetrySampler.SUPPORTED_HACK_SHA1S`) mirrors the

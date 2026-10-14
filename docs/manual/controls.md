@@ -24,17 +24,14 @@ All of it lives in the `CONTROLS` group, on both screens: the top screen's Setti
 
 `START 2` and `SELECT 2` are a second START and SELECT, so X opens the menu and Y uses your registered item, like in the DS games. Each GBA button also has a keyboard key (Z, X, A, S, Enter and so on) for when you play with one.
 
-To change one:
-
-- **On the top screen**, tap the row (it says `PRESS A BUTTON…`) and press the button you want.
-- **On the companion**, tap the row and pick the button's name from the list. The bottom screen doesn't receive button presses, which is why it asks you to choose from a list.
+To change one, tap its row (it says `PRESS A BUTTON…`) and press the button you want on your device. That works the same on the top screen and on the companion: there, while a row waits, the game's screen shows a window asking for the button and the keys you hold. `CANCEL`, or `BACK`, leaves the button as it was. `TURBO A` and `TURBO B` also get `CLEAR`, which takes them off every button again.
 
 The new button replaces everything that GBA button had, keyboard key included. A button can only do one GBA button: put it on a new one and it leaves the old one.
 
 > [!NOTE]
 > Buttons go by Android's names, which follow an Xbox controller's layout. On AYN and Retroid devices, `A` is the bottom face button even where the printed label says something else. If A and B feel swapped, swap them here.
 
-The D-pad and the analog stick always move; they can't be remapped. First-time setup has a page listing these buttons too, with `CHANGE BUTTONS` to jump straight here.
+The D-pad and the analog stick always move; they can't be remapped. First-time setup has a page listing these buttons too, and you change them right there the same way.
 
 ![The top screen's GAME BUTTONS page, a row for each GBA button with the keys it's on](shots/settings-buttons.png "GAME BUTTONS on the top screen")
 
@@ -78,16 +75,20 @@ The speed hotkeys are explained in [Fast-forward and game speed](fast-forward.md
 
 ### Changing a hotkey
 
-**On the top screen** (Settings > `HOTKEYS`), tap a hotkey; it says `PRESS KEYS…`. Press one button, or hold several together and release, to set it. A chord can only be set up here. While a hotkey waits for keys:
+Tap a hotkey, under Settings > `HOTKEYS` on the top screen or `SETTINGS` > `HOTKEYS` on the companion; it says `PRESS KEYS…`. Press one button, or hold several together and release, to set it. While a hotkey waits for keys:
 
 - `CLEAR` leaves it with no button at all (it shows `-`).
 - `CANCEL`, or `BACK`, keeps it as it was.
 
-**On the companion** (`SETTINGS` > `HOTKEYS`), tap a hotkey and pick one button from the list. Pick `NONE` to unbind it. The companion sets single buttons only: for a chord, use the top screen.
+On the companion, the game's screen shows a window while a hotkey waits, with the buttons you're holding, since that's where your presses go. The game doesn't see them meanwhile, and neither do the other hotkeys.
 
-Either way, the new buttons replace the hotkey's whole binding, keyboard key included.
+![Over the game while a companion hotkey waits: SAVE STATE, the button held so far, CLEAR SAVE STATE and CANCEL](shots/game-capture.png "The game's screen while the companion waits for keys")
+
+The new buttons replace the hotkey's whole binding, keyboard key included.
 
 ![The companion's HOTKEYS page with the HOTKEYS switch and every hotkey's buttons](shots/companion-settings-hotkeys.png "HOTKEYS on the companion")
+
+![The companion's HOTKEYS page with LOAD STATE waiting for keys: SELECT + R1 held, CLEAR LOAD STATE and CANCEL above the list](shots/companion-settings-hotkeys-capture.png "A hotkey waiting for keys on the companion")
 
 ### When a button is already taken
 

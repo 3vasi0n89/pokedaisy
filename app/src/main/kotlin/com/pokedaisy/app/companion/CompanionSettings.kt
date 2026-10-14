@@ -11,12 +11,9 @@ import com.pokedaisy.app.companion.i18n.tk
  * [com.pokedaisy.app.EmulatorEngine] / touch-controls visibility,
  * not just persisting them to [com.pokedaisy.app.Prefs].
  *
- * Key/button rebinding here is a TAP-A-NAME-FROM-A-LIST picker, not "press the
- * button you want" — the Presentation on Screen-2 never receives physical
- * `KeyEvent`s (those go to the main Activity on the top screen), so there's no
- * way to capture a live keypress there. Picking from a list only needs touch,
- * which Screen-2 gets fine. Only single-key bindings are settable this way
- * (chords stay a top-screen-Settings-only feature).
+ * Key/button rebinding is by pressing the keys, never by picking a key's name: the Presentation on Screen-2
+ * never receives physical `KeyEvent`s (they go to the game's Activity), so the capture runs there
+ * ([keyCapture]) and the game's screen asks for the keys while a row here waits.
  */
 interface CompanionSettings {
     /** Fast-forward speed cap. 0 = unlimited. */
@@ -83,11 +80,17 @@ interface CompanionSettings {
     val touchControlsMode: Int
     fun setTouchControlsMode(v: Int)
 
+    /** Waits for the keys to bind (the game's activity gets every key); null where nothing can be pressed (previews). */
+    val keyCapture: KeyCapture? get() = null
+
     /** Current GBA-button bindings, by display name (e.g. "BUTTON_A", "Z"). */
     fun gbaControlBindings(): Map<GbaControls.Btn, List<String>>
 
     /** Rebinds a GBA button to a single key, by display name (no "KEYCODE_" prefix). */
     fun setGbaControlBinding(btn: GbaControls.Btn, keyName: String)
+
+    /** Leaves TURBO A / B unbound ([GbaControls.Btn.canClear]). */
+    fun clearGbaControlBinding(btn: GbaControls.Btn) {}
 
     /** Whether the hotkeys fire at all ([com.pokedaisy.app.Prefs.hotkeysEnabled]). */
     val hotkeysEnabled: Boolean
@@ -96,10 +99,9 @@ interface CompanionSettings {
     /** Current hotkey bindings, by display name. */
     fun hotkeyBindings(): Map<Hotkeys.Action, List<String>>
 
-    /** Rebinds a hotkey to a single key, by display name — replaces any existing
-     * chord with just this one key; null unbinds it. The key comes off [takeFrom]
-     * (other hotkeys that had exactly it, moved by the player's MOVE). */
-    fun setHotkeyBinding(action: Hotkeys.Action, keyName: String?, takeFrom: List<Hotkeys.Action> = emptyList())
+    /** Rebinds a hotkey to one chord, by display names (pressed together) — replaces what it had; null unbinds it.
+     * The chord comes off [takeFrom] (other hotkeys that had exactly it, moved by the player's MOVE). */
+    fun setHotkeyBinding(action: Hotkeys.Action, keyNames: List<String>?, takeFrom: List<Hotkeys.Action> = emptyList())
 
     /** Hard-restarts the running game: stops the core, discards any pending
      * suspend-resume state, and reboots the same ROM re-reading its save file

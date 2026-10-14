@@ -20,10 +20,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.pokedaisy.app.companion.KeyCapture
 import com.pokedaisy.app.companion.i18n.tr
 import com.pokedaisy.app.companion.ui.AppBackdrop
 import com.pokedaisy.app.companion.ui.GbaText
 import com.pokedaisy.app.companion.ui.GbaTextMetrics
+import com.pokedaisy.app.companion.ui.KeyBindRow
 import com.pokedaisy.app.companion.ui.OptionButton
 import com.pokedaisy.app.companion.ui.OptionColors
 import com.pokedaisy.app.companion.ui.OptionLine
@@ -64,8 +66,10 @@ internal class SetupState {
     var savesDir by mutableStateOf<String?>(null)
     var suggestions by mutableStateOf<List<SavesLocation.Suggestion>>(emptyList())
 
-    /** GAME BUTTONS: (GBA button, its keys) as bound now - read again on every return from the rebind page. */
-    var buttons by mutableStateOf<List<Pair<String, String>>>(emptyList())
+    /** GAME BUTTONS: each GBA button's keys as bound now, read again after every change. */
+    var buttons by mutableStateOf<Map<GbaControls.Btn, List<String>>>(emptyMap())
+    /** GAME BUTTONS: the row waiting for a button press (every key goes to it meanwhile). */
+    val capture = KeyCapture()
 
     /** GAME MEDIA: the ScreenScraper sign-in (its media pass runs in [covers]). */
     var ssLogin by mutableStateOf(ScreenScraperLogin())
@@ -88,7 +92,8 @@ internal fun SetupScreen(
     onSaveKey: () -> Unit,
     onBack: () -> Unit,
     onNext: () -> Unit,
-    onChangeButtons: () -> Unit = {},
+    /** GAME BUTTONS: what binding [GbaControls.Btn] does once its button is pressed (the step's rows bind in place). */
+    buttonRequest: (GbaControls.Btn) -> KeyCapture.Request = { KeyCapture.Request("GBA ${it.label}", chord = false, onDone = {}) },
     onScreenScraperSignIn: () -> Unit = {},
     onScreenScraperSignOut: () -> Unit = {},
 ) {
@@ -107,7 +112,7 @@ internal fun SetupScreen(
                     when (s.step) {
                         SetupState.Step.ROMS -> RomsStep(s, m, small, onChooseRoms)
                         SetupState.Step.SAVES -> SavesStep(s, m, small, onChooseSaves, onUseSaves)
-                        SetupState.Step.BUTTONS -> ButtonsStep(s, m, small, onChangeButtons)
+                        SetupState.Step.BUTTONS -> ButtonsStep(s, m, small, buttonRequest)
                         SetupState.Step.MEDIA -> ScreenScraperSetupStep(
                             s.ssLogin, s.covers, m, small,
                             onSignIn = onScreenScraperSignIn, onSignOut = onScreenScraperSignOut,
@@ -240,17 +245,20 @@ private fun SavesStep(
     Para(tr("You can change this later in SETTINGS > FOLDERS."), small, muted = true)
 }
 
-/** GAME BUTTONS (key bindings): what each GBA button is now, and the rebind page Settings has. */
+/** GAME BUTTONS (key bindings): what each GBA button is now; a tap on one waits for the device's button, right here. */
 @Composable
-private fun ButtonsStep(s: SetupState, m: GbaTextMetrics, small: GbaTextMetrics, onChange: () -> Unit) {
+private fun ButtonsStep(s: SetupState, m: GbaTextMetrics, small: GbaTextMetrics, request: (GbaControls.Btn) -> KeyCapture.Request) {
     Heading(tr("GAME BUTTONS"), m)
     Para(
         tr("Which button on your device presses each GBA button - key bindings, or remapping, in other emulators. Check A and B first: some devices print them the other way round."),
         small,
     )
-    OptionLine(tr("CHANGE BUTTONS…"), null, selected = false, m, divider = true, onClick = onChange)
-    s.buttons.forEachIndexed { i, (button, keys) ->
-        OptionLine("GBA $button", keys.ifBlank { "-" }, selected = false, m, labelWeight = 0.5f, divider = i < s.buttons.lastIndex) { onChange() }
+    Para(tr("To change one, tap it and press the button you want for it. The D-pad and analog stick are fixed."), small, muted = true)
+    val btns = GbaControls.Btn.entries
+    btns.forEachIndexed { i, btn ->
+        KeyBindRow(
+            "GBA ${btn.label}", s.buttons[btn], s.capture, m, small, divider = i < btns.lastIndex,
+        ) { request(btn) }
     }
     Spacer(Modifier.height(m.u * 4))
     Para(tr("You can change this later in SETTINGS > GAME BUTTONS."), small, muted = true)

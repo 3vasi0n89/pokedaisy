@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deflateRawSync } from 'node:zlib';
 import { readFileSync } from 'node:fs';
-import { checkFile, readHeader, verdict } from '../src/lib/compat.js';
+import { checkFile, readHeader, retailDumpOf, sha1Hex, verdict } from '../src/lib/compat.js';
 
 const data = JSON.parse(readFileSync(new URL('../src/data/compat.json', import.meta.url)));
 const MB = 1024 * 1024;
@@ -81,4 +81,31 @@ test('a zipped ROM is judged by the ROM inside', async () => {
   assert.equal(r.code, 'AXPE');
   assert.equal(r.size, rom.length);
   assert.equal(r.verdict.status, 'supported');
+});
+
+test('a retail dump with its end trimmed and its save code patched reads as retail', async () => {
+  // A stand-in "retail" ROM and its table entry, built the way gen_retail_dumps.py builds the real ones.
+  const rom = gba('BPEE', 0);
+  const full = new Uint8Array(0x1000).fill(0xff);
+  full.set(rom);
+  for (let i = 0x200; i < 0x800; i++) full[i] = i & 0x7f;
+  const end = 0x800;
+  const ranges = [[0xc4, 0xca], [0x300, 0x340]];
+  const zeroed = full.slice(0, end);
+  for (const [a, z] of ranges) zeroed.fill(0, a, z);
+  const retailSha1 = await sha1Hex(full);
+  const fake = { ...data, retailDumps: [{ code: 'BPEE', rev: 0, end, ranges, sha1: await sha1Hex(zeroed), retailSha1 }],
+    titles: { ...data.titles, [retailSha1]: 'Pokémon Emerald' } };
+
+  // Trimmed to its data and patched inside a range: still retail Emerald.
+  const patched = full.slice(0, end);
+  patched[0x310] ^= 0xff;
+  assert.equal(await retailDumpOf(fake, readHeader(patched), patched), retailSha1);
+  assert.deepEqual((await checkFile(fake, 'emerald.gba', patched)).verdict, { status: 'supported', title: 'Pokémon Emerald' });
+  // Changed anywhere else (a mod), or cut into its data: not.
+  const modded = patched.slice();
+  modded[0x400] ^= 0xff;
+  assert.equal(await retailDumpOf(fake, readHeader(modded), modded), null);
+  assert.equal((await checkFile(fake, 'mod.gba', modded)).verdict.reason, 'unknown-hack');
+  assert.equal(await retailDumpOf(fake, readHeader(patched), patched.slice(0, end - 1)), null);
 });

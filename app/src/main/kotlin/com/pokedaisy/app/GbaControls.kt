@@ -24,6 +24,8 @@ object GbaControls {
         TURBO_A(MgbaCore.Key.A or TURBO, "TURBO A"), TURBO_B(MgbaCore.Key.B or TURBO, "TURBO B");
 
         val prop get() = name.lowercase()
+        /** TURBO A / B start unbound and can go back to it; every other button always keeps a key. */
+        val canClear get() = this == TURBO_A || this == TURBO_B
     }
 
     private val DEFAULTS = linkedMapOf(
@@ -86,6 +88,14 @@ object GbaControls {
             if (name in keys) props.setProperty(other.prop, (keys - name).joinToString(", "))
         }
         props.setProperty(btn.prop, name)
+        runCatching { file(dir).outputStream().use { props.store(it, "PokeDaisy GBA button map") } }
+    }
+
+    /** Leaves [btn] unbound - TURBO A / B only ([Btn.canClear]). */
+    fun clearBinding(dir: File, btn: Btn) {
+        if (!btn.canClear) return
+        val props = readProps(dir)
+        props.setProperty(btn.prop, "")
         runCatching { file(dir).outputStream().use { props.store(it, "PokeDaisy GBA button map") } }
     }
 

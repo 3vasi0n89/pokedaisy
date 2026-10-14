@@ -49,9 +49,11 @@ If you already play these games in another emulator, pick its save folder and ca
 
 ### Step 3: game buttons
 
-This page shows which of your device's buttons presses each GBA button. Check A and B first: some devices print them the other way round from what you'd expect. If anything's off, tap `CHANGE BUTTONS…`, fix it on the page that opens, and press `BACK` to return to setup.
+This page shows which of your device's buttons presses each GBA button. Check A and B first: some devices print them the other way round from what you'd expect. If anything's off, tap that GBA button's row and press the button you want for it, right there on the page. `CANCEL`, or `BACK`, leaves it as it was.
 
 ![Setup's third step: GAME BUTTONS, listing each GBA button with the device key bound to it](shots/setup-buttons.png "Step 3: check your buttons")
+
+![The same step with GBA B waiting for a button: PRESS A BUTTON… on its row and CANCEL under it](shots/setup-buttons-capture.png "Tap a row and press the button you want")
 
 ### Step 4: cover art
 

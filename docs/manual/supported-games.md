@@ -14,6 +14,7 @@ Any GBA or Game Boy game plays in PokeDaisy. "Supported" is about the companion 
 
 - Pokémon FireRed, LeafGreen, Emerald, Ruby and Sapphire.
 - The English (USA / Europe) releases and the Spanish, German, French, Italian and Japanese ones, every revision.
+- English FireRed and Emerald also count when the file comes from a collection that changed it a little: the empty space at its end cut off or filled with something of its own, or patched to run on a flash cartridge (its save code changed so it saves without the original flash chip, often with the "internal battery has run dry" message reworded). Any change to the game itself makes it a hack the companion doesn't know.
 
 **Game Boy:**
 

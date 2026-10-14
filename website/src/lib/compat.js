@@ -24,10 +24,23 @@ export async function sha1Hex(bytes) {
 }
 
 /**
- * The verdict for one ROM: `supported` (the companion knows this exact game) or `unsupported`.
- * `size` is the ROM's own size (not an archive's).
+ * A retail FireRed / Emerald dump that isn't the cart byte for byte (its end's padding trimmed, its save code
+ * patched to save without the flash chip): the retail SHA-1 it's a dump of, or null. The app's RetailDumps.kt:
+ * bytes [0, end) with the patchable ranges zeroed hash to the entry's `sha1`.
  */
-export function verdict(data, { platform, code, rev, size, sha1 }) {
+export async function retailDumpOf(data, { code, rev }, bytes) {
+  const dump = (data.retailDumps ?? []).find((d) => d.code === code && d.rev === rev);
+  if (!dump || bytes.length < dump.end || bytes.length > data.maxBaseSize) return null;
+  const copy = bytes.slice(0, dump.end);
+  for (const [a, z] of dump.ranges) copy.fill(0, a, z);
+  return (await sha1Hex(copy)) === dump.sha1 ? dump.retailSha1 : null;
+}
+
+/**
+ * The verdict for one ROM: `supported` (the companion knows this exact game) or `unsupported`.
+ * `size` is the ROM's own size (not an archive's); `retailOf` the retail dump it is ([retailDumpOf]).
+ */
+export function verdict(data, { platform, code, rev, size, sha1, retailOf }) {
   if (platform === 'gb') {
     const hit = data.gameBoy.find((g) => g.sha1 === sha1);
     return hit
@@ -53,8 +66,9 @@ export function verdict(data, { platform, code, rev, size, sha1 }) {
   // Detected by the app, but its companion isn't ready yet: the game plays, the companion doesn't read it.
   const soon = (data.inProgress ?? []).find((h) => h.sha1 === sha1);
   if (soon) return { status: 'unsupported', reason: 'in-progress', title: soon.title, version: soon.version, base };
-  // Retail FireRed / Emerald by their hash; any other ROM under those codes is a hack the app doesn't know.
-  const title = !ownCode && size <= data.maxBaseSize ? data.titles[sha1] : undefined;
+  // Retail FireRed / Emerald by their hash (or as a trimmed / save-patched dump of one); any other ROM under
+  // those codes is a hack the app doesn't know.
+  const title = !ownCode && size <= data.maxBaseSize ? data.titles[sha1] ?? data.titles[retailOf] : undefined;
   return title ? { status: 'supported', title } : { status: 'unsupported', reason: 'unknown-hack', base };
 }
 
@@ -106,5 +120,9 @@ export async function checkFile(data, name, bytes) {
   const header = readHeader(bytes);
   const sha1 = await sha1Hex(bytes);
   const info = { ...header, size: bytes.length, sha1 };
+  if (header.platform === 'gba' && !data.titles[sha1]) {
+    const retailOf = await retailDumpOf(data, header, bytes);
+    if (retailOf) info.retailOf = retailOf;
+  }
   return { name, ...info, verdict: verdict(data, info) };
 }

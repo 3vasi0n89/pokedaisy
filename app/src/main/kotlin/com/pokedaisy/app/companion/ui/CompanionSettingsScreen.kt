@@ -19,10 +19,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,13 +30,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.ui.unit.Dp
 import com.pokedaisy.app.GbaControls
 import com.pokedaisy.app.Hotkeys
 import com.pokedaisy.app.companion.SCENE_SPEEDS
 import com.pokedaisy.app.companion.data.WildEncounters
 import com.pokedaisy.app.companion.COMPANION_TABS
 import com.pokedaisy.app.companion.CompanionSettings
+import com.pokedaisy.app.companion.KeyCapture
 import com.pokedaisy.app.companion.FfMode
 import com.pokedaisy.app.companion.GameAspect
 import com.pokedaisy.app.companion.hasGrid
@@ -54,22 +52,6 @@ internal val STATUS_BAR_PLACES = listOf(tk("OFF"), tk("GAME"), tk("COMPANION"))
 
 internal fun statusBarLabel(on: Boolean, onCompanion: Boolean) = STATUS_BAR_PLACES[if (!on) 0 else if (onCompanion) 2 else 1]
 
-// Names selectable in the tap-a-name rebind picker — every entry must resolve
-// via KeyEvent.keyCodeFromString("KEYCODE_" + name), i.e. match the suffix of
-// a real KEYCODE_* constant. Covers the gamepad buttons GbaControls/Hotkeys
-// default to, plus the common keyboard fallbacks.
-private val PICKABLE_KEYS = listOf(
-    "BUTTON_A", "BUTTON_B", "BUTTON_X", "BUTTON_Y",
-    "BUTTON_L1", "BUTTON_R1", "BUTTON_L2", "BUTTON_R2",
-    "BUTTON_THUMBL", "BUTTON_THUMBR", "BUTTON_START", "BUTTON_SELECT",
-    "DPAD_UP", "DPAD_DOWN", "DPAD_LEFT", "DPAD_RIGHT",
-    "SPACE", "ENTER", "TAB", "ESCAPE", "SHIFT_LEFT", "SHIFT_RIGHT", "BACKSLASH",
-    "LEFT_BRACKET", "RIGHT_BRACKET", "EQUALS", "MINUS",
-    "F1", "F2", "F3", "F4",
-    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M",
-    "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
-)
-
 internal enum class Page(val title: String) { HOME(tk("SETTINGS")), TABS(tk("TAB BAR")), BUTTONS(tk("GAME BUTTONS")), HOTKEYS(tk("HOTKEYS")), SHADERS(tk("SHADERS")), FIELD_HUD(tk("HUD")), QUICK_MENU(tk("QUICK MENU")), SCENES(tk("SCENE SPEEDS")), CHEATS(tk("CHEATS")), TWEAKS(tk("TWEAKS")), HELP(tk("HELP")) }
 
 /**
@@ -78,9 +60,9 @@ internal enum class Page(val title: String) { HOME(tk("SETTINGS")), TABS(tk("TAB
  * Tapping an on/off row flips it; rows with more choices (FF SPEED, FF MODE,
  * TOUCH PAD) open a pick-one list ([OptionSelector]) instead of stepping
  * through every value. Key bindings are two sub-pages ending in CANCEL, like
- * the game's own list; rebinding is tap-a-name (see [PICKABLE_KEYS]) since
- * Screen-2 never gets physical key events to capture — chords stay a
- * top-screen-only feature.
+ * the game's own list; a tap on a binding waits for the keys themselves
+ * ([CompanionSettings.keyCapture]: Screen-2 gets no key events, so the game's
+ * activity takes them and asks for them over the game).
  *
  * The tabs left out of the tab bar ([hiddenTabs], tab ids) are the TOOLS:
  * extra tab chips under the options, in the tab bar's own columns, so they
@@ -120,7 +102,11 @@ fun CompanionSettingsScreen(
     val cursor = if (page == Page.HOME) homeCursor else pageCursor
     fun moveCursor(i: Int) { if (page == Page.HOME) homeCursor = i else pageCursor = i }
     val homeScroll = ui.homeScroll
-    var picking by remember { mutableStateOf<Pair<String, (String?) -> Unit>?>(null) }
+    // GAME BUTTONS / HOTKEYS: a row waiting for keys. Leaving the page (or SETTINGS) stops waiting.
+    val capture = settings?.keyCapture
+    val capturing = capture?.request
+    val capturedKeys = capture?.keys
+    DisposableEffect(page, capture) { onDispose { capture?.cancel() } }
     var confirm by remember { mutableStateOf<Confirm?>(null) }
     var selector by remember { mutableStateOf<Selector?>(null) }
 
@@ -146,7 +132,14 @@ fun CompanionSettingsScreen(
                 }
                 Spacer(Modifier.height(m.u * 4))
             }
-            val rows = remember(settings, page, tick, hiddenTabs, availableTabs, playsAs) {
+            // While a row waits for keys: what to press (the game's screen asks for them too), CLEAR / CANCEL for a touch.
+            if (capture != null && capturing != null && (page == Page.BUTTONS || page == Page.HOTKEYS)) {
+                OptionListWindow(m, Modifier.fillMaxWidth()) {
+                    KeyCaptureBar(capture, capturing, m, rememberGbaTextMetrics(1f), Modifier.padding(horizontal = m.u * 4, vertical = m.u * 2))
+                }
+                Spacer(Modifier.height(m.u * 4))
+            }
+            val rows = remember(settings, page, tick, hiddenTabs, availableTabs, playsAs, capturing, capturedKeys) {
                 if (settings == null) return@remember listOf(SettingRow(tk("NO GAME RUNNING"), null) {})
                 when (page) {
                     Page.HOME -> playsAs?.let { game ->
@@ -172,8 +165,14 @@ fun CompanionSettingsScreen(
                     } + SettingRow(tk("CANCEL"), null) { page = Page.HOME }
                     Page.BUTTONS -> GbaControls.Btn.entries.map { btn ->
                         val title = "GBA ${btn.label}"
-                        SettingRow(title, keysLabel(settings.gbaControlBindings()[btn])) {
-                            picking = title to { name -> if (name != null) { settings.setGbaControlBinding(btn, name); tick++ } }
+                        SettingRow(title, bindingValue(capture, title, settings.gbaControlBindings()[btn])) {
+                            capture?.toggle(title) {
+                                KeyCapture.Request(
+                                    title, chord = false,
+                                    onDone = { keys -> settings.setGbaControlBinding(btn, KeyCapture.keyName(keys.first())); tick++ },
+                                    onClear = if (btn.canClear) ({ settings.clearGbaControlBinding(btn); tick++ }) else null,
+                                )
+                            }
                         }
                     } + SettingRow(tk("CANCEL"), null) { page = Page.HOME }
                     // Off, the binds stay as they are, greyed out, and every key goes to the game.
@@ -183,16 +182,24 @@ fun CompanionSettingsScreen(
                         },
                     ) + Hotkeys.Action.entries.map { action ->
                         val title = action.title
-                        SettingRow(title, keysLabel(settings.hotkeyBindings()[action]), enabled = settings.hotkeysEnabled, labelBadge = action.badge) {
-                            picking = title to { name ->
-                                // NONE unbinds; a key another hotkey already has exactly moves only on MOVE.
-                                val taken = if (name == null) emptyList() else Hotkeys.clashes(settings.hotkeyBindings(), action, listOf(name))
-                                if (taken.isEmpty()) { settings.setHotkeyBinding(action, name); tick++ }
-                                else confirm = Confirm(
-                                    tk("KEY IN USE"),
-                                    tr("{0} is already {1}. Move it to {2}?", keyLabel(name!!), taken.joinToString(", ") { tr(it.title) }, tr(title)),
-                                    tk("MOVE"),
-                                ) { settings.setHotkeyBinding(action, name, taken); tick++ }
+                        SettingRow(title, bindingValue(capture, title, settings.hotkeyBindings()[action]), enabled = settings.hotkeysEnabled, labelBadge = action.badge) {
+                            capture?.toggle(title) {
+                                KeyCapture.Request(
+                                    title, chord = true,
+                                    onDone = { keys ->
+                                        // A chord another hotkey already has exactly moves only on MOVE.
+                                        val names = keys.map(KeyCapture::keyName)
+                                        val taken = Hotkeys.clashes(settings.hotkeyBindings(), action, names)
+                                        if (taken.isEmpty()) { settings.setHotkeyBinding(action, names); tick++ }
+                                        else confirm = Confirm(
+                                            tk("KEY IN USE"),
+                                            tr("{0} is already {1}. Move it to {2}?", KeyCapture.chordLabel(keys), taken.joinToString(", ") { tr(it.title) }, tr(title)),
+                                            tk("MOVE"),
+                                        ) { settings.setHotkeyBinding(action, names, taken); tick++ }
+                                    },
+                                    // CLEAR leaves it unbound.
+                                    onClear = { settings.setHotkeyBinding(action, null); tick++ },
+                                )
                             }
                         }
                     } + SettingRow(tk("CANCEL"), null) { page = Page.HOME }
@@ -203,7 +210,7 @@ fun CompanionSettingsScreen(
                         setStyle = { settings.setFieldHudStyle(it); tick++ },
                     ) + SettingRow(tk("CANCEL"), null) { page = Page.HOME }
                     Page.QUICK_MENU -> quickMenuRows(
-                        settings.quickMenuActions, keysLabel(settings.hotkeyBindings()[Hotkeys.Action.QUICK_MENU]), settings.quickMenuStyle,
+                        settings.quickMenuActions, KeyCapture.labels(settings.hotkeyBindings()[Hotkeys.Action.QUICK_MENU]), settings.quickMenuStyle,
                         settings.quickMenuLabels,
                         setShown = { settings.setQuickMenuActions(it); tick++ },
                         setStyle = { settings.setQuickMenuStyle(it); tick++ },
@@ -311,15 +318,6 @@ fun CompanionSettingsScreen(
             }
         }
 
-        picking?.let { (title, onPick) ->
-            KeyPicker(
-                title, m,
-                note = if (page == Page.HOTKEYS) tr("REPLACES THE WHOLE BINDING. CHORDS: LIBRARY SETTINGS.") else null,
-                canClear = page == Page.HOTKEYS,
-                onPick = { onPick(it); picking = null },
-                onDismiss = { picking = null },
-            )
-        }
         selector?.let { sel ->
             OptionSelector(
                 sel.title, sel.options, sel.current, { it }, m,
@@ -613,41 +611,15 @@ private fun rateLabel(v: Float) = if (v <= 0f) tk("INFINITE") else speedLabel(v)
 /** 2×, 1.5×, 0.25× (Pixel Operator has no ½ / ¼). */
 internal fun speedLabel(v: Float) = (if (v % 1f == 0f) "${v.toInt()}" else "$v") + "×"
 
-private fun keyLabel(name: String) = name.replace("BUTTON_", "").replace('_', ' ')
+/** A binding row's value: its keys, or (while it waits) what to press and the keys held so far. */
+private fun bindingValue(capture: KeyCapture?, title: String, keys: List<String>?): String {
+    val r = capture?.request?.takeIf { capture.isFor(title) } ?: return KeyCapture.labels(keys)
+    return keyCaptureValue(capture, r)
+}
 
-private fun keysLabel(keys: List<String>?) =
-    keys.orEmpty().joinToString(" / ") { keyLabel(it) }.ifEmpty { "-" }
-
-@Composable
-private fun KeyPicker(title: String, m: GbaTextMetrics, note: String?, canClear: Boolean, onPick: (String?) -> Unit, onDismiss: () -> Unit) {
-    OptionOverlay(onDismiss) {
-        Column(Modifier.fillMaxSize()) {
-            OptionTitleWindow(tr("BIND {0}", tr(title)), m, onBack = onDismiss)
-            Spacer(Modifier.height(m.u * 4))
-            OptionListWindow(m, Modifier.fillMaxWidth().weight(1f)) {
-                Column {
-                    note?.let {
-                        GbaText(
-                            it, OptionColors.label, OptionColors.labelShadow, m, maxLines = Int.MAX_VALUE,
-                            modifier = Modifier.padding(horizontal = m.u * 8, vertical = m.u * 2),
-                        )
-                    }
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(3),
-                        horizontalArrangement = Arrangement.spacedBy(Dp.Hairline),
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                    ) {
-                        items(PICKABLE_KEYS) { name ->
-                            OptionLine(keyLabel(name), null, selected = false, m, height = m.rowHeight * 1.3f, divider = true) { onPick(name) }
-                        }
-                    }
-                    // NONE: the hotkey unbound (a GBA button always keeps one).
-                    if (canClear) OptionLine(tk("NONE"), null, selected = false, m, height = m.rowHeight * 1.3f, divider = true) { onPick(null) }
-                    OptionLine(tk("CANCEL"), null, selected = true, m, height = m.rowHeight * 1.3f, onClick = onDismiss)
-                }
-            }
-        }
-    }
+/** A tap on a binding row: waits for its keys, or stops waiting when it already was. */
+private fun KeyCapture.toggle(title: String, request: () -> KeyCapture.Request) {
+    if (isFor(title)) cancel() else start(request())
 }
 
 /** WILD ENCOUNTERS' value: NORMAL (the game's own rate), the percent left, or OFF. */

@@ -183,12 +183,13 @@ class FakeSettings(showHintsInitially: Boolean = true, initialTabs: List<String>
         listOf(when (it) { GbaControls.Btn.START2 -> "BUTTON_X"; GbaControls.Btn.SELECT2 -> "BUTTON_Y"; else -> "BUTTON_${it.name}" })
     }
     override fun setGbaControlBinding(btn: GbaControls.Btn, keyName: String) {}
+    override val keyCapture get() = previewCapture
     private var hotkeysOn = true
     override val hotkeysEnabled get() = hotkeysOn
     override fun setHotkeysEnabled(on: Boolean) { hotkeysOn = on }
     // SAVE STATE on X, so picking X elsewhere shows the KEY IN USE confirm.
     override fun hotkeyBindings() = Hotkeys.Action.entries.associateWith { if (it == Hotkeys.Action.SAVE_STATE) listOf("BUTTON_X") else listOf("BUTTON_Y") }
-    override fun setHotkeyBinding(action: Hotkeys.Action, keyName: String?, takeFrom: List<Hotkeys.Action>) {}
+    override fun setHotkeyBinding(action: Hotkeys.Action, keyNames: List<String>?, takeFrom: List<Hotkeys.Action>) {}
     override fun restartGame() {}
     override fun closeGame() {}
     override val canCloseCompanion = true   // the Thor: two screens, so SETTINGS shows CLOSE COMPANION
@@ -300,6 +301,18 @@ class Shot(
     val action: SkikoComposeUiTest.() -> Unit = {},
 )
 
+/** The companion's rebind capture (FakeSettings hands it out): the `*-capture` shots press keys into it. */
+var previewCapture = com.pokedaisy.app.companion.KeyCapture()
+
+/** Holds [keys] down in [previewCapture] (as the game's activity would pass them on); [release] lets them go. */
+fun SkikoComposeUiTest.pressKeys(vararg keys: Int, release: Boolean = false) {
+    runOnIdle {
+        keys.forEach { previewCapture.onKey(it, true) }
+        if (release) keys.forEach { previewCapture.onKey(it, false) }
+    }
+    waitForIdle()
+}
+
 /** The device's BACK for the shot being rendered; the `*-back` shots press it. */
 var previewBack = com.pokedaisy.app.companion.ui.CompanionBack()
 
@@ -326,6 +339,7 @@ fun companion(
     settingsRow: String? = null,
     snap: () -> SnapshotView = ::snapshot,
 ): () -> (@Composable () -> Unit) = {
+    previewCapture = com.pokedaisy.app.companion.KeyCapture()
     DeviceBattery.status.value = battery
     val sv = snap()
     val back = com.pokedaisy.app.companion.ui.CompanionBack().also { previewBack = it }
@@ -1012,12 +1026,14 @@ fun main(args: Array<String>) {
             pressBack()
             onAllNodesWithText("SAVE STATE").assertCountEquals(0)
         },
-        Shot("$g-back-settings-hotkeys-picker", bw, bh, bd, companion("SETTINGS")) {
+        // The device's BACK while a hotkey waits for keys reaches the capture first (the game's activity): it stops
+        // waiting, the page stays.
+        Shot("$g-back-settings-hotkeys-capture", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText("HOTKEYS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
             onNodeWithText("SAVE STATE").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
-            onAllNodesWithText("BIND SAVE STATE").onFirst().assertExists()
-            pressBack()
-            onAllNodesWithText("BIND SAVE STATE").assertCountEquals(0) // the picker closed...
+            onAllNodesWithText("PRESS KEYS…").onFirst().assertExists()
+            pressKeys(android.view.KeyEvent.KEYCODE_BACK)
+            onAllNodesWithText("PRESS KEYS…").assertCountEquals(0) // no longer waiting...
             onAllNodesWithText("SAVE STATE").onFirst().assertExists() // ...still on HOTKEYS
         },
         Shot("$g-back-settings-states", bw, bh, bd, companion("SETTINGS")) {
@@ -1162,16 +1178,22 @@ fun main(args: Array<String>) {
             onNodeWithText("HOTKEYS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
             onNodeWithText("ON").performClick()
         },
-        // The key picker: NONE (unbind) above CANCEL.
-        Shot("$g-settings-hotkeys-picker", bw, bh, bd, companion("SETTINGS")) {
+        // A hotkey waiting for keys (the game's screen asks for them): SELECT held, R1 on its way - CLEAR / CANCEL above.
+        Shot("$g-settings-hotkeys-capture", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText("HOTKEYS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
             onNodeWithText("LOAD STATE").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            pressKeys(android.view.KeyEvent.KEYCODE_BUTTON_SELECT, android.view.KeyEvent.KEYCODE_BUTTON_R1)
         },
-        // X is SAVE STATE's: binding it to LOAD STATE asks first (the picker's X is the last "X" in the tree).
+        // A GBA button waiting for its button: CANCEL alone (A always keeps a key).
+        Shot("$g-settings-buttons-capture", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText("GAME BUTTONS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithText("GBA A").performSemanticsAction(SemanticsActions.OnClick)
+        },
+        // X is SAVE STATE's: binding it to LOAD STATE asks first.
         Shot("$g-settings-hotkeys-clash", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText("HOTKEYS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
             onNodeWithText("LOAD STATE").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
-            onAllNodesWithText("X").onLast().performSemanticsAction(SemanticsActions.OnClick)
+            pressKeys(android.view.KeyEvent.KEYCODE_BUTTON_X, release = true)
             onAllNodesWithText("KEY IN USE").onFirst().assertExists()
         },
         // CLOSE GAME / RESTART GAME end the scrolling list.
@@ -1553,9 +1575,43 @@ fun main(args: Array<String>) {
             LibraryActivity().apply {
                 setup = SetupState().apply {
                     step = SetupState.Step.BUTTONS
-                    buttons = listOf("A" to "A / Z", "B" to "B / X", "L" to "L1 / A", "R" to "R1 / S", "START" to "START / ENTER", "SELECT" to "SELECT", "TURBO A" to "")
+                    buttons = PREVIEW_BUTTONS
                 }
             }
+        }),
+        // A row waiting for its button, in place: what to do and CANCEL under it.
+        Shot("setup-buttons-capture", tw, th, td, activity {
+            LibraryActivity().apply {
+                setup = SetupState().apply {
+                    step = SetupState.Step.BUTTONS
+                    buttons = PREVIEW_BUTTONS
+                    capture.start(com.pokedaisy.app.companion.KeyCapture.Request("GBA B", chord = false, onDone = {}))
+                }
+            }
+        }),
+        // TURBO A can go back to unbound: CLEAR beside CANCEL.
+        Shot("setup-buttons-capture-turbo", tw, th, td, activity {
+            LibraryActivity().apply { setup = SetupState().apply { step = SetupState.Step.BUTTONS; buttons = PREVIEW_BUTTONS } }
+        }) { onNodeWithText("GBA TURBO A").performScrollTo().performSemanticsAction(SemanticsActions.OnClick) },
+        // A row at the window's bottom edge, tapped: its CANCEL line scrolls up into view.
+        Shot("setup-buttons-capture-low", tw, th, td, activity {
+            LibraryActivity().apply { setup = SetupState().apply { step = SetupState.Step.BUTTONS; buttons = PREVIEW_BUTTONS } }
+        }) { onNodeWithText("GBA R").performSemanticsAction(SemanticsActions.OnClick) },
+        // Over the game while the companion waits for keys: GBA A first, then a hotkey with SELECT held.
+        Shot("game-capture-button", th * 3 / 2, th, td, {
+            previewCapture = com.pokedaisy.app.companion.KeyCapture().apply {
+                start(com.pokedaisy.app.companion.KeyCapture.Request("GBA A", chord = false, onDone = {}))
+            }
+            val capture = previewCapture
+            ({ PreviewGame { com.pokedaisy.app.companion.ui.KeyCapturePopup(capture) } })
+        }),
+        Shot("game-capture-hotkey", th * 3 / 2, th, td, {
+            previewCapture = com.pokedaisy.app.companion.KeyCapture().apply {
+                start(com.pokedaisy.app.companion.KeyCapture.Request("SAVE STATE", chord = true, onDone = {}, onClear = {}))
+                onKey(android.view.KeyEvent.KEYCODE_BUTTON_SELECT, true)
+            }
+            val capture = previewCapture
+            ({ PreviewGame { com.pokedaisy.app.companion.ui.KeyCapturePopup(capture) } })
         }),
         Shot("setup-media", tw, th, td, activity { withScreenScraper { LibraryActivity().apply { setup = SetupState().apply { step = SetupState.Step.MEDIA } } } }),
         Shot("setup-media-signed-in", tw, th, td, activity {
@@ -1654,6 +1710,11 @@ fun main(args: Array<String>) {
         // The list's end: LIBRARY / ONLINE (RetroAchievements' BETA tag) / APP.
         Shot("settings-home-bottom", tw, th, td, activity { SettingsActivity() }) { onNodeWithText("RUN SETUP").performScrollTo() },
         Shot("settings-buttons", tw, th * 2, td, activity { SettingsActivity() }) { onNodeWithText("GAME BUTTONS").performScrollTo().performClick() },
+        // A GBA button waiting for its button, in place.
+        Shot("settings-buttons-capture", tw, th * 2, td, activity { SettingsActivity() }) {
+            onNodeWithText("GAME BUTTONS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithText("GBA B").performSemanticsAction(SemanticsActions.OnClick)
+        },
         Shot("settings-hotkeys-off", tw, th, td, activity { SettingsActivity() }) {
             onNodeWithText("HOTKEYS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
             onAllNodesWithText("ON").onFirst().performSemanticsAction(SemanticsActions.OnClick)
@@ -1825,4 +1886,23 @@ fun overlayView(
         }
     }
     content
+}
+
+/** The setup / Settings shots' bindings: the defaults, TURBO unbound. */
+val PREVIEW_BUTTONS: Map<GbaControls.Btn, List<String>> = GbaControls.Btn.entries.associateWith {
+    when (it) {
+        GbaControls.Btn.A -> listOf("BUTTON_A", "Z"); GbaControls.Btn.B -> listOf("BUTTON_B", "X")
+        GbaControls.Btn.L -> listOf("BUTTON_L1", "A"); GbaControls.Btn.R -> listOf("BUTTON_R1", "S")
+        GbaControls.Btn.START -> listOf("BUTTON_START", "ENTER"); GbaControls.Btn.SELECT -> listOf("BUTTON_SELECT")
+        GbaControls.Btn.START2 -> listOf("BUTTON_X"); GbaControls.Btn.SELECT2 -> listOf("BUTTON_Y")
+        GbaControls.Btn.TURBO_A, GbaControls.Btn.TURBO_B -> emptyList()
+    }
+}
+
+/** A stand-in game screen (no ROM art in the shots) for what's drawn over it. */
+@Composable
+fun PreviewGame(content: @Composable () -> Unit) {
+    androidx.compose.foundation.layout.Box(
+        androidx.compose.ui.Modifier.fillMaxSize().background(androidx.compose.ui.graphics.Color(0xFF58A848)),
+    ) { content() }
 }
