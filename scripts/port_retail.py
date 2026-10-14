@@ -76,6 +76,12 @@ ANCHORS = {
 # rev 1's gPartyMenuBg_Gfx / gStatusGfx_Icons (LZ77) and sFontSmallLatinGlyphs (raw, 0x4000).
 FR_ART = dict(party_bg=0x08E82700, status=0x08E82EA0, font=0x081EAF70)
 FAMILY = {"BPR": "FR", "BPG": "FR", "AXV": "RS", "AXP": "RS"}
+# Battle handlers the code / masked-code search misses, by game code: gBattlerControllerFuncs[0] read in a scripted wild
+# battle after FIGHT opened (Japanese Sapphire rev 1 on the English save; the same bytes in every Japanese R / S build).
+HEADLESS = {
+    "AXVJ": dict(handleInputChooseMove=0x080298FC),
+    "AXPJ": dict(handleInputChooseMove=0x080298FC),
+}
 FR_MAPSEC_START = 0x58  # sMapNames[0] = MAPSEC_PALLET_TOWN
 FR_MAPSEC_COUNT = 109
 RS_MAPSEC_COUNT = 88
@@ -497,6 +503,11 @@ def port(rom, english):
             a = map_code_masked(ref, rom, v, v + shift)
             if a is not None:
                 put(k, a & ~1, "masked")
+
+    # What neither finds, read off the game headless (the code moved too much for the masked bytes).
+    for k, v in HEADLESS.get(rom.code[:4], {}).items():
+        if k in code_fields and k not in found:
+            put(k, v, "headless")
 
     # struct Main's inBattle byte (Ruby / Sapphire's config has it): the offset is a literal
     # too - Japanese Ruby / Sapphire's Main is 4 bytes shorter than English's (0x439, not 0x43D).

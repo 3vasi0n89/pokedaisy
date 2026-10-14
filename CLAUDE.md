@@ -310,7 +310,13 @@ in colour): `CardStyle.UNBOUND` = FireRed's card from its ROM (Unbound kept thos
 `unboundPurple` (hue 266, sampled from Unbound's card headless), with Unbound's protagonists, which
 replace Red / Leaf at pic ids 135/136 in its own front-pic tables (`gen_rom_art_sigs.py` `UB*\*`). Its
 ROM changed FireRed's badge strip and dropped the 0-star palette, so no badges are drawn and every star
-count starts from the 1-star palette. Save data: FireRed's layout + CFRU dex flags (`TRAINER*CARD_UNBOUND`on`NATIVE_UNBOUND_WITH_DEX`only). Other hacks: no card yet.
+count starts from the 1-star palette. Save data: FireRed's layout + CFRU dex flags (`TRAINER*CARD_UNBOUND`on`NATIVE_UNBOUND_WITH_DEX`only). **SoulGold, Lazarus,
+Recharged Yellow** (2026-10-15) draw their own cards (`CardStyle.SOULGOLD` / `.LAZARUS` / `.RECHARGED_YELLOW(_V1_9)`): found from
+headless VRAM dumps of the open card + each card's code, every save field poked in and reopened. Their quirks are
+`TrainerCardSave` fields: caught bits alone (`caughtOnly`), Lazarus's drawn stars by its own rule (`drawnStarFlags`) and
+its regional loop's one-past-the-end bit (`regionalStrayBit`), SoulGold's frontier-record / achievement stars and 7-digit
+money, Recharged Yellow's plain stats, flag-only National Dex and six icons on the back (`backIcons`, read from the ROM
+on the bus); their wording / text colours / glyph clipping are `TrainerCardArt.Words` / `Layout`. Other hacks: no card yet.
 The tab shows the card cropped to itself (no BG2 backdrop) at the largest whole scale (5x on the
 Thor); a tap flips it (squash, like the game), and the time colon blinks via an infinite transition
 (a`delay`loop never lets Compose tests go idle, which hung ui-preview once).
@@ -400,8 +406,11 @@ gSpecials symbol sat 0x14 off and gave a wrong index once). Debug builds log eve
 CONTROLS > WILD ENCOUNTERS (NORMAL / 75% / 50% / 25% / OFF, `Prefs.wildEncounters`): the game's own
 sWildEncountersDisabled (StandardWildEncounter returns at once on 1; fishing, Sweet Scent, scripted battles untouched),
 found per ROM by `WildEncounters.find` from StandardWildEncounter's agbcc code (FireRed / Emerald shapes: retail in every
-language + hacks that kept it) or CFRU's hooked copy reading FireRed's 0x020386DC; expansion / gcc builds aren't found
-(row N/A). `pk_field_state`'s `wildRoll` sets it each frame the field is free (not locked / battle / FireRed's quest log
+language + hacks that kept it), CFRU's hooked copy reading FireRed's 0x020386DC, or a looser gcc shape (`gccRead`: the
+byte compared with 1, a call, 0xFFFF loaded - unique per ROM; SoulGold, Lazarus, Recharged Yellow, Seaglass, Imperium,
+TMT2, Heart and Soul, R.O.W.E., Mariomon); Rogue and Quetzal aren't found (row N/A). Headless walks on the gcc hacks: warp
+onto grass with `warp` (0x39 g n 0xFF x y; newer expansion asserts unless a `waitstate` follows, and Lazarus froze after
+a cross-map warp - its own map worked), the grass found from the layout's metatile attributes. `pk_field_state`'s `wildRoll` sets it each frame the field is free (not locked / battle / FireRed's quest log
 replay, which sets it itself) with probability 1 - keep; NORMAL puts it back once, only if we set it. Walked headless
 (mgba_dump `wild ADDR KEEP`, warp into Route 101 / Route 1 grass): OFF 360 steps, none; 50% about twice NORMAL's steps.
 **QoL batch 2**: PC anywhere on every language + FireRed rev 0 + Ruby / Sapphire (`port_field_items.py` maps PcFns, each
@@ -949,6 +958,13 @@ kaizo` -> `EmeraldTextKaizoGen.kt`), so its names show as the ROM has them; gWil
 (`GUIDE_TABLES_EMERALD_KAIZO`); trainers, base stats and TM compatibility are rewritten in place (read live). Detected by
 the small-BPEE hash check. The user has no Kaizo save: the `emerald_kaizo*` fixtures are retail Emerald's save booted in
 it. The GUIDE's hand-written pages are retail Emerald's; NEXT BOSS and HERE read Kaizo's own tables.
+**Emerald Legacy v1.1.4 (2026-10-14)**: BPEE, 16 MB, but a rebuild - its public source (`$DECOMPS/pokelegacy`, tag V1.1.4)
+built with agbcc is the release byte for byte, so take every address from that ELF (`nm`) and every struct offset / constant
+from agbcc compiling `offsetof` against its headers, never from retail. Runs as `GameKind.EMERALD` under `LEGACY_TEXT`
+(`emeraldLegacy`, like Kaizo); anything keyed on `"BPEE"` / EMERALD with retail addresses must check `emeraldLegacy` first
+(switch, RegionMapWatch, field items, the PC BOXES editor refuses it). Its SaveBlock1 grew (120-slot ITEMS, 960 trainer
+flags: system flags at 0x8C0), species 412-414 are Deoxys forms (egg 415, flagged), ~40 maps pick a second wild header by
+a var (`GuideTables.wildSetVars`), its card has a fifth star (MEW) on a black card (`CardStyle.LEGACY`). docs/DEVELOPMENT.md.
 **Orange Islands / Unbound FR / Quetzal ES (2026-10-09)**: **Orange Islands** (`GameKind.ORANGE_ISLANDS`,
 `NATIVE_ORANGE_ISLANDS`) is retail FireRed rev 0 edited in place at 16 MB - the size of retail, so detect() now hashes a
 small BPRE ROM once too (like Seaglass's BPEE check; an unknown hash falls through to retail). Its two builds (Beta 5.7
@@ -997,7 +1013,7 @@ hidden-item flag base wasn't found (HERE marks none); its script commands differ
 `gen_recharged_yellow_tables.py`'s doc); its song ids are Emerald-ordered (`isRechargedYellowRom`: fanfare 367, all BGM
 prefetched) and `RegionMapWatch` reads sRegionMap two pool words before 0x4796. It has a text-language option and other
 languages' name tables in the ROM - the companion shows English, and best effort is never SURE of it (ranked first instead).
-Its trainer card is FireRed's frame with its own pictures / font and moved save fields: no CARD.
+Its trainer card is FireRed's frame with its own pictures / font, wording and save fields (`CardStyle.RECHARGED_YELLOW`).
 **Super Mariomon (2026-10-11)**: five releases (`NATIVE_MARIOMON_*`, `GameKind.MARIOMON`), an old pokeemerald-expansion
 built with agbcc - retail Emerald's code word for word where the expansion left it, so its RAM came from retail's literal
 pools (`pref`-style: the bytes before each pool word matched in the ROM) and was then checked in captures. Two RAM layouts

@@ -35,6 +35,7 @@ private fun rawAreas(guide: GuideId): List<String> = when (guide) {
     GuideId.FIRERED -> GUIDE_AREAS_FIRERED_RAW
     GuideId.LEAFGREEN -> GUIDE_AREAS_LEAFGREEN_RAW
     GuideId.EMERALD -> GUIDE_AREAS_EMERALD_RAW
+    GuideId.EMERALD_LEGACY -> GUIDE_AREAS_EMERALD_LEGACY_RAW
     // Ruby and Sapphire share their maps (pokeruby builds both from one tree).
     GuideId.RUBY, GuideId.SAPPHIRE -> GUIDE_AREAS_RUBY_SAPPHIRE_RAW
     GuideId.HEART_AND_SOUL -> GUIDE_AREAS_HEART_AND_SOUL_RAW

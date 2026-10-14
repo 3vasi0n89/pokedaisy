@@ -74,6 +74,10 @@ object RegionMapWatch {
     private const val JA_FIELD_REGION_MAP = 0x0203B99CL
     private const val JA_FLY_MAP = 0x02039E14L
     private const val JA_POKENAV_RESOURCES = 0x0203CC0CL
+    // Emerald Legacy's (its own build's symbols): a BPEE header, its own RAM.
+    private const val LEGACY_FIELD_REGION_MAP = 0x0203BFF8L
+    private const val LEGACY_FLY_MAP = 0x0203A470L
+    private const val LEGACY_POKENAV_RESOURCES = 0x0203D268L
     // struct PokenavResources: 4 words of state, then substructPtrs[]; REGION_MAP_STATE is index 3.
     private const val EM_POKENAV_REGION_MAP_STATE = 0x10 + 3 * 4
 
@@ -100,18 +104,23 @@ object RegionMapWatch {
             }
             "BPEE", "BPES", "BPED", "BPEF", "BPEI", "BPEJ" -> { // the European Emeralds keep English's RAM
                 val ja = String(rom, 0xAC, 4, Charsets.US_ASCII) == "BPEJ"
-                val field = if (ja) JA_FIELD_REGION_MAP else EM_FIELD_REGION_MAP
-                val fly = if (ja) JA_FLY_MAP else EM_FLY_MAP
-                val pokenav = if (ja) JA_POKENAV_RESOURCES else EM_POKENAV_RESOURCES
-                val want = longArrayOf(field, fly, pokenav)
-                val seen = IntArray(want.size)
+                // (field map, fly map, PokéNav resources): retail's, or a rebuild's own (Emerald Legacy) - whichever
+                // the ROM's literal pools hold.
+                val candidates = if (ja) listOf(longArrayOf(JA_FIELD_REGION_MAP, JA_FLY_MAP, JA_POKENAV_RESOURCES))
+                else listOf(
+                    longArrayOf(EM_FIELD_REGION_MAP, EM_FLY_MAP, EM_POKENAV_RESOURCES),
+                    longArrayOf(LEGACY_FIELD_REGION_MAP, LEGACY_FLY_MAP, LEGACY_POKENAV_RESOURCES),
+                )
+                val seen = candidates.map { IntArray(it.size) }
                 for (i in 0..end step 4) {
                     val a = u32(i)
-                    for (k in want.indices) if (a == want[k]) seen[k]++
+                    candidates.forEachIndexed { c, want -> for (k in want.indices) if (a == want[k]) seen[c][k]++ }
                 }
                 // Retail loads them 7, 15 and 15 times; a hack that moved them
                 // might still use one of the addresses for something else.
-                if (seen.all { it >= 5 }) {
+                val hit = candidates.indices.firstOrNull { c -> seen[c].all { it >= 5 } }
+                if (hit != null) {
+                    val (field, fly, pokenav) = candidates[hit]
                     listOf(Watch(field), Watch(fly), Watch(pokenav, EM_POKENAV_REGION_MAP_STATE))
                 } else emptyList()
             }

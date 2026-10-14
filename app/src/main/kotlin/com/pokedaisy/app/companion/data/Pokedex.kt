@@ -358,6 +358,20 @@ val POKEDEX_EMERALD = PokedexTables(
 )
 
 /*
+ * Pokémon Emerald Legacy v1.1.4: retail's dex, rebuilt - every table moved (its own ELF: the release is its source built
+ * with agbcc, byte for byte). Three Deoxys forms sit at species 412-414 (SPECIES_EGG 415), its Hoenn dex is retail's 202
+ * plus eight (PONYTA .. HOUNDOOM after DEOXYS), and SaveBlock1 grew before seen1 / seen2 (a 120-slot ITEMS pocket, more
+ * trainer flags: offsetof with agbcc against its headers).
+ */
+val EMERALD_LEGACY_DEX_FLAGS = vanillaDexFlags(0xAF0, 0x3B34)
+val POKEDEX_EMERALD_LEGACY = POKEDEX_EMERALD.copy(
+    entries = 0x0859DD5CL, frontPics = 0x0831F560L, palettes = 0x08318958L, speciesInfo = 0x08348AF4L,
+    speciesToNational = 0x08346290L, abilityNames = 0x08343CBDL, footprints = 0x085A0E40L,
+    regionalOrder = 0x083465CCL, evolutions = 0x0834E1D0L, tmhmLearnsets = 0x08346FA4L, tmhmMoves = 0x0864A31CL,
+    speciesCount = 415, regionalCount = 210, flags = EMERALD_LEGACY_DEX_FLAGS,
+)
+
+/*
  * The European Emerald releases: English's dex, its tables moved (localized
  * text has other lengths) - each address is the word English's code loads it
  * from, read at the same place in the language's code. The page is worded as

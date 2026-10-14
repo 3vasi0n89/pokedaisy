@@ -426,6 +426,10 @@ class PokeDaisyActivity : Activity() {
         // Japanese Emerald: its own RAM (NATIVE_EMERALD_JA).
         game == com.pokedaisy.app.companion.data.GameKind.EMERALD && romCode == "BPEJ" ->
             BattleInputController.SwitchAddrs(partyMenu = 0x0203CB94L, party = 0x02024190L)
+        // Emerald Legacy keeps retail's header but is its own build: gPartyMenu from its config (NATIVE_EMERALD_LEGACY),
+        // retail's one-column list. Before retail's BPEE line, which would hand it retail's address.
+        game == com.pokedaisy.app.companion.data.GameKind.EMERALD && com.pokedaisy.app.companion.data.emeraldLegacy ->
+            telemetry.knownPartyMenu()?.let { (menu, party) -> BattleInputController.SwitchAddrs(partyMenu = menu, party = party) }
         game == com.pokedaisy.app.companion.data.GameKind.EMERALD &&
             (romCode == "BPEE" || romCode in com.pokedaisy.app.companion.data.EMERALD_EUROPEAN_CODES) ->
             BattleInputController.SwitchAddrs(partyMenu = 0x0203CEC8L, party = 0x020244ECL)

@@ -119,6 +119,7 @@ enum class GuideId {
     RECHARGED_YELLOW, RECHARGED_YELLOW_V180, RECHARGED_YELLOW_V190, RECHARGED_YELLOW_V194,
     MARIOMON,
     ULTRA_VIOLET, SWORD_SHIELD,
+    EMERALD_LEGACY,
 }
 
 /** [live]'s guide; else by [game] (a config whose tables didn't check out has no live tables). */
@@ -155,6 +156,7 @@ fun gameGuide(id: GuideId?): GameGuide? = when (id) {
     GuideId.RECHARGED_YELLOW, GuideId.RECHARGED_YELLOW_V180, GuideId.RECHARGED_YELLOW_V190,
     GuideId.RECHARGED_YELLOW_V194 -> GUIDE_RECHARGED_YELLOW
     GuideId.MARIOMON -> GUIDE_MARIOMON
+    GuideId.EMERALD_LEGACY -> GUIDE_EMERALD_LEGACY
     null -> null
 }
 

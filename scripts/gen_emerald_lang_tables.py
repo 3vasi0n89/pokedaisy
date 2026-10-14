@@ -3,7 +3,7 @@
 French, Italian, Japanese - from the ROM the user owns (nothing is downloaded),
 so the companion shows a game's names in its own language.
 
-    scripts/gen_emerald_lang_tables.py <es|de|fr|it|ja|kaizo> <rom.gba>
+    scripts/gen_emerald_lang_tables.py <es|de|fr|it|ja|kaizo|legacy> <rom.gba>
     scripts/gen_emerald_lang_tables.py en <english rom.gba>   (checks only)
 
 Writes app/src/main/kotlin/.../companion/data/EmeraldText<Lang>Gen.kt: species,
@@ -16,6 +16,11 @@ Item descriptions aren't written: the app reads them from the player's ROM
 `kaizo` is Pokémon Emerald Kaizo v2.0, an in-place edit of English Emerald: English's tables at English's
 addresses, 29 moves replaced (Drill Run, Earth Power, ...) and 217 moves' battle data changed - so it also writes
 the moves' types and powers (gBattleMoves), which the other languages take from the shared English table.
+
+`legacy` is Pokémon Emerald Legacy v1.1.4, pokeemerald rebuilt from its own source (cRz-Shadows/Pokemon_Emerald_Legacy,
+tag V1.1.4, built with agbcc byte for byte = the release): every table moved, so its addresses are its ELF's symbols. Three
+Deoxys forms sit at species 412-414 (SPECIES_EGG is 415), ~130 moves were rebalanced (a few change type) and it adds two
+move effects, so it writes the moves' types / powers and their MoveStats (the move advice) too.
 
 Every other table sits elsewhere than in English (localized text has other lengths);
 the European ones keep English's layout, Japanese has shorter names (species 5,
@@ -66,6 +71,12 @@ LANGS = {
                   chars="en", battle_moves=0x0831C898,
                   species=0x083185C8, moves=0x0831977C, items=0x085839A0, natures=0x0861CB50,
                   mapsecs=0x085A147C, small_widths=0x0863BCE4),
+    # Emerald Legacy v1.1.4: its own build's symbols (gSpeciesNames, gMoveNames, gItems, gNatureNamePointers,
+    # gRegionMapEntries, gFontSmallLatinGlyphWidths, gBattleMoves).
+    "legacy": dict(sha1="cbd71af65ee3dcd53280a6a12014bfb11e8f626a", suffix="Legacy", label="Emerald Legacy v1.1.4",
+                   chars="en", battle_moves=0x08344EA0, move_stats=True, species_count=415,
+                   species=0x08340B58, moves=0x08341D2D, items=0x085B6210, natures=0x08650E30,
+                   mapsecs=0x085D3D30, small_widths=0x0866FFDC),
 }
 # English's record layout, where a language doesn't say otherwise.
 LAYOUT = dict(species_len=11, move_len=13, item_stride=44, item_name_len=14)
@@ -146,7 +157,7 @@ class Rom:
 def tables(rom, v):
     lay = {**LAYOUT, **v}
     sl, ml = lay["species_len"], lay["move_len"]
-    species = {i: rom.text(v["species"] + sl * i, sl) for i in range(1, NUM_SPECIES)}
+    species = {i: rom.text(v["species"] + sl * i, sl) for i in range(1, v.get("species_count", NUM_SPECIES))}
     species = {i: n for i, n in species.items() if n and n not in ("?", "？")}
     moves = {i: rom.text(v["moves"] + ml * i, ml) for i in range(1, MOVES_COUNT)}
     items = {}
@@ -159,6 +170,20 @@ def tables(rom, v):
     mapsecs = {i: rom.text(rom.u32(v["mapsecs"] + 8 * i + 4), 30) for i in range(MAPSEC_COUNT)}
     widths = list(rom.d[v["small_widths"] - 0x08000000:][:512]) if v["small_widths"] else []
     return species, moves, items, natures, mapsecs, widths
+
+
+# Legacy's two new move effects, as the move advice's tiers know them: EFFECT_BLIZZARD is a freeze hit (its battle
+# script falls into BattleScript_EffectFreezeHit), EFFECT_LEAF_BLADE a hit with a raised critical-hit stage.
+EFFECT_ALIASES = {"BLIZZARD": "FREEZE_HIT", "LEAF_BLADE": "HIGH_CRITICAL"}
+
+
+def move_effect_names():
+    """EFFECT_* ids -> MoveStats' effect names (no prefix), from Legacy's include/constants/battle_move_effects.h."""
+    path = os.path.join(os.environ["DECOMPS"], "pokelegacy", "include", "constants", "battle_move_effects.h")
+    out = {}
+    for m in re.finditer(r"^#define\s+EFFECT_(\w+)\s+(\d+)\b", open(path).read(), re.M):
+        out[int(m.group(2))] = EFFECT_ALIASES.get(m.group(1), m.group(1))
+    return out
 
 
 def kstr(s):
@@ -215,6 +240,14 @@ def main():
                f"internal val moveDataEmerald{sfx}: Map<Int, MoveInfo> by lazy {{\n    mapOf(\n" +
                "".join(f"        {i} to MoveInfo({kstr(n)}, {data[b + 12 * i + 2]}, {data[b + 12 * i + 1]}),\n"
                        for i, n in sorted(moves.items())) + "    )\n}\n")
+    if v.get("move_stats"):   # the move advice's data: gBattleMoves' effect, accuracy, PP, effect chance, priority
+        b = v["battle_moves"] - 0x08000000
+        effects = move_effect_names()
+        kt += ("\n/** gBattleMoves' effect, accuracy, PP, effect chance and priority (MoveStats), by move id. */\n"
+               f"internal val moveStatsEmerald{sfx}: List<MoveStats> by lazy {{\n    listOf(\n" +
+               "".join(f"        MoveStats({kstr(effects[data[b + 12 * i]])}, {data[b + 12 * i + 3]}, {data[b + 12 * i + 4]}, "
+                       f"{data[b + 12 * i + 5]}, {struct.unpack_from('<b', data, b + 12 * i + 7)[0]}),\n"
+                       for i in range(MOVES_COUNT)) + "    )\n}\n")
     path = os.path.join(OUT_DIR, f"EmeraldText{sfx}Gen.kt")
     with open(path, "w", encoding="utf-8") as f:
         f.write(kt)

@@ -71,6 +71,7 @@ import com.pokedaisy.app.companion.FlyAction
 import com.pokedaisy.app.companion.ItemUse
 import com.pokedaisy.app.companion.NewFeatures
 import com.pokedaisy.app.companion.data.GuideRomSource
+import com.pokedaisy.app.companion.data.wildSetOf
 import com.pokedaisy.app.companion.data.ItemUseOutcome
 import com.pokedaisy.app.companion.data.ItemUseResult
 import com.pokedaisy.app.companion.data.ItemView
@@ -308,13 +309,14 @@ fun FieldHud(
 
     // This map's wild Pokémon, read off the UI thread (null: no ROM tables for this game, so no WILD button).
     val live = snapshot.guideTables
+    val wildSet = live?.wildSetOf(snapshot.mapGroup, snapshot.mapNum, snapshot.progress) ?: 0
     val read by produceState(
-        live?.let { GuideRomSource.cachedEncounters(it, snapshot.mapGroup, snapshot.mapNum) },
-        live, snapshot.mapGroup, snapshot.mapNum,
+        live?.let { GuideRomSource.cachedEncounters(it, snapshot.mapGroup, snapshot.mapNum, wildSet) },
+        live, snapshot.mapGroup, snapshot.mapNum, wildSet,
     ) {
         if (live != null) value = withContext(Dispatchers.IO) {
             snapshot.pokedex?.let { PokedexSource.nationalOf(it.tables, 1) } // warm the species -> dex number map
-            GuideRomSource.encounters(live, snapshot.mapGroup, snapshot.mapNum)
+            GuideRomSource.encounters(live, snapshot.mapGroup, snapshot.mapNum, wildSet)
         }
     }
     val wildHere = wild ?: if (live == null) null else remember(read, snapshot.pokedex) { hudWild(read, snapshot.pokedex) }

@@ -84,6 +84,19 @@ private val EMERALD_KAIZO by lazy {
         englishMoves = { moveDataEmeraldKaizo })
 }
 
+// Pokémon Emerald Legacy v1.1.4 (gen_emerald_lang_tables.py legacy): pokeemerald rebuilt from its own source - English's
+// names but for the three Deoxys forms at species 412-414 and the BRICK PIECE, its rebalanced moves (types and powers
+// from its gBattleMoves). Not a game code: the hack keeps retail's header (BPEE), so NATIVE_EMERALD_LEGACY names it.
+const val LEGACY_TEXT = "EMERALD_LEGACY"
+private val EMERALD_LEGACY by lazy {
+    GameText({ speciesNamesEmeraldLegacy }, { moveNamesEmeraldLegacy }, { itemNamesEmeraldLegacy },
+        natureNamesEmeraldLegacy, { mapSecNamesEmeraldLegacy }, { smallFontWidthsEmeraldLegacy },
+        englishMoves = { moveDataEmeraldLegacy })
+}
+
+/** Emerald Legacy is running ([LEGACY_TEXT]): its own species past 411, egg, move stats and guide. */
+val emeraldLegacy: Boolean get() = romGameCode == LEGACY_TEXT
+
 private val portTexts = java.util.concurrent.ConcurrentHashMap<String, GameText>()
 
 /** The names of the game with [code] ("BPED", "AXVF", [UNBOUND_FR_TEXT]); null for English and every game without its own. */
@@ -95,6 +108,7 @@ fun gameText(code: String): GameText? = when (code) {
     "BPEJ" -> EMERALD_JA
     UNBOUND_FR_TEXT -> UNBOUND_FR
     KAIZO_TEXT -> EMERALD_KAIZO
+    LEGACY_TEXT -> EMERALD_LEGACY
     else -> RETAIL_PORT_TEXTS[code]?.let { make -> portTexts.getOrPut(code, make) }
 }
 

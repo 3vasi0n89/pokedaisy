@@ -508,7 +508,8 @@ class RamFixture(dir: File) : MemoryReader {
 fun liveGuide(): ((SnapshotView) -> SnapshotView)? {
     val path = System.getProperty("rom").orEmpty()
     val (cfg, fixture) = when (activeGame) {
-        GameKind.EMERALD -> NATIVE_EMERALD_RETAIL to "emerald_vanilla"
+        GameKind.EMERALD -> if (com.pokedaisy.app.companion.data.emeraldLegacy) com.pokedaisy.app.companion.data.NATIVE_EMERALD_LEGACY to "emerald_legacy"
+            else NATIVE_EMERALD_RETAIL to "emerald_vanilla"
         GameKind.FIRERED -> NATIVE_FIRERED_REV1 to "firered_vanilla"
         else -> return null
     }
@@ -536,7 +537,11 @@ fun liveGuide(): ((SnapshotView) -> SnapshotView)? {
  */
 fun dexShots(game: GameKind, live: ((SnapshotView) -> SnapshotView)?, w: Int, h: Int, d: Float): List<Shot> {
     if (live == null) return emptyList()
-    val (cfg, fixture) = if (game == GameKind.EMERALD) NATIVE_EMERALD_RETAIL to "emerald_vanilla" else NATIVE_FIRERED_REV1 to "firered_vanilla"
+    val (cfg, fixture) = when {
+        game == GameKind.EMERALD && com.pokedaisy.app.companion.data.emeraldLegacy -> com.pokedaisy.app.companion.data.NATIVE_EMERALD_LEGACY to "emerald_legacy"
+        game == GameKind.EMERALD -> NATIVE_EMERALD_RETAIL to "emerald_vanilla"
+        else -> NATIVE_FIRERED_REV1 to "firered_vanilla"
+    }
     val dex = com.pokedaisy.app.companion.data.readPokedexState(RamFixture(File("../../test/resources/fixtures/$fixture")), cfg, cfg.pokedex!!)
         ?: return emptyList()
     val g = game.name.lowercase()
@@ -902,6 +907,8 @@ fun main(args: Array<String>) {
     val only = args.getOrElse(1) { "" }.split(",").filter { it.isNotBlank() }
     val game = GameKind.valueOf(System.getProperty("game") ?: "FIRERED")
     activeGame = game
+    // -PgameText=EMERALD_LEGACY: Emerald Legacy runs as EMERALD under its own text key (its names, config, fixture).
+    System.getProperty("gameText").orEmpty().takeIf { it.isNotBlank() }?.let { com.pokedaisy.app.companion.data.romGameCode = it }
     // -Plang=FR: the app's text in another language (saved like the LANGUAGE setting, which the activities re-apply).
     System.getProperty("lang").orEmpty().takeIf { it.isNotBlank() }?.let { code ->
         runCatching { com.pokedaisy.app.Prefs(android.content.Context()).appLanguage = code }

@@ -36,6 +36,10 @@ The card is drawn at the largest whole size that fits the screen, so the pixels 
 | Unbound | FireRed's card in Unbound's purple, with Unbound's own player characters. No badges are drawn on it. |
 | Glazed | Its own badges, pictures and font |
 | Emerald Imperium | Emerald's card with Imperium's font and wording |
+| Emerald Legacy | Emerald's card, with Legacy's fifth star and the black card it earns |
+| SoulGold | Its own gold Johto card. Its stars come from the Hall of Fame, your regional Pokédex, a Battle Frontier record and its achievements |
+| Lazarus | Its own orange card and font. The stars it draws follow its own rules, while the card's colour follows the original's |
+| Recharged Yellow | FireRed's card with its own pictures, font and wording, and the six Pokémon you picked for the back |
 
 Other games don't have a CARD tab yet, including Ruby, Sapphire and the other-language versions of the original games. Many hacks draw their trainer card in a way of their own that hasn't been mapped.
 

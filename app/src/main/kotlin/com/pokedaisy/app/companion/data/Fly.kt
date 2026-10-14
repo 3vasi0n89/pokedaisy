@@ -125,6 +125,22 @@ val FLY_EMERALD = FlyFns(
 )
 
 /**
+ * Emerald Legacy v1.1.4: retail Emerald's FLY at its own build's addresses (its ELF), FLAG_BADGE06_GET 0x60 later (its
+ * 960 trainer flags push the system flags). Its SetUpFieldMove_Fly, SetWarpDestinationToHealLocation and
+ * ReturnToFieldFromFlyMapSelect are retail's source (only their calls / pools moved); sMapHealLocations and the heal
+ * location ids are retail's.
+ */
+val FLY_EMERALD_LEGACY = FLY_EMERALD.copy(
+    flagGet = 0x0809EBFCL, badgeFlag = 0x8CC, setUpFieldMoveFly = 0x081BA1C8L, getMapsecType = 0x081275ECL,
+    fadeScreen = 0x080AD118L, lockControls = 0x0809A1F0L, unlockControls = 0x0809A1FCL,
+    partyMenuSlotId = 0x0203D1F9L, destinations = 0x085D46F0L,
+    codeCrcs = listOf(0xBCF97BF3L, 0x26C08427L, 0x4B625BC4L, 0xF9959006L, 0xB9FB85A7L, 0xB037C8AFL, 0xE35529C1L, 0x2F1D18CAL, 0x404426C9L),
+    healWarp = FLY_EMERALD.healWarp!!.copy(
+        toHealLocation = 0x08085D74L, toMapWarp = 0x08085CD0L, returnToField = 0x080B850CL, saveBlock2Ptr = 0x03005F70L,
+    ),
+)
+
+/**
  * GetMapsecType as the FireRed hacks that widened map sections to 16 bits have it (Amethyst, Sword and Shield, Gaia,
  * Odyssey, Orange Islands: the same bytes in each, `lsls r0, #16` where retail takes a u8) - still the game's own
  * function, in place. Flown headless on each with FireRed rev 0's table. Unbound's jumps into its own code instead (and

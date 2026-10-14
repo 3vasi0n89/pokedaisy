@@ -16,6 +16,7 @@ gradle render -Ponly=settings    # names containing "settings"
 gradle render -Pgame=EMERALD     # companion as another GameKind
 gradle render -Plang=DE          # the app's text in another language (JA FR DE IT ES BR PT)
 gradle render -Pgame=EMERALD -Prom=/path/pokeemerald.gba   # + the GUIDE's live pages
+gradle render -Pgame=EMERALD -PgameText=EMERALD_LEGACY -Prom=/path/legacy.gba   # Emerald Legacy (its own save fixture)
 gradle render -PcompanionW=960 -PcompanionH=1080   # the companion as a single-screen side panel
 ```
 

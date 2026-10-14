@@ -184,6 +184,26 @@ val FIELD_ITEMS_EMERALD = FieldItemFns(
     pc = PC_EMERALD,
 )
 
+/**
+ * Emerald Legacy v1.1.4 (BPEE, its own build: its source at V1.1.4 built with agbcc = the release): retail's functions
+ * and globals at its ELF's addresses. Where its code differs from retail's (the bag functions, GetMonData / SetMonData
+ * with its MON_DATA_DEAD appended, the field-use routines) it's pret's later renames and moved calls, not behaviour;
+ * the MON_DATA ids, item ids, pockets and VAR_REPEL_STEP_COUNT are retail's. EWRAM's last symbol
+ * (sDescriptionSubmenu) ends at 0x0203D28D: the scratch word is free.
+ */
+val FIELD_ITEMS_EMERALD_LEGACY = FieldItemFns(
+    varGet = 0x0809EB00L, varSet = 0x0809EB1CL, checkBagHasItem = 0x080D9EB8L, removeBagItem = 0x080DA238L,
+    fieldControlsLocked = 0x0809A208L, repelVar = 0x4021, items = 0x085B6210L,
+    codeCrcs = listOf(0x7D0D07B6L, 0x519C39C0L, 0x5FB43DE5L, 0x6591084CL, 0x2532A407L),
+    party = FIELD_ITEMS_EMERALD.party!!.copy(
+        getMonData = 0x0806B1FCL, setMonData = 0x0806B9B4L, itemEffect = 0x0806CA48L, addBagItem = 0x080DA0BCL,
+        codeCrcs = listOf(0xA0496642L, 0xC8B48F7BL, 0xEADAC6C9L, 0x3510B884L),
+        useFuncs = setOf(0x08101740L, 0x08101794L, 0x081017B0L, 0x0810195CL),
+    ),
+    fly = FLY_EMERALD_LEGACY,
+    pc = PC_EMERALD_LEGACY,
+)
+
 /** Retail LeafGreen rev 0 (BPGE): pret's pokefirered built clean as leafgreen (byte for byte retail, SHA1 574fa542...). */
 val FIELD_ITEMS_LEAFGREEN_REV0 = FieldItemFns(
     varGet = 0x0806E568L, varSet = 0x0806E584L, checkBagHasItem = 0x08099F14L, removeBagItem = 0x0809A1ACL,
@@ -487,7 +507,8 @@ fun fieldItemsForGame(kind: GameKind?, gameCode: String, revision: Int): FieldIt
     // Emerald Kaizo: retail's FLY code, but its map reload crashed when the game's ReturnToField came straight from the
     // field (headless, on retail's save: the first flight, or the fourth once the overworld's windows were freed first),
     // where the game's own Fly map flies fine. Off until it can be checked on a Kaizo save.
-    GameKind.EMERALD -> fieldItemsFor(gameCode, revision)?.let { if (romGameCode == KAIZO_TEXT) it.copy(fly = null) else it }
+    GameKind.EMERALD -> if (emeraldLegacy) FIELD_ITEMS_EMERALD_LEGACY.takeIf { gameCode == "BPEE" }
+        else fieldItemsFor(gameCode, revision)?.let { if (romGameCode == KAIZO_TEXT) it.copy(fly = null) else it }
     else -> null
 }
 

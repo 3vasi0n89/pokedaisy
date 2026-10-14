@@ -425,7 +425,12 @@ fun partyPaletteFor(game: GameKind): PartyPalette = when (game) {
  * Null for Japanese, whose fonts aren't the Western ones the slot draws names with.
  */
 private fun localPartyStyle(base: PartySlotStyle, fireRed: Boolean): PartySlotStyle? {
-    val lang = when (romLanguage) { 'S' -> "es"; 'D' -> "de"; 'F' -> "fr"; 'I' -> "it"; else -> return null }
+    val lang = when (romLanguage) {
+        'S' -> "es"; 'D' -> "de"; 'F' -> "fr"; 'I' -> "it"
+        // A hack's own names under an English header (Emerald Kaizo / Legacy's text keys): English's art.
+        'E' -> return base
+        else -> return null
+    }
     val widths = (if (fireRed) localText else gameText("BPE$romLanguage"))?.smallFontWidths?.takeIf { it.isNotEmpty() }
         ?: return null
     val dir = if (fireRed) RomArt.fireRedPartyDir(lang) else RomArt.emeraldPartyDir(lang)

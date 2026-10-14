@@ -211,8 +211,14 @@ val activeSpeciesTypeData: Map<Int, SpeciesTypes> get() = when {
     swordShield -> speciesTypeDataSwordShield
     uv -> speciesTypeDataUltraVioletMerged
     mariomon -> if (mariomonV13) speciesTypeDataMariomonV13 else speciesTypeDataMariomon
+    emeraldLegacy -> speciesTypeDataEmeraldLegacy
     else -> speciesTypeData
 }
+/** Emerald Legacy: retail's types (unchanged, checked against its gSpeciesInfo), plus its Deoxys forms at 412-414. */
+private val speciesTypeDataEmeraldLegacy: Map<Int, SpeciesTypes> by lazy {
+    speciesTypeData + speciesTypeData.getValue(SPECIES_DEOXYS).let { d -> (412..414).associateWith { d } }
+}
+private const val SPECIES_DEOXYS = 410
 val activeTypeEffectiveness: Map<Int, Int> get() = when {
     yellow -> typeEffectivenessYellow
     unbound || cfruTypes -> typeEffectivenessUnbound

@@ -603,8 +603,10 @@ val NATIVE_LEAFGREEN_REV1 = NATIVE_FIRERED_REV1.copy(
 // per-load shuffle), gBagPockets is a const ROM table pointing into
 // SaveBlock1, bag quantities aren't XOR'd (no encryption key), and gMain's
 // inBattle bit sits at +0x43D. Same party-mon encryption, same pocket order
-// as Emerald. No item icons (the R/S bag never draws one), and the battle
-// touch controls stay off (their controller functions weren't mapped).
+// as Emerald. No item icons (the R/S bag never draws one). The battle
+// controls' handlers and cursors are the ELFs' (pokeruby's static functions,
+// the same in both games and in rev 2's ROMs, byte for byte); the POKéMON
+// switch isn't: R/S's party menu keeps its cursor in a sprite, not gPartyMenu.
 val NATIVE_RUBY = NativeConfig(
     itemDescs = vanillaItems(0x083C5580L, RUBY_SAPPHIRE_ITEMS),
     playerParty = 0x03004360L,
@@ -628,6 +630,16 @@ val NATIVE_RUBY = NativeConfig(
     monIconPaletteIndices = 0x083BC41CL,
     monIconPaletteTable = 0x083BC5D4L,
     inBattleOff = 0x43D,
+    // Checked headless on Sapphire rev 1 (`sapphire_rev1_battle`): RIGHT / DOWN walk the action cursor 0 -> 1 -> 3, a
+    // written 0 + A opens FIGHT, a written move cell 1 + A spends that move's PP; POKéMON / BAG reach their handlers.
+    battlerControllerFuncs = 0x03004330L,
+    handleInputChooseAction = 0x0802C098L,
+    handleInputChooseMove = 0x0802C68CL,
+    handleInputChooseTarget = 0x0802C2ECL,
+    completeWhenChoseItem = 0x0802E03CL,
+    waitForMonSelection = 0x0802DF88L,
+    actionCursor = 0x02024E60L,
+    moveCursor = 0x02024E64L,
     pokedex = POKEDEX_RUBY,
     guideTables = GUIDE_TABLES_RUBY,
     // FOE TEAM, from the same maps: gEnemyParty is in IWRAM like the party;
@@ -881,6 +893,7 @@ val NATIVE_LAZARUS = NATIVE_EMERALD.copy(
     itemIconTable = 0x08868590L,          // gItemsInfo[0].iconPic
     itemIconStride = 0x50,
     pokedex = POKEDEX_LAZARUS,
+    trainerCard = TRAINER_CARD_LAZARUS,
 )
 
 // Pokémon SoulGold v1.1.4 - a 32 MB BPEE hack on newer pokeemerald-expansion
@@ -981,7 +994,9 @@ val NATIVE_SOULGOLD = NATIVE_EMERALD.copy(
     itemPalCompressed = false,
     pokedex = POKEDEX_SOULGOLD,
     guideTables = GUIDE_TABLES_SOULGOLD,
-    trainerCard = null,
+    // AddMoney (0x081B0E5C) caps at 9,999,999, and the card prints 7 digits.
+    maxMoney = 9_999_999L,
+    trainerCard = TRAINER_CARD_SOULGOLD,
 )
 
 // Pokémon SoulGold v1.2 - a rebuild of v1.1.4 (same save format: the user's
@@ -1014,6 +1029,7 @@ val NATIVE_SOULGOLD_V1_2 = NATIVE_SOULGOLD.copy(
     monIconPalettes = 0x087D5D64L,
     itemIconTable = 0x08753844L,          // gItemsInfo[0].iconPic
     pokedex = POKEDEX_SOULGOLD_V1_2,
+    trainerCard = TRAINER_CARD_SOULGOLD_V1_2,
 )
 
 // A second build released as SoulGold v1.2 (sha1 5d6a0362..., its title screen says v1.2 too):
@@ -1503,6 +1519,38 @@ val NATIVE_TMT2 = NATIVE_EMERALD.copy(
 // code, RAM and save, so everything retail reads; its own moves (KAIZO_TEXT) and wild table (GUIDE_TABLES_EMERALD_KAIZO).
 val NATIVE_EMERALD_KAIZO = NATIVE_EMERALD_RETAIL.copy(gameCode = KAIZO_TEXT, guideTables = GUIDE_TABLES_EMERALD_KAIZO)
 
+// Pokémon Emerald Legacy v1.1.4 - BPEE, 16 MB: pret's pokeemerald rebuilt from its own source (cRz-Shadows/
+// Pokemon_Emerald_Legacy at V1.1.4, built with agbcc = the release byte for byte), so every address here is a symbol of
+// that build's ELF. The battle globals kept retail's EWRAM; gMain, the save blocks, gObjectEvents, the bag and the code
+// moved. Its structs are retail's but for SaveBlock1 past the ITEMS pocket (120 slots: the bag goes through gBagPockets,
+// the flags / vars / dex / card offsets are on their tables) and ObjectEvent's u16 graphicsId. Eggs are SPECIES_EGG 415:
+// species 412-414 are Deoxys forms, so an egg is flagged (eggSpecies) rather than read as vanilla's 412.
+val NATIVE_EMERALD_LEGACY = NATIVE_EMERALD_RETAIL.copy(
+    gameCode = LEGACY_TEXT,
+    itemDescs = vanillaItems(0x085B6210L),
+    gMain = 0x030024A0L,
+    saveBlock1Ptr = 0x03005F6CL,
+    saveBlock2Ptr = 0x03005F70L,
+    objectEvents = 0x020374DCL,
+    mapHeader = 0x020374A4L,
+    bagPockets = 0x0203A100L,
+    monIconTable = 0x085AE4DCL,
+    monIconPaletteIndices = 0x085AEBC8L,
+    monIconPaletteTable = 0x085AED84L,
+    itemIconTable = 0x086486E0L,
+    battlerControllerFuncs = 0x03005F40L,
+    handleInputChooseAction = 0x08057E1CL,
+    handleInputChooseMove = 0x08058490L,
+    completeWhenChoseItem = 0x0805A214L,
+    waitForMonSelection = 0x0805A15CL,
+    handleInputChooseTarget = 0x080580B8L,
+    partyMenu = 0x0203D1F0L,
+    eggSpecies = 415,
+    trainerCard = TRAINER_CARD_EMERALD_LEGACY,
+    pokedex = POKEDEX_EMERALD_LEGACY,
+    guideTables = GUIDE_TABLES_EMERALD_LEGACY,
+)
+
 val NATIVE_GLAZED = NATIVE_EMERALD.copy(
     itemDescs = vanillaItems(0x085839A0L), // retail's, rewritten in place
     guideTables = GUIDE_TABLES_GLAZED,
@@ -1962,6 +2010,9 @@ val NATIVE_RECHARGED_YELLOW_V1_8_0 = NativeConfig(
     partyMenu = 0x020384CCL,
     pokedex = POKEDEX_RECHARGED_YELLOW_V1_8_0,
     guideTables = GUIDE_TABLES_RECHARGED_YELLOW_V1_8_0,
+    // AddMoney (0x081391D8) caps at 9,999,999, and the card prints 7 digits.
+    maxMoney = 9_999_999L,
+    trainerCard = TRAINER_CARD_RECHARGED_YELLOW_V1_8_0,
 )
 
 val NATIVE_RECHARGED_YELLOW_V1_9_0 = NATIVE_RECHARGED_YELLOW_V1_8_0.copy(
@@ -1984,6 +2035,7 @@ val NATIVE_RECHARGED_YELLOW_V1_9_0 = NATIVE_RECHARGED_YELLOW_V1_8_0.copy(
     partyMenu = 0x020384D4L,
     pokedex = POKEDEX_RECHARGED_YELLOW_V1_9_0,
     guideTables = GUIDE_TABLES_RECHARGED_YELLOW_V1_9_0,
+    trainerCard = TRAINER_CARD_RECHARGED_YELLOW_V1_9_0,
 )
 
 val NATIVE_RECHARGED_YELLOW_V1_9_4 = NATIVE_RECHARGED_YELLOW_V1_9_0.copy(
@@ -1999,6 +2051,7 @@ val NATIVE_RECHARGED_YELLOW_V1_9_4 = NATIVE_RECHARGED_YELLOW_V1_9_0.copy(
     handleInputChooseTarget = 0x080461CDL,
     pokedex = POKEDEX_RECHARGED_YELLOW_V1_9_4,
     guideTables = GUIDE_TABLES_RECHARGED_YELLOW_V1_9_4,
+    trainerCard = TRAINER_CARD_RECHARGED_YELLOW_V1_9_4,
 )
 
 val NATIVE_RECHARGED_YELLOW_V1_9_7 = NATIVE_RECHARGED_YELLOW_V1_9_4.copy(
@@ -2011,6 +2064,7 @@ val NATIVE_RECHARGED_YELLOW_V1_9_7 = NATIVE_RECHARGED_YELLOW_V1_9_4.copy(
     itemIconTable = 0x08914614L,
     pokedex = POKEDEX_RECHARGED_YELLOW_V1_9_7,
     guideTables = GUIDE_TABLES_RECHARGED_YELLOW_V1_9_7,
+    trainerCard = TRAINER_CARD_RECHARGED_YELLOW_V1_9_7,
 )
 
 // Super Mariomon (Too Many Productions; BPEE, 32 MB, no source): every release is an old
@@ -2509,7 +2563,8 @@ private fun Mon.withNativeGender(raw: ByteArray, off: Int, layout: PartyMonLayou
     if (egg) {
         // Heart and Soul / Lazarus / SoulGold / Seaglass have no SPECIES_EGG 412, so an
         // egg is flagged instead: "Egg", no HP bar, the egg's icon where [eggSpecies] is known.
-        if (activeGame in setOf(GameKind.HEART_AND_SOUL, GameKind.LAZARUS, GameKind.SOULGOLD, GameKind.EMERALD_SEAGLASS, GameKind.IMPERIUM,
+        // So does any config naming its egg (Emerald Legacy: 415, its 412-414 are Deoxys forms).
+        if (eggSpecies != 0 || activeGame in setOf(GameKind.HEART_AND_SOUL, GameKind.LAZARUS, GameKind.SOULGOLD, GameKind.EMERALD_SEAGLASS, GameKind.IMPERIUM,
                 GameKind.QUETZAL, GameKind.ROWE, GameKind.MARIOMON)) {
             return copy(species = if (eggSpecies != 0) eggSpecies else species, genderSymbol = GENDER_SYMBOL_NONE, isEgg = true)
         }

@@ -17,7 +17,10 @@ import java.nio.channels.FileChannel
  * agbcc built FireRed / LeafGreen and Emerald / Ruby / Sapphire - every language, and the hacks that kept that code
  * (Glazed, Kaizo, Gaia, Odyssey, Orange Islands, Ultra Violet, Celia, ...). The CFRU hacks (Unbound, Radical Red,
  * Amethyst, ...) hook it with their own StandardWildEncounter, which still reads FireRed's switch at 0x020386DC: that
- * read is looked for too. The pokeemerald-expansion builds (gcc) aren't found: no WILD ENCOUNTERS there.
+ * read is looked for too. The gcc builds (pokeemerald-expansion's SoulGold, Lazarus, ..., Recharged Yellow's
+ * pokefirered) inline GetCurrentMapWildMonHeaderId and order the lines their own way, so they get a looser shape
+ * ([gccRead]): the switch's byte loaded and compared with 1, a branch, a call, then 0xFFFF loaded - taken only when
+ * every such spot in the ROM names the same switch. Emerald Rogue's isn't found.
  *
  * pk_wide.c's `wildRoll` sets it each frame the player is free on the field (in [EmulatorEngine.wildEncounters]% of
  * frames, so that share of the steps that would have met a Pokémon are let through).
@@ -63,6 +66,7 @@ object WildEncounters {
         val size = b.limit()
         val bpre = size >= 0xB0 && String(ByteArray(3) { b.get(0xAC + it) }, Charsets.ISO_8859_1) == "BPR"
         var cfru = false
+        val gcc = HashSet<Long>()
         var o = 0
         while (o + 6 <= size) {
             // ldrb r0, [r0]; cmp r0, #1; bne: the switch read in both agbcc shapes.
@@ -72,9 +76,34 @@ object WildEncounters {
             }
             // CFRU's own (gcc): ldr rN, =0x020386DC; ldrb rN, [rN]; ...; cmp rN, #1.
             if (bpre && !cfru && u16(b, o) shr 11 == 0b01001 && pool(b, o) == FIRERED_SWITCH) cfru = cfruRead(b, o)
+            if (gcc.size < 2 && u16(b, o) shr 11 == 0b01001) gccRead(b, o)?.let { gcc += it }
             o += 2
         }
-        return if (cfru) FIRERED_SWITCH else 0L
+        return when {
+            cfru -> FIRERED_SWITCH
+            gcc.size == 1 -> gcc.first()
+            else -> 0L
+        }
+    }
+
+    /**
+     * gcc's StandardWildEncounter at [o]: `ldr rA, =switch; ldrb rB, [rA]`, up to six lines of argument shuffling,
+     * `cmp rB, #1` and its branch, the header lookup's call within the next three lines and 0xFFFF (HEADER_NONE) loaded
+     * within three after it. The switch, or null.
+     */
+    private fun gccRead(b: ByteBuffer, o: Int): Long? {
+        val switch = pool(b, o) ?: return null
+        if (switch !in 0x02000000L until 0x02040000L || o + 2 * 20 > b.limit()) return null
+        val ra = (u16(b, o) shr 8) and 7
+        val ld = u16(b, o + 2)
+        if (ld and 0xFFC0 != 0x7800 || (ld shr 3) and 7 != ra) return null
+        val rb = ld and 7
+        val cmp = (2..8).firstOrNull { u16(b, o + 2 * it) == 0x2800 or (rb shl 8) or 1 } ?: return null
+        if (u16(b, o + 2 * cmp + 2) shr 12 != 0xD) return null
+        val bl = (cmp + 2..cmp + 4).firstOrNull { u16(b, o + 2 * it) shr 11 == 0b11110 && u16(b, o + 2 * it + 2) shr 11 == 0b11111 }
+            ?: return null
+        val ffff = (bl + 2..bl + 4).any { u16(b, o + 2 * it) shr 11 == 0b01001 && pool(b, o + 2 * it) == 0xFFFFL }
+        return if (ffff) switch else null
     }
 
     private fun cfruRead(b: ByteBuffer, o: Int): Boolean {

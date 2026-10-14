@@ -35,7 +35,12 @@ object SaveFileEdits {
     fun formatFor(rom: File): Gen3SaveFormat? {
         if (RomIdentity.isGameBoy(rom)) return null
         if (RomArchive.romSize(rom) > 0x1000000L) return null
-        return Gen3SaveFormat.forGameCode(RomIdentity.gameCode(rom))
+        val code = RomIdentity.gameCode(rom)
+        // Emerald Legacy keeps retail's header but not its SaveBlock1 (a 120-slot ITEMS pocket moves everything after
+        // it): the bag and flags would be edited at retail's offsets. Only a full 16 MB Emerald can be it.
+        if (code == "BPEE" && RomArchive.romSize(rom) == 0x1000000L &&
+            RomIdentity.sha1(rom) == com.pokedaisy.app.companion.data.TelemetrySampler.EMERALD_LEGACY_V1_1_4_SHA1) return null
+        return Gen3SaveFormat.forGameCode(code)
     }
 
     /** Writes [edited] over [rom]'s save, which must still be [expected]. Blocking: off the UI thread. */

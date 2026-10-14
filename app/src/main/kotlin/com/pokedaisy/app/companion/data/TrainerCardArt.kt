@@ -87,6 +87,15 @@ object TrainerCardArt {
         RomBlob.GZ_FONT_NORMAL, RomBlob.EM_FONT_NORMAL_WIDTHS,
     )
 
+    /** Emerald Legacy: retail Emerald's card, plus a sixth palette - the black card of a fifth star (catching MEW). */
+    private val LEGACY = Blobs(
+        RomBlob.EM_CARD_GFX, RomBlob.EM_CARD_FRONT, RomBlob.EM_CARD_BACK, RomBlob.EM_CARD_BG,
+        HOENN.pals + RomBlob.LG_CARD_PAL5,
+        RomBlob.EM_CARD_FEMALE_PAL, RomBlob.EM_CARD_BADGES_PAL, RomBlob.EM_CARD_BADGES_GFX,
+        RomBlob.EM_PIC_BRENDAN, RomBlob.EM_PIC_BRENDAN_PAL, RomBlob.EM_PIC_MAY, RomBlob.EM_PIC_MAY_PAL,
+        RomBlob.EM_FONT_NORMAL, RomBlob.EM_FONT_NORMAL_WIDTHS,
+    )
+
     /** Emerald Imperium: retail Emerald's card and pics in its own FONT_NORMAL (and widths). */
     private val IMPERIUM = Blobs(
         RomBlob.EM_CARD_GFX, RomBlob.EM_CARD_FRONT, RomBlob.EM_CARD_BACK, RomBlob.EM_CARD_BG,
@@ -96,16 +105,57 @@ object TrainerCardArt {
         RomBlob.IMP_FONT_NORMAL, RomBlob.IMP_FONT_NORMAL_WIDTHS,
     )
 
+    /**
+     * Lazarus: Emerald's card code with its own card tiles, front / back tilemaps, 0- and 1-star palettes, badges, player
+     * pics and FONT_NORMAL; the backdrop, the other palettes and the female backdrop palette are retail's bytes.
+     */
+    private val LAZARUS = Blobs(
+        RomBlob.LZ_CARD_GFX, RomBlob.LZ_CARD_FRONT, RomBlob.LZ_CARD_BACK, RomBlob.EM_CARD_BG,
+        listOf(RomBlob.LZ_CARD_PAL0, RomBlob.LZ_CARD_PAL1, RomBlob.EM_CARD_PAL2, RomBlob.EM_CARD_PAL3, RomBlob.EM_CARD_PAL4),
+        RomBlob.EM_CARD_FEMALE_PAL, RomBlob.LZ_CARD_BADGES_PAL, RomBlob.LZ_CARD_BADGES_GFX,
+        RomBlob.LZ_PIC_MALE, RomBlob.LZ_PIC_MALE_PAL, RomBlob.LZ_PIC_FEMALE, RomBlob.LZ_PIC_FEMALE_PAL,
+        RomBlob.LZ_FONT_NORMAL, RomBlob.LZ_FONT_NORMAL_WIDTHS,
+    )
+
+    /** SoulGold: Emerald's card code with its Johto art, smol-compressed: its own everything but the star's palette. */
+    private val SOULGOLD = Blobs(
+        RomBlob.SG_CARD_GFX, RomBlob.SG_CARD_FRONT, RomBlob.SG_CARD_BACK, RomBlob.SG_CARD_BG,
+        listOf(RomBlob.SG_CARD_PAL0, RomBlob.SG_CARD_PAL1, RomBlob.SG_CARD_PAL2, RomBlob.SG_CARD_PAL3, RomBlob.SG_CARD_PAL4),
+        RomBlob.SG_CARD_FEMALE_PAL, RomBlob.SG_CARD_BADGES_PAL, RomBlob.SG_CARD_BADGES_GFX,
+        RomBlob.SG_PIC_MALE, RomBlob.SG_PIC_MALE_PAL, RomBlob.SG_PIC_FEMALE, RomBlob.SG_PIC_FEMALE_PAL,
+        RomBlob.SG_FONT_NORMAL, RomBlob.SG_FONT_NORMAL_WIDTHS,
+    )
+
+    /**
+     * Recharged Yellow: FireRed's card byte for byte with its own player pics and FONT_NORMAL. Its stickers' palettes are
+     * FireRed's first three, the fourth brag level reusing the third.
+     */
+    private val RECHARGED_YELLOW = Blobs(
+        RomBlob.FR_CARD_GFX, RomBlob.FR_CARD_FRONT, RomBlob.FR_CARD_BACK, RomBlob.FR_CARD_BG,
+        listOf(RomBlob.FR_CARD_PAL0, RomBlob.FR_CARD_PAL1, RomBlob.FR_CARD_PAL2, RomBlob.FR_CARD_PAL3, RomBlob.FR_CARD_PAL4),
+        RomBlob.FR_CARD_FEMALE_PAL, RomBlob.FR_CARD_BADGES_PAL, RomBlob.FR_CARD_BADGES_GFX,
+        RomBlob.RY_PIC_MALE, RomBlob.RY_PIC_MALE_PAL, RomBlob.RY_PIC_FEMALE, RomBlob.RY_PIC_FEMALE_PAL,
+        RomBlob.RY_FONT_NORMAL, RomBlob.RY_FONT_NORMAL_WIDTHS,
+        listOf(
+            RomBlob.FR_CARD_STICKERS_GFX, RomBlob.FR_CARD_STICKER_PAL1, RomBlob.FR_CARD_STICKER_PAL2,
+            RomBlob.FR_CARD_STICKER_PAL3, RomBlob.FR_CARD_STICKER_PAL3,
+        ),
+    )
+
     private fun blobs(style: CardStyle) = when (style) {
         CardStyle.KANTO -> KANTO
         CardStyle.HOENN -> HOENN
         CardStyle.UNBOUND -> UNBOUND
         CardStyle.GLAZED -> GLAZED
         CardStyle.IMPERIUM -> IMPERIUM
+        CardStyle.LEGACY -> LEGACY
+        CardStyle.LAZARUS -> LAZARUS
+        CardStyle.SOULGOLD -> SOULGOLD
+        CardStyle.RECHARGED_YELLOW, CardStyle.RECHARGED_YELLOW_V1_9 -> RECHARGED_YELLOW
     }
 
     /** Every blob a card needs, every style. */
-    val BLOBS: List<RomBlob> = (KANTO.all + HOENN.all + UNBOUND.all + GLAZED.all + IMPERIUM.all).distinct()
+    val BLOBS: List<RomBlob> = (KANTO.all + HOENN.all + UNBOUND.all + GLAZED.all + IMPERIUM.all + LEGACY.all + LAZARUS.all + SOULGOLD.all + RECHARGED_YELLOW.all).distinct()
 
     /** One style's decoded blobs. */
     class Art internal constructor(val style: CardStyle, internal val d: Map<RomBlob, ByteArray>)
@@ -125,20 +175,64 @@ object TrainerCardArt {
     /** The last [load]ed card of [style], so a screen can start drawing it without waiting. */
     fun cached(style: CardStyle): Art? = loaded[style]
 
-    // Per style: the text window's width, FONT_NORMAL's letter spacing and
-    // glyph height (FireRed 14 rows, Emerald 16; RenderText adds the spacing
-    // only to Japanese text, so it is 0 for both), the digit pad of
-    // STR_CONV_MODE_RIGHT_ALIGN (FireRed a space, Emerald CHAR_SPACER), the
-    // stars' / badges' tile rows and the trainer pic's offset in its window.
-    private class Layout(val textW: Int, val spacing: Int, val glyphH: Int, val pad: Int, val starY: Int, val badgeY: Int, val picX: Int, val picY: Int)
-
-    private val KANTO_LAYOUT = Layout(textW = 27 * 8, spacing = 0, glyphH = 14, pad = 0x00, starY = 7, badgeY = 16, picX = 13, picY = 4)
-    private val HOENN_LAYOUT = Layout(textW = 28 * 8, spacing = 0, glyphH = 16, pad = 0x77, starY = 7, badgeY = 15, picX = 1, picY = 0)
-
     private const val TEXT = 0xFF636363.toInt()
     private const val TEXT_SHADOW = 0xFFD6D6CE.toInt()
     private const val STAT = 0xFFE70808.toInt()
     private const val STAT_SHADOW = 0xFFFFBD73.toInt()
+
+    // Per style: the text window's width, FONT_NORMAL's letter spacing and
+    // glyph height (FireRed 14 rows, Emerald 16; RenderText adds the spacing
+    // only to Japanese text, so it is 0 for both), the digit pad of
+    // STR_CONV_MODE_RIGHT_ALIGN (FireRed a space, Emerald CHAR_SPACER), the
+    // stars' / badges' tile rows and the trainer pic's offset in its window; [cols]: which of a glyph's 16 columns are
+    // drawn; [starPal]: the stars' BG palette; [text] / [shadow]: the window palette's text colours; [marks]: the back's
+    // little stat markers.
+    private class Layout(
+        val textW: Int, val spacing: Int, val glyphH: Int, val pad: Int, val starY: Int, val badgeY: Int, val picX: Int, val picY: Int,
+        val cols: GlyphCols = GlyphCols.ALL, val starPal: Int = 4, val text: Int = TEXT, val shadow: Int = TEXT_SHADOW,
+        val marks: Boolean = true,
+    )
+
+    /** ALL 16; LEFT_IF_NARROW: only the left 8 of a glyph no wider than 8 (expansion's DecompressGlyph); WIDTH: its width. */
+    private enum class GlyphCols { ALL, LEFT_IF_NARROW, WIDTH }
+
+    private val KANTO_LAYOUT = Layout(textW = 27 * 8, spacing = 0, glyphH = 14, pad = 0x00, starY = 7, badgeY = 16, picX = 13, picY = 4)
+    private val HOENN_LAYOUT = Layout(textW = 28 * 8, spacing = 0, glyphH = 16, pad = 0x77, starY = 7, badgeY = 15, picX = 1, picY = 0)
+    private val LAZARUS_LAYOUT = Layout(textW = 28 * 8, spacing = 0, glyphH = 15, pad = 0x77, starY = 7, badgeY = 15, picX = 1, picY = 0,
+        cols = GlyphCols.LEFT_IF_NARROW, starPal = 1)
+    // Recharged Yellow: FireRed's frame, its own text window (27 tiles, 14-row glyphs drawn to their width); v1.9's red is
+    // lighter (its window palette's colour 4).
+    private val RECHARGED_YELLOW_LAYOUT = Layout(textW = 27 * 8, spacing = 0, glyphH = 14, pad = 0x00, starY = 7, badgeY = 16, picX = 13,
+        picY = 4, cols = GlyphCols.WIDTH)
+    private const val RY19_STAT = 0xFFE75252.toInt()
+
+    private val SOULGOLD_LAYOUT = Layout(textW = 28 * 8, spacing = 0, glyphH = 15, pad = 0x77, starY = 7, badgeY = 15, picX = 1, picY = 0,
+        cols = GlyphCols.WIDTH, text = 0xFF181818.toInt(), shadow = TEXT_SHADOW, marks = false)
+
+    /**
+     * What the Emerald-style card prints, per style: its labels (in the game's encoding) and how many digits money and the
+     * POKéDEX get. Imperium and Lazarus reword some labels, Glazed and SoulGold print 7 money digits (their cap is
+     * 9,999,999), Lazarus and SoulGold 4 POKéDEX digits (their National Dex passes 999). SoulGold's [white] headings (its
+     * ID once the card has a star, the back's title) are white over dark grey.
+     */
+    private class Words(
+        val name: String = "NAME: ", val money: String = "MONEY", val dex: String = "POKéDEX", val time: String = "TIME",
+        val cardOf: String = "'s TRAINER CARD", val hof: String = "HALL OF FAME DEBUT  ", val link: String = "LINK BATTLES",
+        val trades: String = "POKéMON TRADES", val blocks: String = "S W/FRIENDS", val contests: String = "WON CONTESTS W/FRIENDS",
+        val points: String = "BATTLE POINTS WON", val moneyDigits: Int = 6, val dexDigits: Int = 3, val white: Boolean = false,
+    )
+
+    private fun words(style: CardStyle) = when (style) {
+        CardStyle.GLAZED -> Words(moneyDigits = 7)
+        CardStyle.IMPERIUM -> Words(dex = "Pokédex", time = "Time", trades = "Pokémon TRADES")
+        CardStyle.LAZARUS -> Words(dex = "Pokédex", hof = "Hall of Fame DEBUT  ", trades = "Pokémon TRADES", dexDigits = 4)
+        CardStyle.SOULGOLD -> Words(
+            name = "Name: ", money = "Money", dex = "Pokédex", time = "Time", cardOf = "'s Trainer Card", hof = "Hall of Fame Debut  ",
+            link = "Link Battles", trades = "Pokémon Trades", blocks = "S W/Friends", contests = "Won Contests W/Friends",
+            points = "Battle Points Won", moneyDigits = 7, dexDigits = 4, white = true,
+        )
+        else -> Words()
+    }
 
     /**
      * The card as the game shows it: 240x160, front or [back]; [colon] = the
@@ -148,10 +242,17 @@ object TrainerCardArt {
     fun render(art: Art, card: TrainerCardInfo, back: Boolean, colon: Boolean = true, backdrop: Boolean = true): RomArt.Image {
         val b = blobs(art.style)
         val kanto = !art.style.hoenn
-        val lay = if (kanto) KANTO_LAYOUT else HOENN_LAYOUT
+        val ry = art.style == CardStyle.RECHARGED_YELLOW || art.style == CardStyle.RECHARGED_YELLOW_V1_9
+        val lay = when {
+            ry -> RECHARGED_YELLOW_LAYOUT
+            kanto -> KANTO_LAYOUT
+            art.style == CardStyle.LAZARUS -> LAZARUS_LAYOUT
+            art.style == CardStyle.SOULGOLD -> SOULGOLD_LAYOUT
+            else -> HOENN_LAYOUT
+        }
         fun d(r: RomBlob) = art.d.getValue(r)
         val pal = IntArray(256)
-        RomArt.palette(d(b.pals[card.stars.coerceIn(0, 4)])).copyInto(pal, 0)
+        RomArt.palette(d(b.pals[card.stars.coerceIn(0, b.pals.size - 1)])).copyInto(pal, 0)
         if (card.female) b.femalePal?.let { RomArt.palette(d(it)).copyInto(pal, 16) }
         b.recolor?.let { f -> for (i in 0 until 48) pal[i] = f(pal[i]) }
         b.badgesPal?.let { RomArt.palette(d(it)).copyInto(pal, 48) }
@@ -167,7 +268,7 @@ object TrainerCardArt {
         // BG3.
         val bg3 = ByteArray(0x1800 + 0x400).also { tiles.copyInto(it); b.badgesGfx?.let { g -> d(g).copyInto(it, 192 * 32) } }
         if (!back) {
-            for (i in 0 until card.stars.coerceIn(0, 4)) tile(img, bg3, pal, (4 shl 12) or 143, 15 + i, lay.starY)
+            for (i in 0 until card.drawnStars.coerceIn(0, b.pals.size - 1)) tile(img, bg3, pal, (lay.starPal shl 12) or 143, 15 + i, lay.starY)
             for (i in 0 until 8) if (b.badgesGfx != null && card.badges and (1 shl i) != 0) {
                 val t = 192 + 2 * i
                 val x = 4 + 3 * i
@@ -183,7 +284,7 @@ object TrainerCardArt {
                 tile(img, bg3, pal, (1 shl 12) or 141, x, y)
                 tile(img, bg3, pal, (1 shl 12) or 157, x, y + 1)
             }
-            if (card.trades != 0) mark(26, 9)
+            if (card.trades != 0) mark(if (ry) 27 else 26, 9)
             if (card.berryCrush != 0) mark(21, 13)
             if (card.unionRoom != 0) mark(27, 11)
             // PrintStickersOnCard: sticker i (HoF, eggs, link wins) at tile (2 + 3i, 2), coloured by its brag level.
@@ -193,18 +294,27 @@ object TrainerCardArt {
                 val sp = IntArray(256).also { RomArt.palette(d(b.stickers[level])).copyInto(it) }
                 for (k in 0 until 4) tile(img, stickerTiles, sp, i * 4 + k, 2 + 3 * i + k % 2, 2 + k / 2)
             }
+            // Recharged Yellow's PrintPokemonIconsOnCard: icon i, 4x4 tiles at (3 + 4i, 15), in its own colours.
+            card.backIcons.forEachIndexed { i, icon ->
+                if (icon == null) return@forEachIndexed
+                for (k in 0 until 16) tile(img, icon.tiles, icon.palette, k, 3 + 4 * i + k % 4, 15 + k / 4)
+            }
         } else {
             // Emerald's DrawCardBackStats (palette 0).
             fun mark(x: Int, y: Int) {
                 tile(img, bg3, pal, 141, x, y)
                 tile(img, bg3, pal, 157, x, y + 1)
             }
-            if (card.trades != 0) mark(27, 9)
-            if (card.linkContests != 0) mark(27, 13)
+            if (lay.marks && card.trades != 0) mark(27, 9)
+            if (lay.marks && card.linkContests != 0) mark(27, 13)
         }
         // BG1.
         val t = Text(img, d(b.font), d(b.widths), lay)
-        if (kanto) kantoText(t, card, back, colon) else hoennText(t, card, back, colon, art.style)
+        when {
+            ry -> rechargedYellowText(t, card, back, colon, if (art.style == CardStyle.RECHARGED_YELLOW_V1_9) RY19_STAT else STAT)
+            kanto -> kantoText(t, card, back, colon)
+            else -> hoennText(t, card, back, colon, art.style)
+        }
         return img
     }
 
@@ -290,23 +400,74 @@ object TrainerCardArt {
         }
     }
 
+    /**
+     * Recharged Yellow's own card text (its strings, read off its ROM: "Lik battles" is the game's own): FireRed's window,
+     * Emerald-style arithmetic - the ID centred in 80 px from 132, money / POKéDEX / time right-aligned to 144, the back's
+     * labels at x 8 and values right-aligned to 216. Each x as the game computes it (a u8, never below 0).
+     */
+    private fun rechargedYellowText(t: Text, c: TrainerCardInfo, back: Boolean, colon: Boolean, red: Int) {
+        fun right(edge: Int, s: List<Int>) = maxOf(0, edge - t.width(s)) and 0xFF
+        if (!back) {
+            t.print(20, 28, enc("Name: ") + c.name)
+            val id = enc("IDNo.") + digits(c.trainerId, 5, LEADING_ZEROS, 0)
+            t.print((maxOf(0, (80 - t.width(id)) / 2) + 132) and 0xFF, 9, id)
+            t.print(20, 56, enc("Money"))
+            val money = enc("¥") + digits(c.money.toInt(), 7, LEFT, 0)
+            t.print(right(144, money), 56, money)
+            c.dexCaught?.let { n ->
+                t.print(20, 72, enc("Pokédex"))
+                val s = digits(n, 3, LEFT, 0)
+                t.print(right(144, s), 72, s)
+            }
+            t.print(20, 88, enc("Time"))
+            val colonW = t.width(enc(":"))
+            val x = 144 - (colonW + 30)
+            t.print(x and 0xFF, 88, digits(c.hours, 3, RIGHT, 0x00))
+            if (colon) t.print((x + 18) and 0xFF, 88, enc(":"))
+            t.print((x + 18 + colonW) and 0xFF, 88, digits(c.minutes, 2, LEADING_ZEROS, 0))
+            return
+        }
+        t.print(136, 9, c.name)
+        fun stat(row: Int, label: List<Int>, value: List<Int>) {
+            t.print(8, row * 16 + 33, label)
+            t.print(right(216, value), row * 16 + 33, value, red, STAT_SHADOW)
+        }
+        if (c.hofDebut != 0) stat(0, enc("Hall of Fame debut  "), hofTime(c.hofDebut, 0x00))
+        if (c.linkWins != 0 || c.linkLosses != 0) {
+            // "W:{red}wins{grey}  L:{red}losses".
+            val parts = listOf(enc("W:") to false, digits(c.linkWins, 4, LEFT, 0) to true, enc("  L:") to false,
+                digits(c.linkLosses, 4, LEFT, 0) to true)
+            t.print(8, 49, enc("Lik battles"))
+            var x = right(216, parts.flatMap { it.first })
+            for ((part, isRed) in parts) {
+                t.print(x, 49, part, if (isRed) red else TEXT, if (isRed) STAT_SHADOW else TEXT_SHADOW)
+                x += t.width(part)
+            }
+        }
+        if (c.trades != 0) stat(2, enc("Pokémon Trades"), digits(c.trades, 5, RIGHT, 0x00))
+    }
+
     private fun hoennText(t: Text, c: TrainerCardInfo, back: Boolean, colon: Boolean, style: CardStyle = CardStyle.HOENN) {
         val pad = 0x77
-        // Imperium words three labels its own way; Glazed prints 7 money digits (its cap is 9,999,999).
-        val imperium = style == CardStyle.IMPERIUM
+        val w = words(style)
+        val text = t.lay.text
+        val shadow = t.lay.shadow
+        // SoulGold's white headings: colour 1 (white) over 2 (its text colour).
+        val white = 0xFFFFFFFF.toInt()
         if (!back) {
-            t.print(16, 33, enc("NAME: ") + c.name)
+            t.print(16, 33, enc(w.name) + c.name)
             val id = enc("IDNo.") + digits(c.trainerId, 5, LEADING_ZEROS, pad)
-            t.print((96 - t.width(id)) / 2 + 120, 9, id)
-            val money = enc("¥") + digits(c.money.toInt(), if (style == CardStyle.GLAZED) 7 else 6, LEFT, pad)
-            t.print(16, 57, enc("MONEY"))
+            if (w.white && c.stars > 0) t.print((96 - t.width(id)) / 2 + 120, 9, id, white, text)
+            else t.print((96 - t.width(id)) / 2 + 120, 9, id)
+            val money = enc("¥") + digits(c.money.toInt(), w.moneyDigits, LEFT, pad)
+            t.print(16, 57, enc(w.money))
             t.print(128 - t.width(money), 57, money)
             c.dexCaught?.let { n ->
-                val s = digits(n, 3, LEFT, pad)
-                t.print(16, 73, enc(if (imperium) "Pokédex" else "POKéDEX"))
+                val s = digits(n, w.dexDigits, LEFT, pad)
+                t.print(16, 73, enc(w.dex))
                 t.print(128 - t.width(s), 73, s)
             }
-            t.print(16, 89, enc(if (imperium) "Time" else "TIME"))
+            t.print(16, 89, enc(w.time))
             val colonW = t.width(enc(":"))
             val x = 128 - (colonW + 30)
             t.print(x, 89, digits(c.hours, 3, RIGHT, pad))
@@ -314,35 +475,35 @@ object TrainerCardArt {
             t.print(x + 18 + colonW, 89, digits(c.minutes, 2, LEADING_ZEROS, pad))
             return
         }
-        val name = c.name + enc("'s TRAINER CARD")
-        t.print(216 - t.width(name), 9, name)
+        val name = c.name + enc(w.cardOf)
+        if (w.white) t.print(216 - t.width(name), 9, name, white, text) else t.print(216 - t.width(name), 9, name)
         // PrintStatOnBackOfCard: the label at x 16, the value right-aligned to 216, a row every 16 px.
         fun stat(row: Int, label: List<Int>, value: List<Int>, red: Boolean = true) {
             t.print(16, row * 16 + 33, label)
-            t.print(216 - t.width(value), row * 16 + 33, value, if (red) STAT else TEXT, if (red) STAT_SHADOW else TEXT_SHADOW)
+            t.print(216 - t.width(value), row * 16 + 33, value, if (red) STAT else text, if (red) STAT_SHADOW else shadow)
         }
-        if (c.hofDebut != 0) stat(0, enc("HALL OF FAME DEBUT  "), hofTime(c.hofDebut, pad))
+        if (c.hofDebut != 0) stat(0, enc(w.hof), hofTime(c.hofDebut, pad))
         if (c.linkWins != 0 || c.linkLosses != 0) {
             // "W:{red}wins{grey}  L:{red}losses": one string, colours switching inside it.
-            val w = enc("W:")
+            val wl = enc("W:")
             val wins = digits(c.linkWins, 4, LEFT, pad)
             val l = enc("  L:")
             val losses = digits(c.linkLosses, 4, LEFT, pad)
-            t.print(16, 49, enc("LINK BATTLES"))
-            var x = 216 - t.width(w + wins + l + losses)
-            for ((part, red) in listOf(w to false, wins to true, l to false, losses to true)) {
-                t.print(x, 49, part, if (red) STAT else TEXT, if (red) STAT_SHADOW else TEXT_SHADOW)
+            t.print(16, 49, enc(w.link))
+            var x = 216 - t.width(wl + wins + l + losses)
+            for ((part, red) in listOf(wl to false, wins to true, l to false, losses to true)) {
+                t.print(x, 49, part, if (red) STAT else text, if (red) STAT_SHADOW else shadow)
                 x += t.width(part)
             }
         }
-        if (c.trades != 0) stat(2, enc(if (imperium) "Pokémon TRADES" else "POKéMON TRADES"), digits(c.trades, 5, RIGHT, pad))
-        if (c.linkPokeblocks != 0) stat(3, listOf(0x55, 0x56, 0x57, 0x58, 0x59) + enc("S W/FRIENDS"), digits(c.linkPokeblocks, 5, RIGHT, pad))
-        if (c.linkContests != 0) stat(4, enc("WON CONTESTS W/FRIENDS"), digits(c.linkContests, 5, RIGHT, pad))
+        if (c.trades != 0) stat(2, enc(w.trades), digits(c.trades, 5, RIGHT, pad))
+        if (c.linkPokeblocks != 0) stat(3, listOf(0x55, 0x56, 0x57, 0x58, 0x59) + enc(w.blocks), digits(c.linkPokeblocks, 5, RIGHT, pad))
+        if (c.linkContests != 0) stat(4, enc(w.contests), digits(c.linkContests, 5, RIGHT, pad))
         if (c.battlePoints != 0) {
             val n = digits(c.battlePoints, 5, RIGHT, pad)
             val bp = enc("BP")
             val x = 216 - t.width(n + bp)
-            t.print(16, 5 * 16 + 33, enc("BATTLE POINTS WON"))
+            t.print(16, 5 * 16 + 33, enc(w.points))
             t.print(x, 5 * 16 + 33, n, STAT, STAT_SHADOW)
             t.print(x + t.width(n), 5 * 16 + 33, bp)
         }
@@ -428,10 +589,16 @@ object TrainerCardArt {
     private class Text(val img: RomArt.Image, val font: ByteArray, val widths: ByteArray, val lay: Layout) {
         fun width(s: List<Int>) = s.sumOf { (widths[it].toInt() and 0xFF) + lay.spacing }
 
-        fun print(x0: Int, y: Int, s: List<Int>, fg: Int = TEXT, shadow: Int = TEXT_SHADOW) {
+        fun print(x0: Int, y: Int, s: List<Int>, fg: Int = lay.text, shadow: Int = lay.shadow) {
             var x = x0
             for (g in s) {
-                for (py in 0 until lay.glyphH) for (px in 0 until 16) {
+                val w = widths[g].toInt() and 0xFF
+                val cols = when (lay.cols) {
+                    GlyphCols.ALL -> 16
+                    GlyphCols.LEFT_IF_NARROW -> if (w <= 8) 8 else 16
+                    GlyphCols.WIDTH -> minOf(w, 16)
+                }
+                for (py in 0 until lay.glyphH) for (px in 0 until cols) {
                     val wx = x + px
                     val wy = y + py
                     if (wx !in 0 until lay.textW || wy !in 0 until 144) continue

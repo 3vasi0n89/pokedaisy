@@ -487,6 +487,13 @@ class TelemetrySampler {
                 ramVerified = true   // retail's battle code and cursors: a written cell + A checked headless on it
                 return
             }
+            // Emerald Legacy: pokeemerald rebuilt from its own source - its own RAM and code (NATIVE_EMERALD_LEGACY).
+            if (hash == EMERALD_LEGACY_V1_1_4_SHA1) {
+                kind = GameKind.EMERALD
+                nativeCfg = NATIVE_EMERALD_LEGACY
+                ramVerified = true   // its build's own symbols; the battle cursors kept retail's EWRAM (checked headless)
+                return
+            }
             retailHash = hash in RETAIL_SHA1S
             smallHash = hash
         }
@@ -680,6 +687,8 @@ class TelemetrySampler {
         const val SOULGOLD_V1_2C_SHA1 = "2be7c99aa473308debe1d03ff2015bab7d9addb5"
         // Pokémon Emerald Kaizo v2.0 (BPEE, 16 MB) - its GPIO bytes are zero, so the masked hash is the file's.
         const val EMERALD_KAIZO_V2_0_SHA1 = "a7c4e34fafb53f2d5283eb6d43dad285c0dd40a8"
+        // Pokémon Emerald Legacy v1.1.4 (BPEE, 16 MB) - its source at tag V1.1.4 built with agbcc is this file byte for byte.
+        const val EMERALD_LEGACY_V1_1_4_SHA1 = "cbd71af65ee3dcd53280a6a12014bfb11e8f626a"
         // Pokémon Glazed 9.2.0 (BPEE, 32 MB) - host-side masked hash (GPIO bytes zero).
         const val GLAZED_V9_2_0_SHA1 = "e10105d8544469c6a11ca2cf510289981df3c3b0"
         // Pokémon Emerald Imperium v1.3.1 (BPEE, 32 MB) - host-side masked hash (GPIO bytes zero).
@@ -748,11 +757,11 @@ class TelemetrySampler {
         const val GAME_BOY_SUPPORT = true
 
         /** Every hack detect() has RAM addresses for - the >16 MB ones it
-         * hashes, plus Seaglass, Emerald Kaizo, Orange Islands, Recharged Yellow and Ultra Violet (16 MB). [CompanionSupport] checks imports against it. */
+         * hashes, plus Seaglass, Emerald Kaizo, Emerald Legacy, Orange Islands, Recharged Yellow and Ultra Violet (16 MB). [CompanionSupport] checks imports against it. */
         val SUPPORTED_HACK_SHA1S = setOf(
             UNBOUND_V2_1_1_1_SHA1, GAIA_V3_2_SHA1, RADICAL_RED_V4_1_SHA1, ODYSSEY_V4_1_1_SHA1,
             AMETHYST_V1_3_0_SHA1, AMETHYST_V1_4_1_SHA1, CELIA_V1_1_4_SHA1, HEART_AND_SOUL_V2_0_6_SHA1, LAZARUS_V2_0_SHA1,
-            ROWE_V2_1_9_1_SHA1, EMERALD_ROGUE_V2_2_1_EX_SHA1, TMT2_V1_5_2_SHA1, EMERALD_SEAGLASS_V3_0_SHA1, EMERALD_KAIZO_V2_0_SHA1,
+            ROWE_V2_1_9_1_SHA1, EMERALD_ROGUE_V2_2_1_EX_SHA1, TMT2_V1_5_2_SHA1, EMERALD_SEAGLASS_V3_0_SHA1, EMERALD_KAIZO_V2_0_SHA1, EMERALD_LEGACY_V1_1_4_SHA1,
             SOULGOLD_V1_1_4_SHA1, SOULGOLD_V1_2_SHA1, SOULGOLD_V1_2B_SHA1, SOULGOLD_V1_2C_SHA1, GLAZED_V9_2_0_SHA1, IMPERIUM_V1_3_1_SHA1,
             QUETZAL_V9_0_ALPHA_SHA1, QUETZAL_V9_0_ALPHA_ES_SHA1, UNBOUND_V2_1_1_1_FR_SHA1,
             ORANGE_ISLANDS_V5_7_BETA_SHA1, ORANGE_ISLANDS_UNVERSIONED_SHA1,

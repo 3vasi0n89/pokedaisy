@@ -147,6 +147,18 @@ HACKS = [
     # Emerald Kaizo: retail Emerald edited in place (95% byte for byte); no save of its own - retail's boots in it.
     dict(name="Emerald Kaizo v2.0", sha1="a7c4e34fafb53f2d5283eb6d43dad285c0dd40a8", family="EM", mapped=True,
          save="emerald_kaizo", a=dict(MAP_GROUPS=0x08486578)),
+    # Emerald Legacy v1.1.4: pokeemerald rebuilt from its own source (agbcc, = the release byte for byte): every address
+    # is its ELF's symbol. Emerald's map and sprites with ghoulslash's overworld expansion - ObjectEvent.spriteId at
+    # +0x23, a u16 graphicsId at +2 of a template (its kind at +1, as Rogue's), 300 graphics records then the
+    # VAR_OBJ_GFX_ID_* ids from 301 - so the EX family; SaveBlock1 grew (templates 0xDD8, vars 0x1510: offsetof).
+    dict(name="Emerald Legacy v1.1.4", sha1="cbd71af65ee3dcd53280a6a12014bfb11e8f626a", family="EX",
+         save="emerald_legacy", script=0x0809A294, a=dict(
+             VMAP=0x03005FA0, MAP_HEADER=0x020374A4, MAP_GROUPS=0x084AF90C, SAVE_BLOCK1_PTR=0x03005F6C,
+             CAMERA_OFFSET=0x03000E20, OBJECT_EVENTS=0x020374DC, SPRITES=0x02020630, COORD_OFFSET=0x02021BBC,
+             COORD_OFFSET_Y=0x02021BBE, SPRITE_ORDER=0x020217F4, GMAIN=0x030024A0, CONTROLS_LOCKED=0x03000F2C,
+             OBJ_GFX_INFO=0x085353B0, OBJ_PALETTES=0x0853C4B4, OBJ_FACING=0x0853535D, ELEVATION_PRIO=0x0853F004,
+             SPRITE_PAL_TAGS=0x03000CF0, OBJ_GFX_VAR_FROM=301, OBJ_GFX_COUNT=300, TEMPLATE_KIND_AT=1,
+             SB1_OFFSETS=0xDD8 | 0x1510 << 16)),
     # R.O.W.E.: Emerald's code (mapped), its own maps - 12-bit metatile ids (elevation in the top 4 bits) and a 2048-
     # metatile primary tileset; gSprites moved (find_wide_addrs.py).
     dict(name="R.O.W.E. v2.1.9.1", sha1="81bd0f4bfa1c04ab2c6faab1bddd10e8a390ea77", family="EM", mapped=True,

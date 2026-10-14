@@ -124,7 +124,7 @@ Both show `N/A` on a game PokeDaisy can't read the field of yet.
 
 Only random encounters change. Fishing, moves that lure wild Pokémon out and battles the story sets up still happen, and items that keep wild Pokémon away work as usual on top. The change applies at once, no restart needed.
 
-It works on the original games in every language and on hacks that kept their encounter code (most hacks built on FireRed, including the CFRU ones, and the ones edited from Emerald). On hacks rebuilt from newer source code, like most Emerald expansion hacks, it shows `N/A`.
+It works on the original games in every language and on almost every supported hack, including the ones rebuilt from newer source code like SoulGold, Lazarus and Recharged Yellow. On Emerald Rogue and Quetzal it shows `N/A`.
 
 ## External controllers
 

@@ -31,6 +31,12 @@ Output is a Kotlin file of compact text lines, parsed lazily by GuideAreas.kt
         > app/src/main/kotlin/com/pokedaisy/app/companion/data/GuideAreasEmeraldGen.kt
     python3 scripts/gen_guide_areas.py ruby $DECOMPS/pokeruby \
         > app/src/main/kotlin/com/pokedaisy/app/companion/data/GuideAreasRubySapphireGen.kt
+    python3 scripts/gen_guide_areas.py legacy $DECOMPS/pokelegacy \
+        > app/src/main/kotlin/com/pokedaisy/app/companion/data/GuideAreasEmeraldLegacyGen.kt
+
+`legacy` is Pokémon Emerald Legacy v1.1.4's own tree (cRz-Shadows/Pokemon_Emerald_Legacy at V1.1.4, an older
+pokeemerald): its map sections are #defines (the json names them `map_section`), its system flags move with its
+MAX_TRAINERS_COUNT (opponents.h), and its key items are tagged KEY for its generated WHERE IS.
 
 pokeruby (Ruby / Sapphire share one file - their maps are the same) has no
 trade.h: its trades are read positionally from src/trade.c.
@@ -43,12 +49,13 @@ import subprocess
 import sys
 
 GAME, ROOT = sys.argv[1], sys.argv[2]
-NAME = {"firered": "FIRERED", "leafgreen": "LEAFGREEN", "emerald": "EMERALD", "ruby": "RUBY_SAPPHIRE", "hns": "HEART_AND_SOUL"}[GAME]
+NAME = {"firered": "FIRERED", "leafgreen": "LEAFGREEN", "emerald": "EMERALD", "ruby": "RUBY_SAPPHIRE", "hns": "HEART_AND_SOUL",
+        "legacy": "EMERALD_LEGACY"}[GAME]
 # The build define the sources' version conditionals test (pokefirered builds
 # both games from one tree: `.ifdef LEAFGREEN` in scripts, `#if
 # defined(LEAFGREEN)` in C - trades, Game Corner prizes). Ruby / Sapphire
 # share one file, generated as Ruby.
-VERSION = {"firered": "FIRERED", "leafgreen": "LEAFGREEN", "emerald": "EMERALD", "ruby": "RUBY", "hns": "HNS"}[GAME]
+VERSION = {"firered": "FIRERED", "leafgreen": "LEAFGREEN", "emerald": "EMERALD", "ruby": "RUBY", "hns": "HNS", "legacy": "EMERALD"}[GAME]
 
 
 def preprocess(text):
@@ -135,7 +142,8 @@ def defines(path, seen=None):
 
 
 C = {}
-for rel in ["include/constants/flags.h", "include/constants/species.h", "include/constants/items.h"]:
+# opponents.h: MAX_TRAINERS_COUNT places the system flags (an older tree keeps it there, not in flags.h's includes).
+for rel in ["include/constants/opponents.h", "include/constants/flags.h", "include/constants/species.h", "include/constants/items.h"]:
     C.update(defines(os.path.join(ROOT, rel)))
 if "ITEM_POTION" not in C:
     enum_values(os.path.join(ROOT, "include/constants/items.h"), "ITEM_", C)
@@ -164,7 +172,8 @@ if GAME == "hns":
     # NEW BARK TOWN is 63 = 0x3F, what the live map header reads there.
     MAPSEC = {s["id"]: i + 1 for i, s in enumerate(sections_json["hns_map_sections"])}
 else:
-    MAPSEC = {s["id"]: i for i, s in enumerate(sections_json["map_sections"])}
+    # An older tree (Emerald Legacy) names each entry's constant `map_section` instead of `id`.
+    MAPSEC = {s.get("id", s.get("map_section")): i for i, s in enumerate(sections_json["map_sections"])}
 
 # Script label -> item, for item balls (data/scripts/item_ball_scripts.inc and map scripts).
 FIND = {}
@@ -197,9 +206,9 @@ else:
 
 # Key items (src/data/items.h's .pocket = POCKET_KEY_ITEMS), tagged KEY instead of
 # GIFT so the generated WHERE IS can list them. Only for games whose guide has no
-# hand-written WHERE IS (Heart and Soul); FireRed / Emerald keep plain GIFTs.
+# hand-written WHERE IS (Heart and Soul, Emerald Legacy); FireRed / Emerald keep plain GIFTs.
 KEY_ITEMS = set()
-if GAME == "hns":
+if GAME in ("hns", "legacy"):
     items_src = preprocess(open(os.path.join(ROOT, "src/data/items.h"), encoding="utf-8").read())
     for m in re.finditer(r"\[(ITEM_\w+)\]\s*=\s*\{(.*?)\n\s*\},", items_src, re.S):
         if "POCKET_KEY_ITEMS" in m.group(2) and num(m.group(1)):

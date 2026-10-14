@@ -449,7 +449,8 @@ fun buildSnapshotView(t: Telemetry): SnapshotView {
 const val SPECIES_EGG_VANILLA = 412
 
 fun isVanillaEgg(species: Int): Boolean =
-    species == SPECIES_EGG_VANILLA && when (activeGame) {
+    // Emerald Legacy runs as EMERALD, but its 412 is a Deoxys form (its eggs are flagged: NATIVE_EMERALD_LEGACY.eggSpecies).
+    species == SPECIES_EGG_VANILLA && !emeraldLegacy && when (activeGame) {
         GameKind.FIRERED, GameKind.EMERALD,
         GameKind.UNBOUND, GameKind.RADICAL_RED, GameKind.ODYSSEY, GameKind.AMETHYST, GameKind.ORANGE_ISLANDS,
         GameKind.SWORD_SHIELD, GameKind.RECHARGED_YELLOW -> true

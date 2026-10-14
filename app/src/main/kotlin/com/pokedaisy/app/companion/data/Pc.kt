@@ -35,6 +35,8 @@ val PC_EMERALD = PcFns(0x08098EF8L, 63, 0x081DBA64L, 0x080C7579L, listOf(0xEF369
 val PC_RUBY = PcFns(0x080655D8L, 60, 0x0814B1B4L, 0x08096121L, listOf(0xBC36478CL, 0x62C153A4L))
 val PC_SAPPHIRE = PcFns(0x080655DCL, 60, 0x0814B1B4L, 0x08096121L, listOf(0xBC36478CL, 0xA79046B8L))
 
+/** Emerald Legacy v1.1.4 (its own build's ELF): ShowPokemonStorageSystemPC is still special 63 in its gSpecials. */
+val PC_EMERALD_LEGACY = PcFns(0x0809A294L, 63, 0x081E1168L, 0x080CACA1L, listOf(0xEF3698BAL, 0x3BE7A304L))
 /** Whether the running ROM has [pc]'s code and its specials entry where expected. */
 fun pcCodeMatches(pc: PcFns, read: (addr: Long, len: Int) -> ByteArray): Boolean {
     fun crc(a: Long) = java.util.zip.CRC32().apply { update(read(a and 1L.inv(), 32)) }.value

@@ -74,7 +74,7 @@ The pages a game gets depend on how much of it has been mapped. The [supported g
 | Games | What the GUIDE has |
 | --- | --- |
 | FireRed, LeafGreen, Emerald, Ruby, Sapphire | Everything: HERE with all its sections, NEXT BOSS, EVOLUTIONS, TIPS, WHERE IS and STUCK? |
-| Unbound, Radical Red, Heart and Soul, Odyssey, Gaia, Amethyst, Celia's hack, Orange Islands, Ultra Violet, Sword and Shield Ultimate Plus, Recharged Yellow | NEXT BOSS, HERE with people and items, a WHERE IS built from the maps and, for most of them, a few TIPS |
+| Unbound, Radical Red, Heart and Soul, Odyssey, Gaia, Amethyst, Celia's hack, Orange Islands, Ultra Violet, Sword and Shield Ultimate Plus, Recharged Yellow, Emerald Legacy | NEXT BOSS, HERE with people and items, a WHERE IS built from the maps and, for most of them, a few TIPS |
 | Lazarus, Seaglass, Too Many Types 2, SoulGold, Glazed, Emerald Imperium, Quetzal, Super Mariomon | NEXT BOSS and the wild Pokémon in HERE |
 | Emerald Rogue, R.O.W.E., Yellow | No guide yet |
 

@@ -47,6 +47,7 @@ import com.pokedaisy.app.companion.data.GuideContext
 import com.pokedaisy.app.companion.data.GuideEntry
 import com.pokedaisy.app.companion.data.GuidePage
 import com.pokedaisy.app.companion.data.GuideRomSource
+import com.pokedaisy.app.companion.data.wildSetOf
 import com.pokedaisy.app.companion.data.GuideSection
 import com.pokedaisy.app.companion.data.GuideTables
 import com.pokedaisy.app.companion.data.MapEncounters
@@ -158,13 +159,15 @@ fun GuideScreen(source: GuideSource, ui: GuideUiState, snapshot: SnapshotView, m
         if (value == null && t != null) value = withContext(Dispatchers.IO) { EvolutionSource.table(t) }
     }
     val live = source.live
+    // The map's wild set the save picks (Emerald Legacy's per-map vars); 0 everywhere else.
+    val wildSet = live?.wildSetOf(snapshot.mapGroup, snapshot.mapNum, snapshot.progress) ?: 0
     val here by produceState(
-        live?.let { GuideRomSource.cachedEncounters(it, snapshot.mapGroup, snapshot.mapNum) },
-        live, snapshot.mapGroup, snapshot.mapNum,
+        live?.let { GuideRomSource.cachedEncounters(it, snapshot.mapGroup, snapshot.mapNum, wildSet) },
+        live, snapshot.mapGroup, snapshot.mapNum, wildSet,
     ) {
         if (live != null) value = withContext(Dispatchers.IO) {
             dex?.let { PokedexSource.nationalOf(it.tables, 1) } // warm the species -> dex number map
-            GuideRomSource.encounters(live, snapshot.mapGroup, snapshot.mapNum)
+            GuideRomSource.encounters(live, snapshot.mapGroup, snapshot.mapNum, wildSet)
         }
     }
     val bosses = source.text?.let { it.bossesFor?.invoke(snapshot.mapGroup) ?: it.bosses }.orEmpty()
