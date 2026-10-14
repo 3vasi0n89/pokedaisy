@@ -198,6 +198,16 @@ object PixelIcons {
         "..11111..",
     )
 
+    /** An arrow out to the top right, the "opens somewhere else" sign: a button that opens the game's own screen
+     * (the PC), not one of the companion's or the HUD's. A small corner mark, 5 GBA pixels square. */
+    val inGame = listOf(
+        "..111",
+        "...11",
+        "..1.1",
+        ".1...",
+        "1....",
+    )
+
     /** A tick: something the companion did in the game went through (USE / GIVE). Cap-height like [star]. */
     val check = listOf(
         "........1",

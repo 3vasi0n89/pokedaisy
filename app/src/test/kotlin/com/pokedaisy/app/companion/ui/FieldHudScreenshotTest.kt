@@ -113,6 +113,12 @@ class FieldHudScreenshotTest {
 
     @Test fun cornersWindow() = shot(FieldHudStyle(look = FieldHudLook.WINDOW))
 
+    @Test fun cornersWhiteGlass() = shot(FieldHudStyle(look = FieldHudLook.WHITE_GLASS))
+
+    @Test fun bagOpenWhiteGlass() = shot(FieldHudStyle(look = FieldHudLook.WHITE_GLASS), panel = FieldHudPanel.BAG)
+
+    @Test fun summaryOpenWhiteGlass() = shot(FieldHudStyle(look = FieldHudLook.WHITE_GLASS), panel = FieldHudPanel.SUMMARY)
+
     /** CORNERS 2: the right side swapped - the minimap bottom right, the balls and buttons top right. */
     @Test fun corners2Glass() = shot(FieldHudStyle(FieldHudLayout.CORNERS_2))
 
@@ -183,6 +189,32 @@ class FieldHudScreenshotTest {
     /** One screen (the RP6), the companion's side panel closed: its open button beside BAG and WILD. */
     @Test fun singleScreen() = shot(FieldHudStyle(), companion = true)
 
+    /** A game with BAG > PC: PC left of BAG, on one screen with COMPANION too. */
+    @Test fun pcButton() = shot(FieldHudStyle(), companion = true, pc = true)
+
+    @Test fun pcButtonCorners2() = shot(FieldHudStyle(FieldHudLayout.CORNERS_2), pc = true)
+
+    @Test fun pcButtonRails() = shot(FieldHudStyle(FieldHudLayout.RAILS), companion = true, pc = true)
+
+    @Test fun pcButtonDock() = shot(FieldHudStyle(FieldHudLayout.DOCK), companion = true, pc = true)
+
+    // A side panel locked beside the game (half the screen: the game at 4x, 960x640, in the left half): too narrow for
+    // the party beside the buttons, so the compact HUD whatever LAYOUT says - the balls over PC / BAG / WILD / MAP bottom left.
+    @Test fun compactDocked() = shot(FieldHudStyle(), expand = false, companion = true, pc = true, gameRect = DOCKED_GAME)
+
+    @Test fun compactDockedCorners2() = shot(FieldHudStyle(FieldHudLayout.CORNERS_2), expand = false, companion = true, pc = true, gameRect = DOCKED_GAME)
+
+    @Test fun compactDockedBagOpen() = shot(FieldHudStyle(), expand = false, panel = FieldHudPanel.BAG, companion = true, pc = true, gameRect = DOCKED_GAME)
+
+    @Test fun compactDockedRails() = shot(FieldHudStyle(FieldHudLayout.RAILS), expand = false, companion = true, pc = true, gameRect = DOCKED_GAME)
+
+    @Test fun compactDockedDock() = shot(FieldHudStyle(FieldHudLayout.DOCK), expand = false, companion = true, pc = true, gameRect = DOCKED_GAME)
+
+    @Test fun compactDockedMapOpen() = shot(FieldHudStyle(), expand = false, panel = FieldHudPanel.MAP, companion = true, pc = true, gameRect = DOCKED_GAME)
+
+    /** A wider docked game (the panel at its narrowest): the whole HUD fits again. */
+    @Test fun dockedWide() = shot(FieldHudStyle(), expand = false, companion = true, pc = true, gameRect = Rect(0f, 0f, 1440f, 960f))
+
     @Test fun singleScreenDock() = shot(FieldHudStyle(FieldHudLayout.DOCK), companion = true)
 
     /** The touch pad up: the HUD keeps clear of its L / R row and its D-pad / A / B (TouchControlsView's sizes at 1080 px). */
@@ -236,6 +268,13 @@ class FieldHudScreenshotTest {
         }
     }
 
+    /** The same with the HUD on a picture too narrow for its layouts: LAYOUT greyed out, saying so. */
+    @Test
+    fun settingsPageTight() {
+        FieldHudFit.tight = true
+        try { settingsPage() } finally { FieldHudFit.tight = false }
+    }
+
     private fun shot(
         style: FieldHudStyle,
         expand: Boolean = true,
@@ -244,10 +283,15 @@ class FieldHudScreenshotTest {
         snap: SnapshotView = snapshot,
         clear: Pair<Int, Int> = 0 to 0,
         companion: Boolean = false,
-    ) = paparazzi.snapshot { FieldHudScene(style, wild, expand, panel, frame, snap, clear, companion) }
+        pc: Boolean = false,
+        gameRect: Rect? = null,
+    ) = paparazzi.snapshot { FieldHudScene(style, wild, expand, panel, frame, snap, clear, companion, pc, gameRect) }
 
     companion object {
         var wild: List<HudWild>? = null
+
+        /** The game at 4x beside a half-screen side panel. */
+        val DOCKED_GAME = Rect(0f, 220f, 960f, 860f)
 
         val party = listOf(
             // The companion's sample CHARMANDER's moves, types and matchups, grown up: the summary has something to show.
@@ -299,16 +343,28 @@ internal fun FieldHudScene(
     snap: SnapshotView = FieldHudScreenshotTest.snapshot,
     clear: Pair<Int, Int> = 0 to 0,
     companion: Boolean = false,
+    /** A game with BAG > PC: the HUD's PC button. */
+    pc: Boolean = false,
+    /** Where the game's picture is (px), in place of [expand]'s. */
+    gameRect: Rect? = null,
 ) {
     Box(Modifier.fillMaxSize().background(Color.Black)) {
         GameFrame(frame, expand)
         FieldHud(
             snap, shown = true, style, clearTop = clear.first, clearBottom = clear.second, wild = wild, initialPanel = panel,
+            itemUse = if (pc) PcItemUse else null,
             onOpenCompanion = if (companion) ({}) else null,
             // ORIGINAL: the picture's 3:2 in the middle, as EmulatorView reports it; EXPAND: the whole screen.
-            frame = if (expand) null else Rect(150f, 0f, 1770f, 1080f),
+            frame = gameRect ?: if (expand) null else Rect(150f, 0f, 1770f, 1080f),
         )
     }
+}
+
+/** An [ItemUse] whose game has the PC (BAG > PC). */
+private object PcItemUse : com.pokedaisy.app.companion.ItemUse {
+    override fun canUse(itemId: Int) = false
+    override fun use(itemId: Int, done: (com.pokedaisy.app.companion.data.ItemUseOutcome) -> Unit) = Unit
+    override fun canPc() = true
 }
 
 /** The captured frame (284x160: EXPAND's 22 px margins), whole at EXPAND, its middle 240x160 at ORIGINAL. */
@@ -368,10 +424,13 @@ class FieldHudCloseUpScreenshotTest {
 
     @Test fun sizeLarge() = closeUp(FieldHudStyle(size = FieldHudSize.LARGE), 0 to 580, 920 to 580)
 
+    /** PC (its corner arrow: the game's own PC), BAG and WILD. */
+    @Test fun pcButton() = closeUp(FieldHudStyle(), 920 to 580, pc = true)
+
     /** Two 1000x500 crops of the scene, their top-left corners at [crops], one over the other. */
-    private fun closeUp(style: FieldHudStyle, vararg crops: Pair<Int, Int>) = paparazzi.snapshot {
+    private fun closeUp(style: FieldHudStyle, vararg crops: Pair<Int, Int>, pc: Boolean = false) = paparazzi.snapshot {
         Column(Modifier.fillMaxSize().background(Color.DarkGray)) {
-            for ((x, y) in crops) Crop(x, y) { FieldHudScene(style, FieldHudScreenshotTest.wild) }
+            for ((x, y) in crops) Crop(x, y) { FieldHudScene(style, FieldHudScreenshotTest.wild, companion = pc, pc = pc) }
         }
     }
 

@@ -52,6 +52,11 @@ import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.interaction.MutableInteractionSource
 
 private const val PARTY_MAX = 6
 
@@ -94,6 +99,8 @@ fun PartyGrid(
     // ROM has supplied yet (RomArt) - gets a FireRed-like slot drawn from a [PartyPalette].
     val gameStyle = partySlotStyleFor(activeGame)?.takeIf { rememberPartySlotAssets(it) != null }
     val palette = partyPaletteFor(activeGame)
+    // The D-pad's slot (the companion's window): it takes the game's selected look, like the game's own cursor.
+    var focused by remember { mutableStateOf(-1) }
     // Both sit edge to edge like in the game: each slot carries its own Poke
     // Ball overhang zone above/left of its frame (the CFRU boxes are only ~2px
     // apart there too) - extra spacing would just be dead margin.
@@ -105,10 +112,15 @@ fun PartyGrid(
         modifier = modifier,
         content = {
             slots.forEachIndexed { i, mon ->
-                val isSelected = i == selected && mon != null
+                val isSelected = (if (focused >= 0) i == focused else i == selected) && mon != null
                 val dim = mon != null && dimmed(mon)
                 val onClick = { if (!dim) mon?.let(onSlotClick); Unit }
-                Box(if (dim) Modifier.graphicsLayer { alpha = DIMMED_SLOT_ALPHA } else Modifier) {
+                Box(
+                    (if (dim) Modifier.graphicsLayer { alpha = DIMMED_SLOT_ALPHA } else Modifier)
+                        // The D-pad starts on the selected slot.
+                        .focusStart(i == selected && mon != null)
+                        .onFocusChanged { if (it.hasFocus) focused = i else if (focused == i) focused = -1 },
+                ) {
                     if (gameStyle != null) {
                         GbaPartySlot(gameStyle, mon, selected = isSelected, onClick = onClick, modifier = Modifier.fillMaxSize(), sound = sound)
                     } else {
@@ -149,12 +161,15 @@ private const val DIMMED_SLOT_ALPHA = 0.45f
 
 /** A slot's tap: with the companion's click, or silent when the game makes its own sound - unless the game can't be
  * heard right now ([LocalGameSilent]: FF's STEADY music mutes it). */
-internal fun Modifier.slotClickable(sound: Boolean, enabled: Boolean, onClick: () -> Unit): Modifier =
-    if (sound) soundClickable(enabled = enabled, onClick = onClick) else composed {
+internal fun Modifier.slotClickable(sound: Boolean, enabled: Boolean, onClick: () -> Unit): Modifier = composed {
+    // No ripple: its focus layer greyed the slot over the game's own selected frame, which is the D-pad's cursor here.
+    val noRipple = remember { MutableInteractionSource() }
+    if (sound) soundClickable(interactionSource = noRipple, indication = null, enabled = enabled, onClick = onClick) else {
         val click = LocalClickSound.current
         val gameSilent = LocalGameSilent.current
-        clickable(enabled = enabled) { onClick(); if (gameSilent()) click() }
+        clickable(interactionSource = noRipple, indication = null, enabled = enabled) { onClick(); if (gameSilent()) click() }
     }
+}
 
 /** One slot state's frame colors: [outline] 2px, a 1px [light] inner edge,
  * the upper [fill], the HP [band] below it (FireRed's is the light edge's

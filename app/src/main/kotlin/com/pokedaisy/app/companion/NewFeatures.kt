@@ -19,8 +19,14 @@ object NewFeatures {
     /** HOTKEYS > RESTART GAME and CLOSE APP (Hotkeys.Action.badge). */
     const val GAME_HOTKEYS = "game_hotkeys"
 
+    /** SETTINGS > COMPANION VIEW: the companion as a window over the game on one screen (SidePanel). */
+    const val COMPANION_WINDOW = "companion_window"
+
+    /** SETTINGS > HUD > PC: the game's PC from a button beside BAG. */
+    const val HUD_PC = "hud_pc"
+
     /** Every feature that gets the tag. */
-    val ALL = listOf(HUD, BATTLE_BUTTONS, GAME_HOTKEYS)
+    val ALL = listOf(HUD, BATTLE_BUTTONS, GAME_HOTKEYS, COMPANION_WINDOW, HUD_PC)
 
     private const val DAYS = 7
     private const val DAY_MS = 24 * 60 * 60 * 1000L

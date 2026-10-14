@@ -596,6 +596,14 @@ class SettingsActivity : ComponentActivity() {
                 prefs.portraitCompanionUnderGame = !prefs.portraitCompanionUnderGame
                 revision++
             }.takeIf { !hasSecondScreen },
+            // One screen sideways: the companion as a window in the middle over the game, or the side panel.
+            SettingRow(
+                tk("COMPANION VIEW"), com.pokedaisy.app.companion.ui.companionViewLabel(prefs.companionWindow),
+                labelBadge = com.pokedaisy.app.companion.NewFeatures.badge(com.pokedaisy.app.companion.NewFeatures.COMPANION_WINDOW),
+            ) {
+                prefs.companionWindow = !prefs.companionWindow
+                revision++
+            }.takeIf { !hasSecondScreen },
             // Game and companion trade screens; the game picks it up on resume.
             SettingRow(tk("SWAP SCREENS"), onOff(prefs.swapScreens)) {
                 prefs.swapScreens = !prefs.swapScreens
@@ -776,7 +784,6 @@ class SettingsActivity : ComponentActivity() {
             prefs.fieldHud, prefs.fieldHudStyle,
             setOn = { prefs.fieldHud = it; revision++ },
             setStyle = { prefs.fieldHudStyle = it; revision++ },
-            select = { title, options, current, pick -> selector = Selector(title, options, current) { pick(it); revision++ } },
         )
         Column(Modifier.fillMaxWidth()) {
             OptionListWindow(m, Modifier.fillMaxWidth().weight(1f, fill = false)) {

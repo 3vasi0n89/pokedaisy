@@ -235,6 +235,13 @@ interface CompanionSettings {
     val portraitUnderGame: Boolean? get() = null
     fun setPortraitUnderGame(on: Boolean) {}
 
+    /**
+     * One screen held sideways: the companion as a window in the middle over the game (true) or the side panel -
+     * see [com.pokedaisy.app.Prefs.companionWindow]. Null when the companion isn't on the game's screen sideways: no row.
+     */
+    val companionWindow: Boolean? get() = null
+    fun setCompanionWindow(on: Boolean) {}
+
     /** The game on the second screen and the companion on the main one - see [Prefs.swapScreens]. */
     val swapScreens: Boolean get() = false
     fun setSwapScreens(on: Boolean) {}

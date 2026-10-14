@@ -164,8 +164,8 @@ SETTINGS/STATES and the top-screen Library/Settings are all built from these pie
 a game backdrop (`GameBackdrop` on the companion, `AppBackdrop` — FireRed's party-menu
 stripes — on the top screen); ITEMS (`ItemsScreen.kt`) is the per-game bag screen in the
 same idiom. PARTY uses the game's own slot (`GbaPartySlot`, generated `PartySlotStyle`s) where one exists; every other game gets a FireRed-like slot drawn from a `PartyPalette` (`PartyScreen.kt`, `partyPaletteFor`) — restyle a game by adding a palette there, like ITEMS' `BagPalette`. Rogue, Gaia, Lazarus, Seaglass and R.O.W.E. have palettes sampled from their party menus (headless: the save's first mon copied into slots 2-3, slot 3 at 0 HP, so normal / selected / fainted all show; `PartySlotColors.band` / per-state `text`, `PartyPalette.empty` cover flat and white-box slots); their bags have `BagPalette`s (TMT2's is `EmeraldBag`; Celia and Gaia match FireRed's). Their backdrop is FireRed's party backdrop recoloured (`backdropColors` in `theme/Theme.kt`: its 3 colours mapped to the game's), or plain stripes until a FireRed ROM has supplied the art. Multi-choice settings open an `OptionSelector` pick-list — never make a row
-cycle through more than two values (one exception, the user's call: SHADERS > FILTER, GRID and SMOOTHING cycle on tap, so each
-look shows on the game at once). **The PokéDaisy theme** (the default, `DAISY_THEME_ID` 8 in `theme/Theme.kt`; Settings > THEME, `Prefs.appTheme` by
+cycle through more than two values (exceptions, the user's call: SHADERS > FILTER, GRID and SMOOTHING, and HUD > LAYOUT, LOOK and SIZE
+cycle on tap, so each look shows on the game at once). **The PokéDaisy theme** (the default, `DAISY_THEME_ID` 8 in `theme/Theme.kt`; Settings > THEME, `Prefs.appTheme` by
 id - FireRed is 0, the old default) only changes the top screen's backdrop (Library, Settings, setup): `AppBackdrop`
 -> `DaisyBackdrop`, the website's (blobs, dot grid and, on the Library, its floating logos). The windows and text
 stay the OPTION look; only text drawn straight on the backdrop (`OptionColors.onBackdrop`) turns the windows' grey
@@ -652,10 +652,16 @@ bytes), -1 = unknown); values over 999,999 are dropped.
 **HUD** (SETTINGS > HUD on either screen - the code calls it FieldHud; a page: `fieldHudRows`, shared; `Prefs.fieldHud` ON default, also with a
 second screen - the user's call; `Prefs.fieldHudStyle`): a Legends-Arceus-style HUD over the overworld (`companion/ui/FieldHud.kt`) -
 party icons with Lv / HP bar / status chip (a tap opens `MonDetailScreen` over the game), a region-map minimap (a tap opens `MapScreen`
-with FLY), the bag's Poké Balls, BAG (a compact grid with USE through `ItemUse`, PP items left to the BAG tab) and WILD (`hudWild`
+with FLY), the bag's Poké Balls, BAG (a compact grid with USE through `ItemUse`, PP items left to the BAG tab), PC (left of BAG, `ItemUse.openPc`, where the BAG tab has it; a corner ↗ `PixelIcons.inGame` = opens the game's own screen; a "not now" pops up as an `ItemNotice`; the companion window closes on its own once the PC is up) and WILD (`hudWild`
 over `GuideRomSource.encounters`, like GUIDE > HERE). LAYOUT CORNERS (default; its minimap top-right - FireRed / Emerald slide a new area's name in top-left) / CORNERS 2 (its right side swapped: minimap bottom-right, balls and buttons top-right, BAG / WILD open from the top) / RAILS (columns beside the middle 3:2) / DOCK, LOOK
 GLASS (default, see-through dark) / WINDOW (OPTION windows), SIZE SMALL / NORMAL / LARGE = the GBA pixel one whole screen pixel down /
-up (a `Density` of `k * 16 / 20` under the HUD; its panels stay at the companion's size), each part hideable (`FieldHudPart`). The
+up (a `Density` of `k * 16 / 20` under the HUD; its panels stay at the companion's size), then every size drawn 12.5% bigger (`HUD_SCALE`,
+`hudScale`: 3 -> 3.375 on the RP6, liked over 3.5; laid out shrunk, drawn scaled from the top left - the user's call, a whole pixel
+up was too big, so its pixels aren't whole screen pixels), each part hideable (`FieldHudPart`). A picture too narrow for CORNERS' party row beside its balls + buttons
+(`HudFit`, measured in the same layout pass; a docked side panel's 960 px game) gets `CompactLayout` whatever LAYOUT says: no
+party or minimap, the balls over the buttons + a MAP button right of WILD, all bottom left and left-aligned (the user's call), and
+SETTINGS > HUD > LAYOUT is greyed out saying the screen is too small (`FieldHudFit.tight`, Compose state). DOCK whose bar is wider than
+the picture falls back to CORNERS. The
 game is **never paused** under its panels (the user's call). Shown only while `EmulatorEngine.onField` (GBA, on the field screen positively - `FfMenuWatch.onField`, the learned field callback2, so a new game's naming screen doesn't pass for field - no battle /
 region map / held frame, and at EXPAND `pkWideScene` FIELD; FADE holds; on after 20 field frames, off at once) and the snapshot has a
 game out of battle; off on a phone held upright (to do later). Without EXPAND every layout but RAILS keeps to the game's picture (`EmulatorView.onGameRect` -> `FieldHud(frame)`; RAILS take the room beside it). The ComposeView sits over the game view (`GameStageLayout.overGame`)
@@ -813,8 +819,39 @@ goes to the old, exited thread - so `EmulatorView` hands the frame buffer over u
 The stage keeps its own ViewTree owners (set on itself), the Presentation's are on a frame around its content.
 `Screens` finds the second screen (ui-preview shims it as the Thor's).
 **Single-screen devices** (`SidePanel.kt`, Compose pieces in `companion/ui/SidePanel.kt`; tested on the
-Retroid Pocket 6, 1920x1080): with no second display (`syncPresentation` finds none, debug mirror off) the
-companion is a panel on the right of the game's screen. A BACK tap slides it in over the game; with it open
+Retroid Pocket 6, 1920x1080): with no second display (`syncPresentation` finds none, debug mirror off) and held
+sideways, SETTINGS > COMPANION VIEW (`Prefs.companionWindow`, both screens, NEW tag) picks the **window** (default) or
+the side panel. The window (`SidePanelHost(window = true)`): the companion framed in the middle at 88% of the height,
+at least the Thor bottom screen's shape and wider on a wider screen (`companionWindowSize`: 0.78 of the screen's aspect,
+up to 1.4:1 - the user asked for a wider one on the RP6), over a dim of the game, which keeps running (the user's call:
+no pause); an X at its top right (beside it, else on its corner), small L / R keys at the tab bar's ends
+(`LocalShoulderHints` -> `ShoulderHint`; TOOLS' rows leave their width free to keep the columns; the user's call over
+a button legend), no lock tab. While it's open the game's buttons are the companion's: `PokeDaisyActivity.menuKeyTakes` maps each
+key through the player's bindings (`GbaInput.buttonFor`) to a `MenuKey`; B = `onBack`, START closes, the rest go to
+`CompanionKeys` (newest handler first, like `CompanionBack`; `CompanionScreen` steps tabs on L / R). Keys pressed in
+it are withheld from the game until let go (`menuHeld`), held keys are released on open (`GbaInput.releaseAll`), hotkeys
+only hear releases. **D-pad / A = Compose focus, as on the top screen**: what no handler takes, `SidePanelHost` passes to
+`SidePanel.focusKey`, which sends the D-pad's own key event (A = DPAD_CENTER) to the panel's view after
+`requestFocusFromTouch` (out of touch mode, also on open: else Android eats the first press to leave it). With nothing
+focused, `FocusStarts` puts it on the newest start first (`Modifier.focusStart`: GroupedRows' / OptionRows' cursor row;
+`OptionOverlay` registers its current choice), so SETTINGS' cursor follows focus (`onFocused`) and only one row is white
+(`OptionSelector` too). Pop-ups trap focus and give it back via the `OverlayStack` the window provides. Anything clickable
+is a stop, so give a clickable a focused look (`gbaFocusRing`: tab chips, `PlatinumButton`, `OptionButton`; rows turn
+white) or `focusProperties { canFocus = false }` (the title window's back arrow, the window's X, the L / R keys). Checked on the
+API 32 emulator in landscape (`adb shell input keyevent KEYCODE_DPAD_DOWN / BUTTON_A / BUTTON_L1`; `uiautomator dump`
+finds the focused node; game keys need `sendevent` holds on `qwerty2`, `input keyevent` is shorter than a frame).
+PARTY: `PartyGrid` moves its selected slot (the game's own cursor art) to the focused one and starts on it (slots have
+no ripple: its focus layer greyed the art). ITEMS: a focused row selects its item (the bag's ▶ + description), A on the
+selected row sends focus to USE / GIVE (`actionFocus`; a tap still closes it), the first row is the start. In the window BATTLE
+is INFO / SUGGESTIONS only (the user's call: `canUseControls` is false under `LocalCompanionWindow`; the player uses the
+game's own menu); `FoeSlot`, folder tabs, SORT have rings. A battle pick (from the HUD's BATTLE BUTTONS) or FLY closes the
+window (`PokeDaisyActivity.closeCompanionWindow`, in `battleInput` / `flyAction`). DEX rows turn white on focus, starting on
+`DexUiState.lastOpened`. The HUD keeps its COMPANION button while the window is up (`SidePanel.windowMode`).
+Left: MAP, GUIDE, STATES, CARD, ACHIEVEMENTS, the DEX entry have stops with no focused look yet.
+The window (not the side panel: "way too small" there, the user's call) gets `LocalTextStep` -1 on a screen >= 2.5" tall (`COMPACT_TEXT_INCHES`, the short side by xdpi /
+ydpi - the user's call, by height: the RP6 and the 4.5" RP Nova are both ~2.7"): text over 1x a font pixel smaller, never
+below 1x, GBA pixels (paddings) unchanged; `WindowRp6ScreenshotTest` renders it at the RP6's 369 dpi.
+Otherwise the side panel: a panel on the right of the game's screen. A BACK tap slides it in over the game; with it open
 BACK is the companion's back, and with nothing left to go back from it closes the panel - unless it's locked.
 The tab on its edge (`SidePanelHandle`: a padlock, `ShadowedPixelIcon`) locks it beside the game (the game's right margin,
 which `GameStageLayout` honours; the touch pad moves to the game's side whenever the panel is open) and

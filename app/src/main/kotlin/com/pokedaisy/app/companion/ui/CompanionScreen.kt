@@ -84,6 +84,9 @@ import com.pokedaisy.app.companion.ui.theme.LocalGameFontWidth
 import com.pokedaisy.app.companion.ui.theme.gameFontWidth
 import com.pokedaisy.app.companion.ui.theme.gameTextScale
 import com.pokedaisy.app.companion.ui.theme.rememberGameFont
+import com.pokedaisy.app.companion.ui.theme.gbaFocusRing
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.ui.focus.focusProperties
 
 /** The whole bottom-screen companion, driven by a single [SnapshotView]. */
 @Composable
@@ -105,6 +108,8 @@ fun CompanionScreen(
     initialSettingsRow: String? = null,
     /** The device's BACK, fed by the game's activity (see [CompanionBack]). */
     back: CompanionBack? = null,
+    /** The game's buttons while the companion is a window over the game (see [CompanionKeys]): L / R step tabs. */
+    keys: CompanionKeys? = null,
     /** Plays the game's click, for every companion button (see [LocalClickSound]). */
     clickSound: () -> Unit = {},
     /** RetroAchievements: the ACHIEVEMENTS tab and the unlock popups. Null = no such tab. */
@@ -145,7 +150,7 @@ fun CompanionScreen(
     var pickerOpen by remember { mutableStateOf(false) }
     val gameSilent = remember(battleInput) { { battleInput?.gameSilent == true } }
     CompositionLocalProvider(
-        LocalCompanionBack provides back, LocalClickSound provides clickSound, LocalGameSilent provides gameSilent,
+        LocalCompanionBack provides back, LocalCompanionKeys provides keys, LocalClickSound provides clickSound, LocalGameSilent provides gameSilent,
         LocalGameFont provides gameFont,
         LocalGameTextScale provides if (gameFont != null) gameTextScale(snapshot.game) else 1f,
         LocalGameFontWidth provides if (gameFont != null) gameFontWidth(snapshot.game) else 1f,
@@ -271,7 +276,8 @@ fun CompanionScreen(
             BATTLE_INPUT_BAG_OPEN, BATTLE_INPUT_PARTY_OPEN, BATTLE_INPUT_TARGET_SELECT -> true
             else -> false
         }
-        val canUseControls = battleInput != null && !snapshot.isDoubleBattle && isMyTurn
+        // The window over the game (one screen): no battle controls, the game's own menu is right there.
+        val canUseControls = battleInput != null && !snapshot.isDoubleBattle && isMyTurn && !LocalCompanionWindow.current
         val showHints = settings?.showHints ?: true
         val showFoeIvs = settings?.showFoeIvs ?: false
         // The move advice (PARTY > LEARN, a TM's party row on ITEMS): the original games for now.
@@ -296,6 +302,28 @@ fun CompanionScreen(
             backTab = current
             selectedLabel = "SETTINGS"; detailIndex = null; showSuggestions = false; showBattleStats = false; dexUi.open = null
         }
+        // A chip's tap (PARTY's own included) closes an open summary; BATTLE's also returns to the controls.
+        val openTab: (String) -> Unit = { title ->
+            popupReturn = null
+            if (title != current) backTab = current
+            selectedLabel = title; detailIndex = null; showSuggestions = false; showBattleStats = false; dexUi.open = null
+            if (title == "BATTLE") battleShowControls = true
+        }
+        // The window over the game (one screen): L / R step along the bar (round, like the game's own pages), from the gear
+        // when a tab opened from SETTINGS is up. Under everything a tab registers, so a page of its own can take them.
+        val stepTab: (Int) -> Unit = { step ->
+            val usable = tabs.filter { !snapshot.unsupported || it == "ACHIEVEMENTS" || it == "SETTINGS" }
+            val at = usable.indexOf(tabs.getOrNull(selectedIdx)).coerceAtLeast(0)
+            openTab(usable[(at + step).mod(usable.size)])
+        }
+        CompanionKeyHandler { key, repeat ->
+            if (repeat || key != MenuKey.L && key != MenuKey.R) return@CompanionKeyHandler false
+            clickSound()
+            stepTab(if (key == MenuKey.R) 1 else -1)
+            true
+        }
+        // The window over the game: L / R at the bar's ends, the buttons that step it.
+        val shoulderHints = LocalCompanionWindow.current
 
         Box(modifier = Modifier.fillMaxSize().background(AppColors.bgBottom)) {
             // Per-game party-menu background, pixel-scaled to fill - behind
@@ -324,15 +352,9 @@ fun CompanionScreen(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    if (shoulderHints) ShoulderHint("L") { stepTab(-1) }
                     tabs.forEachIndexed { i, title ->
-                        // Any tab tap (PARTY's own included) closes an open summary.
-                        // BATTLE's own chip also returns to the controls.
-                        val open = {
-                            popupReturn = null
-                            if (title != current) backTab = current
-                            selectedLabel = title; detailIndex = null; showSuggestions = false; showBattleStats = false; dexUi.open = null
-                            if (title == "BATTLE") battleShowControls = true
-                        }
+                        val open = { openTab(title) }
                         if (title == "SETTINGS") {
                             SettingsTabChip(selectedIdx == i, open)
                         } else {
@@ -340,6 +362,7 @@ fun CompanionScreen(
                             TabChip(companionTabLabel(title), selectedIdx == i && usable, Modifier.weight(1f).testTag("tab-$title"), enabled = usable, open)
                         }
                     }
+                    if (shoulderHints) ShoulderHint("R") { stepTab(1) }
                 }
             }
             // A phone upright with no room above the companion: its grip sits in here, over the backdrop.
@@ -653,6 +676,64 @@ private const val RAPID_SWITCH_NANOS = 300_000_000L
 internal val TAB_GAP = 4.dp
 
 /**
+ * The companion is the window over the game (one screen, SidePanel): L / R hints at the tab bar's ends, and BATTLE is
+ * INFO / SUGGESTIONS only - the window is over the game's own battle menu, which the player's buttons drive there.
+ */
+val LocalCompanionWindow = androidx.compose.runtime.staticCompositionLocalOf { false }
+
+/** A [ShoulderHint]'s width; TOOLS' rows leave it free at both ends too, to keep the bar's columns. */
+internal val SHOULDER_HINT_WIDTH = 30.dp
+
+/**
+ * L or R at an end of the tab bar while the companion is the window: the shoulder button that steps the tabs, drawn
+ * as one - a small grey key whose top outer corner (L's left, R's right) is the big rounded one, like the buttons. A tap
+ * steps the tabs too; not a D-pad stop (the buttons do it).
+ */
+@Composable
+private fun ShoulderHint(letter: String, onClick: () -> Unit) {
+    val m = rememberGbaTextMetrics(1f)
+    val u = m.u
+    val left = letter == "L"
+    val noRipple = remember { MutableInteractionSource() }
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .width(SHOULDER_HINT_WIDTH)
+            .fillMaxHeight()
+            .focusProperties { canFocus = false }
+            .soundClickable(interactionSource = noRipple, indication = null, onClick = onClick),
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(SHOULDER_HINT_WIDTH, m.lineHeight + u * 6)
+                .drawBehind {
+                    val px = u.toPx()
+                    // As round as the key allows (half its narrower side), like a shoulder button's top.
+                    val big = minOf(size.width, size.height) / 2f
+                    val small = 2 * px
+                    // The chip's own layers, then its idle fill, each a layer's width in.
+                    var inset = 0f
+                    val layers = OptionColors.chipLayers.inPx(px)
+                    for ((color, width) in layers + (OptionColors.tabIdleFill to 0f)) {
+                        val r = { r: Float -> (r - inset).coerceAtLeast(0f) }
+                        drawPath(
+                            pixelCornersPath(
+                                androidx.compose.ui.geometry.Size(size.width - 2 * inset, size.height - 2 * inset),
+                                topLeft = r(if (left) big else small), topRight = r(if (left) small else big),
+                                bottomRight = r(small), bottomLeft = r(small),
+                                step = px, offset = androidx.compose.ui.geometry.Offset(inset, inset),
+                            ),
+                            color,
+                        )
+                        inset += width
+                    }
+                },
+        ) { GbaText(letter, OptionColors.label, OptionColors.labelShadow, m, bold = gameBoldLabels()) }
+    }
+}
+
+/**
  * A tab in the OPTION-screen look (see GbaMenu): framed like [OptionButton],
  * grey when idle, white with the value-red label when selected.
  */
@@ -696,8 +777,11 @@ private fun TabChipShell(
 ) {
     val u = m.u
     val noRipple = remember { MutableInteractionSource() }
+    val focused by noRipple.collectIsFocusedAsState()
     Box(
         modifier = modifier
+            // The D-pad's focus (the companion's window): a ring flush inside the chip's 3u corner.
+            .gbaFocusRing(focused, PixelRoundedShape(u * 3))
             .drawBehind {
                 // Idle tabs take the list window's frame + grey; the selected
                 // one the title window's white, like the OPTION screen's cursor row.

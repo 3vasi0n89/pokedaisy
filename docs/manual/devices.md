@@ -3,7 +3,7 @@ title: Screens and devices
 summary: How PokeDaisy uses two screens, one screen or a phone held upright, and the settings that move the game and companion around.
 section: start
 order: 3
-keywords: [dual screen, two screens, thor, ayn, retroid, duo, anbernic, rg ds, single screen, pocket 6, phone, portrait, landscape, rotate, rotation, tablet, side panel, display, bottom screen, top screen]
+keywords: [dual screen, two screens, thor, ayn, retroid, duo, anbernic, rg ds, single screen, pocket 6, phone, portrait, landscape, rotate, rotation, tablet, side panel, window, modal, popup, companion view, display, bottom screen, top screen]
 ---
 
 PokeDaisy is at its best with two screens: the game on top, the companion below. It also works on handhelds with one screen and on phones, where the companion moves beside or under the game instead. This page covers each setup and the settings that go with it.
@@ -35,7 +35,28 @@ It's there on two-screen devices while `SWAP SCREENS` is off.
 
 ## Single-screen handhelds
 
-On a handheld with one screen, like the Retroid Pocket 6, the companion is a panel on the right side of the game's screen.
+On a handheld with one screen, like the Retroid Pocket 6, the companion shares the game's screen. The `COMPANION VIEW` setting (in the `SCREEN` group of Settings and of the companion's `SETTINGS`) picks how:
+
+- `WINDOW` (the default): the companion opens as a window in the middle of the screen, over the game.
+- `SIDE PANEL`: the companion is a panel on the right side of the screen, which you can lock beside the game.
+
+Flipped from the companion, it switches right away.
+
+On a tall screen, about 2.5 inches high or more like the Retroid Pocket 6, the companion's text is a little smaller in the window, so more fits on each page.
+
+### The window
+
+- **Open it:** tap `BACK`, or tap the small tab at the bottom of the screen's right edge.
+- **Use your buttons:** while the window is open, your controls work the companion instead of the game. The D-pad moves the cursor and `A` picks what it's on, the way the game's own menus work. `L` and `R` move between the tabs, and `B` goes back. When there's nothing left to go back from, `B` closes the window. `START` closes it from anywhere. Your buttons follow your `GAME BUTTONS` settings, so if you moved `A` and `B`, the window follows.
+- **Close it:** press `B` or `BACK` until it closes, press `START`, tap the X at its top right, or tap anywhere outside it.
+
+In the bag, moving the cursor shows each item's description, and `A` on the item goes to its `USE` and `GIVE` buttons. In a battle, the window's `BATTLE` tab shows `INFO` and `SUGGESTIONS` only, without the battle buttons: close the window and pick your move in the game's own menu. `FLY` on the map closes the window, so you see the flight.
+
+The game keeps running behind the window, dimmed. It just doesn't get your button presses until you close the window, and then they go straight back to the game. A button you're still holding as the window closes doesn't count in the game until you let go of it.
+
+Small `L` and `R` keys at both ends of the tab bar remind you which buttons change tabs. You can tap them too.
+
+### The side panel
 
 - **Open it:** tap `BACK`, or tap the small tab at the bottom of the screen's right edge. The panel slides in over the game.
 - **Close it:** with the panel open, `BACK` works as the companion's back. Once there's nothing left to go back from, the next `BACK` closes the panel. There's also a close tab right outside the panel's bottom-left corner.
@@ -47,7 +68,7 @@ While the panel is locked, the open and close tabs turn see-through so they don'
 Hold `BACK` to leave the game, as always.
 
 > [!TIP]
-> On a controller, an unbound **HOME** or guide button works like a `BACK` tap, so you can open and close the panel without reaching for the screen.
+> On a controller, an unbound **HOME** or guide button works like a `BACK` tap, so you can open and close the companion without reaching for the screen.
 
 ## Phones held upright
 
@@ -66,7 +87,7 @@ The `COMPANION` setting (in the `SCREEN` group of Settings on single-screen devi
 
 ## Rotating the device
 
-On a device with one screen, PokeDaisy follows the way you hold it. Turn it sideways and you get the side panel; turn it upright and you get the docked companion. It switches as you rotate, mid-game.
+On a device with one screen, PokeDaisy follows the way you hold it. Turn it sideways and you get the window or the side panel; turn it upright and you get the docked companion. It switches as you rotate, mid-game.
 
 With a second screen, PokeDaisy stays in landscape.
 

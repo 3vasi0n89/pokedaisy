@@ -25,11 +25,15 @@ enum class FieldHudLook(val label: String) {
     /** See-through dark panels with light text: as little of the game hidden as can be. */
     GLASS(tk("GLASS")),
 
+    /** [GLASS] in white: see-through light panels with dark text. */
+    WHITE_GLASS(tk("WHITE GLASS")),
+
     /** The OPTION screen's white title windows, like the rest of the app. */
     WINDOW(tk("WINDOW")),
 }
 
-/** How big the HUD is: its GBA pixel one whole screen pixel smaller or bigger than the companion's. */
+/** How big the HUD is: its GBA pixel one whole screen pixel smaller or bigger than the companion's (then all drawn 12.5%
+ * bigger, FieldHud's HUD_SCALE). */
 enum class FieldHudSize(val label: String, val step: Int) {
     SMALL(tk("SMALL"), -1),
     NORMAL(tk("NORMAL"), 0),
@@ -41,6 +45,8 @@ enum class FieldHudPart(val label: String) {
     PARTY(tk("PARTY")),
     MAP(tk("MINIMAP")),
     BALLS(tk("POKé BALLS")),
+    /** The game's own PC on the spot (ItemUse.openPc), where the BAG tab has PC. */
+    PC(tk("PC")),
     BAG(tk("BAG")),
     WILD(tk("WILD POKéMON")),
 }

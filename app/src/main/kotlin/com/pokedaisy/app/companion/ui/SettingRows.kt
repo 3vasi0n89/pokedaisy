@@ -100,6 +100,7 @@ val SETTING_KEYWORDS: Map<String, String> = mapOf(
     "SMOOTHING" to "xbr xbrz scalefx upscale upscaler hd edges smooth anti alias filter",
     "OVERLAY" to "overlay overlays border borders bezel bezels frame skin retroarch background wallpaper decoration",
     "COMPANION" to "portrait phone bottom position layout",
+    "COMPANION VIEW" to "single screen one screen window modal popup middle center side panel docked layout",
     "SWAP SCREENS" to "dual screen display switch top bottom",
     "THEME" to "colors look background skin style",
     "FPS / CPU" to "fps frame rate framerate cpu usage performance speed overlay counter 60",
@@ -153,6 +154,8 @@ fun GroupedRows(
     onRevealed: () -> Unit = {},
     /** Given to the first row (not a group title): where D-pad focus starts. */
     firstRowFocus: androidx.compose.ui.focus.FocusRequester? = null,
+    /** Row i took the D-pad's focus: the cursor follows it, so only one row is white. */
+    onFocused: ((Int) -> Unit)? = null,
     footer: @Composable () -> Unit = {},
 ) {
     val firstRow = rows.indexOfFirst { !it.header }
@@ -180,10 +183,13 @@ fun GroupedRows(
                 OptionLine(
                     row.label, row.value, selected = i == cursor, m,
                     modifier = (if (i == reveal) Modifier.revealOnce(onRevealed) else Modifier)
-                        .then(if (i == firstRow && firstRowFocus != null) Modifier.focusRequester(firstRowFocus) else Modifier),
+                        .then(if (i == firstRow && firstRowFocus != null) Modifier.focusRequester(firstRowFocus) else Modifier)
+                        // The companion's window: the D-pad starts on the cursor row.
+                        .focusStart(i == cursor),
                     height = if (row.subtitle != null) m.rowHeight * 1.2f + m.lineHeight else m.rowHeight * 1.2f,
                     divider = rows.getOrNull(i + 1)?.header == false, labelBadge = row.labelBadge, labelIcon = row.labelIcon,
                     valueBadge = row.badge, enabled = row.enabled, subtitle = row.subtitle, labelWeight = labelWeight,
+                    onFocus = onFocused?.let { f -> { f(i) } },
                 ) { onClick(i) }
             }
         }

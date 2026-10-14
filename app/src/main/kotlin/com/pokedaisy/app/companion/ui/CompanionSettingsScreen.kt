@@ -201,7 +201,6 @@ fun CompanionSettingsScreen(
                         settings.fieldHud, settings.fieldHudStyle,
                         setOn = { settings.setFieldHud(it); tick++ },
                         setStyle = { settings.setFieldHudStyle(it); tick++ },
-                        select = { title, options, current, pick -> selector = Selector(title, options, current) { pick(it); tick++ } },
                     ) + SettingRow(tk("CANCEL"), null) { page = Page.HOME }
                     Page.SCENES -> sceneRows(settings, { tick++ }, { selector = it }) + SettingRow(tk("CANCEL"), null) { page = Page.HOME }
                     Page.CHEATS -> cheatRows(settings) { tick++ } + SettingRow(tk("CANCEL"), null) { page = Page.HOME }
@@ -231,7 +230,8 @@ fun CompanionSettingsScreen(
                     val reveal = if (page == Page.HOME) ui.revealRow?.let { r -> rows.indexOfFirst { !it.header && it.label == r } } ?: -1 else -1
                     if (reveal >= 0 && homeCursor != reveal) SideEffect { homeCursor = reveal }
                     GroupedRows(rows, m, cursor, onClick = { i -> moveCursor(i); rows[i].onClick() }, scroll = if (page == Page.HOME) homeScroll else rememberScrollState(),
-                        labelWeight = if (page == Page.TWEAKS) 0.8f else 0.58f, reveal = reveal, onRevealed = { ui.revealRow = null }) {
+                        labelWeight = if (page == Page.TWEAKS) 0.8f else 0.58f, reveal = reveal, onRevealed = { ui.revealRow = null },
+                        onFocused = ::moveCursor) {
                         // Actions, not settings: the list's last line, out of the way of the options.
                         if (page == Page.HOME && settings != null) {
                             // A summary-window line sets them apart from the last group.
@@ -277,6 +277,7 @@ fun CompanionSettingsScreen(
                         valueBadge = { rows[it].badge },
                         enabled = { rows[it].enabled },
                         labelBadge = { rows[it].labelBadge },
+                        onFocused = ::moveCursor,
                     )
                 }
             }
@@ -290,9 +291,13 @@ fun CompanionSettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(TAB_GAP),
                         modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(top = TAB_GAP * 2),
                     ) {
+                        // The window's L / R hints at the bar's ends ([ShoulderHint]): the same room here.
+                        val hints = LocalCompanionWindow.current
+                        if (hints) Spacer(Modifier.width(SHOULDER_HINT_WIDTH))
                         line.forEach { id -> TabChip(companionTabLabel(id), selected = false, Modifier.weight(1f)) { onOpenTab(id) } }
                         repeat(columns - line.size) { Spacer(Modifier.weight(1f)) }
                         Spacer(Modifier.width(SETTINGS_CHIP_WIDTH))
+                        if (hints) Spacer(Modifier.width(SHOULDER_HINT_WIDTH))
                     }
                 }
             }
@@ -503,6 +508,13 @@ private fun homeRows(
         // A phone upright: the companion along the screen's bottom, or right under the game (the touch pad below it).
         s.portraitUnderGame?.let { under ->
             SettingRow(tk("COMPANION"), portraitPlaceLabel(under)) { s.setPortraitUnderGame(!under); changed() }
+        },
+        // One screen sideways: a window in the middle over the game, or the side panel (this companion switches at once).
+        s.companionWindow?.let { window ->
+            SettingRow(
+                tk("COMPANION VIEW"), companionViewLabel(window),
+                labelBadge = NewFeatures.badge(NewFeatures.COMPANION_WINDOW),
+            ) { s.setCompanionWindow(!window); changed() }
         },
         // Game and companion trade screens (this companion moves with them).
         SettingRow(tk("SWAP SCREENS"), onOff(s.swapScreens)) { s.setSwapScreens(!s.swapScreens); changed() }

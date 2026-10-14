@@ -34,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.contentDescription
@@ -319,7 +320,8 @@ fun OptionTitleWindow(
         leading?.let { it(); Spacer(Modifier.width(u * 6)) }
         if (onBack != null) {
             CompanionBackHandler(onBack = onBack)
-            Box(Modifier.soundClickable(onClick = onBack).padding(end = u * 6)) {
+            // Not a D-pad stop: B / BACK is the same thing, and the arrow has no focused look.
+            Box(Modifier.focusProperties { canFocus = false }.soundClickable(onClick = onBack).padding(end = u * 6)) {
                 // A pixel arrow, a font pixel per cell like the title beside it.
                 val cell = with(androidx.compose.ui.platform.LocalDensity.current) { m.fontPixel.toDp() }
                 Box(Modifier.size(m.lineHeight).semantics { contentDescription = tr("Back") }, contentAlignment = Alignment.Center) {
@@ -386,10 +388,16 @@ fun OptionLine(
     enabled: Boolean = true,
     /** A smaller grey line under the label: what the row is for. */
     subtitle: String? = null,
+    /** The row took the D-pad's focus: a list whose cursor follows it (SETTINGS, so only one row is white). */
+    onFocus: (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val focused by interaction.collectIsFocusedAsState()
+    if (onFocus != null) {
+        val current by androidx.compose.runtime.rememberUpdatedState(onFocus)
+        androidx.compose.runtime.LaunchedEffect(focused) { if (focused) current() }
+    }
     // A pop-up this row opens gives the focus back to it ([OverlayStack]); in a pop-up, the current choice starts focused.
     val stack = LocalOverlayStack.current
     val self = remember { FocusRequester() }
@@ -475,6 +483,8 @@ fun OptionRows(
     enabled: (Int) -> Boolean = { true },
     /** An [OptionBadge] after row i's label (NEW). */
     labelBadge: (Int) -> String? = { null },
+    /** Row i took the D-pad's focus (the cursor follows it). */
+    onFocused: ((Int) -> Unit)? = null,
 ) {
     BoxWithConstraints(modifier) {
         val rowHeight = if (rows.isEmpty() || maxHeight == Dp.Infinity) minRow
@@ -482,9 +492,10 @@ fun OptionRows(
         Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
             rows.forEachIndexed { i, (label, value, onClick) ->
                 OptionLine(
-                    label, value, selected = i == selected, m, height = rowHeight, labelWeight = labelWeight,
+                    label, value, selected = i == selected, m, modifier = Modifier.focusStart(i == selected),
+                    height = rowHeight, labelWeight = labelWeight,
                     divider = dividers && i < rows.lastIndex, valueBadge = valueBadge(i), enabled = enabled(i), labelBadge = labelBadge(i),
-                    onClick = onClick,
+                    onFocus = onFocused?.let { f -> { f(i) } }, onClick = onClick,
                 )
             }
         }
@@ -584,6 +595,15 @@ fun OptionOverlay(onDismiss: () -> Unit, modifier: Modifier = Modifier, content:
     val stack = LocalOverlayStack.current
     // Where the focus starts: the current choice if there is one, else the first control (they register as they compose).
     val start = remember { OverlayStart() }
+    // The companion's window: the D-pad starts here, not behind, when nothing has the focus (it was opened by a tap).
+    val starts = LocalFocusStarts.current
+    if (stack != null && starts != null) {
+        androidx.compose.runtime.DisposableEffect(start) {
+            val entry: () -> FocusRequester? = { start.preferred ?: start.first }
+            starts.entries += entry
+            onDispose { starts.entries -= entry }
+        }
+    }
     if (stack != null) {
         val dismiss by androidx.compose.runtime.rememberUpdatedState(onDismiss)
         val e = remember { OverlayStack.Entry({ dismiss() }, stack.lastClicked) }
@@ -681,19 +701,26 @@ fun <T> OptionSelector(
             val u = m.u
             val room = if (maxHeight == Dp.Infinity) m.rowHeight * 20 else maxHeight - u * 40 - m.lineHeight
             val rowHeight = (room / (options.size + 1)).coerceIn(m.rowHeight, m.rowHeight * 1.3f)
+            // The D-pad's row (index, options.size = CANCEL): while it's on another one, the current choice keeps
+            // its marker but not the white, so one row is lit.
+            var focusedRow by remember { mutableStateOf(-1) }
             Column {
                 OptionTitleWindow(title, m, onBack = onDismiss)
                 Spacer(Modifier.height(u * 4))
                 OptionListWindow(m, Modifier.fillMaxWidth()) {
                     Column(Modifier.verticalScroll(rememberScrollState())) {
-                        options.forEach { opt ->
+                        options.forEachIndexed { i, opt ->
                             val on = opt == selected
                             OptionLine(
-                                label(opt), if (on) "◀" else null, selected = on, m,
+                                label(opt), if (on) "◀" else null, selected = on && (focusedRow < 0 || focusedRow == i), m,
                                 height = rowHeight, labelWeight = 0.85f, divider = true, labelBadge = badge(opt),
+                                onFocus = { focusedRow = i },
                             ) { onPick(opt) }
                         }
-                        OptionLine(tk("CANCEL"), null, selected = false, m, height = rowHeight, onClick = onDismiss)
+                        OptionLine(
+                            tk("CANCEL"), null, selected = false, m, height = rowHeight,
+                            onFocus = { focusedRow = options.size }, onClick = onDismiss,
+                        )
                     }
                 }
             }

@@ -44,6 +44,13 @@ class GbaTextMetrics(
     val rowHeight: Dp,
 )
 
+/**
+ * The companion's text a step smaller (-1): a one-screen device with a tall screen (SidePanel: the RP6's, the RP Nova's), where the
+ * companion lays out like the Thor's bottom screen and its main text read large. Only text bigger than the 1x secondary
+ * text shrinks - one font pixel, never below that size - so the pixel font stays crisp; GBA pixels (paddings) don't change.
+ */
+val LocalTextStep = androidx.compose.runtime.staticCompositionLocalOf { 0 }
+
 /** [textScale]: text size relative to the frame's GBA pixel - 1.25 for the
  * main lists, 1 for denser secondary text (timestamps, paths, captions).
  * [wholePixels] false allows sizes between the whole-pixel steps (at the cost
@@ -54,13 +61,16 @@ fun rememberGbaTextMetrics(textScale: Float = 1.25f, wholePixels: Boolean = true
     // A game font with smaller letters than Pixel Operator's (Gen 1's 7px caps vs 9) is set larger -
     // except where a layout is sized to the line ([gameScaled] false: the tab chips, battle INFO).
     val gameScale = if (gameScaled) com.pokedaisy.app.companion.ui.theme.LocalGameTextScale.current else 1f
-    return remember(density, textScale, wholePixels, gameScale) {
+    val step = LocalTextStep.current
+    return remember(density, textScale, wholePixels, gameScale, step) {
         with(density) {
             val k = (20.dp.toPx() / 16f).roundToInt().coerceAtLeast(2)
             val scale = textScale * gameScale
             // ~textScale x, normally rounded to a whole number of screen pixels per font pixel.
-            val fontPx = if (wholePixels) 16f * (k * scale).roundToInt().coerceAtLeast(1)
-            else (16f * k * scale).roundToInt().toFloat()
+            var perPixel = if (wholePixels) (k * scale).roundToInt().coerceAtLeast(1).toFloat() else k * scale
+            // A big one-screen device ([LocalTextStep]): the bigger-than-1x text a font pixel down, not below 1x's.
+            if (step < 0 && scale > 1f) perPixel = maxOf(perPixel + step, k.toFloat())
+            val fontPx = if (wholePixels) 16f * perPixel else (16f * perPixel).roundToInt().toFloat()
             GbaTextMetrics(k, k.toDp(), fontPx.toSp(), fontPx / 16f, fontPx.toDp(), (fontPx * 1.25f).toDp())
         }
     }

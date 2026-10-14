@@ -43,6 +43,7 @@ Many rows are on both. They're the same setting, so changing it on one screen ch
 | `SHADERS` | a page (shows the current filter) | `FILTER`, `GRID`, `SMOOTHING`, `GBA COLORS` and `ON COMPANION`; see the next table. | [Screen](screen.md) |
 | `OVERLAY` | **`NONE`**, `DAISY`, `BEZEL`, your imports (a page) | A frame around the game. Import your own RetroArch overlays here with `IMPORT FILE`. | [Screen](screen.md) |
 | `COMPANION` | **`AT BOTTOM`**, `UNDER GAME` | Only on a device with one screen: where the companion sits when you hold it upright. | [Devices](devices.md) |
+| `COMPANION VIEW` | **`WINDOW`**, `SIDE PANEL` | Only on a device with one screen: the companion as a window in the middle, over the game, or as a panel on the right, when you hold it sideways. | [Devices](devices.md) |
 | `SWAP SCREENS` | `ON`, **`OFF`** | Only on a device with two screens: the game on the second screen and the companion on the main one. | [Devices](devices.md) |
 | `FPS / CPU` | `ON`, **`OFF`** | Frames per second and the app's CPU use in the game's corner. Tap it for more. | [Screen](screen.md) |
 | `DARK MODE` | **`OFF`**, `ON`, `AUTO` | Dark windows on both screens. `AUTO` follows the device. | [Screen](screen.md) |
@@ -141,6 +142,7 @@ The companion's list has the same groups, plus a `COMPANION` group of its own. `
 | `FPS / CPU` | as on the top screen | The performance readout. | [Screen](screen.md) |
 | `DARK MODE` | as on the top screen | Dark windows on both screens. | [Screen](screen.md) |
 | `COMPANION` | as on the top screen | Only on a phone held upright. | [Devices](devices.md) |
+| `COMPANION VIEW` | as on the top screen | Only on one screen held sideways. Switches right away. | [Devices](devices.md) |
 | `SWAP SCREENS` | as on the top screen | Only with two screens. | [Devices](devices.md) |
 
 ### Game

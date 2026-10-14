@@ -58,6 +58,9 @@ internal val trSettings: Map<String, Tr> = mapOf(
     "COMPANION" to Tr(ja = "コンパニオン", fr = "COMPAGNON", de = "BEGLEITER", it = "COMPAGNO", es = "COMPAÑERO", br = "COMPANHEIRO", pt = "COMPANHEIRO"),
     // SETTINGS > COMPANION with a phone upright (portraitPlaceLabel).
     "AT BOTTOM" to Tr(ja = "したはし", fr = "EN BAS", de = "UNTEN", it = "IN BASSO", es = "ABAJO", br = "EMBAIXO", pt = "EM BAIXO"),
+    // SETTINGS > COMPANION VIEW, one screen held sideways (companionViewLabel).
+    "COMPANION VIEW" to Tr(ja = "コンパニオンの ひょうじ", fr = "VUE COMPAGNON", de = "BEGLEITER-ANSICHT", it = "VISTA COMPAGNO", es = "VISTA COMPAÑERO", br = "VISTA COMPANHEIRO", pt = "VISTA COMPANHEIRO"),
+    "SIDE PANEL" to Tr(ja = "サイドパネル", fr = "PANNEAU LATÉRAL", de = "SEITENLEISTE", it = "PANNELLO LATERALE", es = "PANEL LATERAL", br = "PAINEL LATERAL", pt = "PAINEL LATERAL"),
     "UNDER GAME" to Tr(ja = "ゲームの した", fr = "SOUS LE JEU", de = "UNTER SPIEL", it = "SOTTO IL GIOCO", es = "BAJO EL JUEGO", br = "SOB O JOGO", pt = "SOB O JOGO"),
     "SCREEN" to Tr(ja = "がめん", fr = "ÉCRAN", de = "BILDSCHIRM", it = "SCHERMO", es = "PANTALLA", br = "TELA", pt = "ECRÃ"),
     "LIBRARY" to Tr(ja = "ライブラリ", fr = "BIBLIOTHÈQUE", de = "BIBLIOTHEK", it = "LIBRERIA", es = "BIBLIOTECA", br = "BIBLIOTECA", pt = "BIBLIOTECA"),
@@ -311,6 +314,7 @@ internal val trSettings: Map<String, Tr> = mapOf(
     "REMOVE OVERLAY?" to Tr(ja = "オーバーレイを はずしますか?", fr = "RETIRER LA SURIMPRESSION ?", de = "OVERLAY ENTFERNEN?", it = "RIMUOVERE L'OVERLAY?", es = "¿QUITAR LA SUPERPOSICIÓN?", br = "REMOVER A MOLDURA?", pt = "REMOVER A MOLDURA?"),
     // FIELD HUD.
     "HUD" to Tr(ja = "HUD", fr = "HUD", de = "HUD", it = "HUD", es = "HUD", br = "HUD", pt = "HUD"),
+    "Unavailable: screen too small" to Tr(ja = "がめんが ちいさすぎます", fr = "Indisponible : écran trop petit", de = "Geht nicht: Bildschirm zu klein", it = "Non disponibile: schermo piccolo", es = "No disponible: pantalla pequeña", br = "Indisponível: tela muito pequena", pt = "Indisponível: ecrã muito pequeno"),
     "Party, map and more on the field" to Tr(ja = "フィールドで てもち マップ など", fr = "Équipe, carte et plus sur le terrain", de = "Team, Karte und mehr im Gelände", it = "Squadra, mappa e altro sul campo", es = "Equipo, mapa y más en el campo", br = "Equipe, mapa e mais no campo", pt = "Equipe, mapa e mais no campo"),
     // BATTLE BUTTONS.
     "BATTLE BUTTONS" to Tr(ja = "バトル ボタン", fr = "BOUTONS DE COMBAT", de = "KAMPFTASTEN", it = "PULSANTI LOTTA", es = "BOTONES DE COMBATE", br = "BOTÕES DE BATALHA", pt = "BOTÕES DE BATALHA"),
@@ -324,6 +328,7 @@ internal val trSettings: Map<String, Tr> = mapOf(
     "RAILS" to Tr(ja = "りょうはし", fr = "CÔTÉS", de = "SEITEN", it = "LATI", es = "LADOS", br = "LATERAIS", pt = "LATERAIS"),
     "DOCK" to Tr(ja = "した", fr = "BARRE", de = "LEISTE", it = "BARRA", es = "BARRA", br = "BARRA", pt = "BARRA"),
     "GLASS" to Tr(ja = "ガラス", fr = "VERRE", de = "GLAS", it = "VETRO", es = "CRISTAL", br = "VIDRO", pt = "VIDRO"),
+    "WHITE GLASS" to Tr(ja = "しろい ガラス", fr = "VERRE BLANC", de = "WEISSGLAS", it = "VETRO BIANCO", es = "CRISTAL BLANCO", br = "VIDRO BRANCO", pt = "VIDRO BRANCO"),
     "WINDOW" to Tr(ja = "ウィンドウ", fr = "FENÊTRE", de = "FENSTER", it = "FINESTRA", es = "VENTANA", br = "JANELA", pt = "JANELA"),
     "CORNERS 2" to Tr(ja = "すみ 2", fr = "COINS 2", de = "ECKEN 2", it = "ANGOLI 2", es = "ESQUINAS 2", br = "CANTOS 2", pt = "CANTOS 2"),
 )

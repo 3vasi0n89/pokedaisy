@@ -1,7 +1,9 @@
 package com.pokedaisy.app
 
 import android.content.Context
+import android.os.SystemClock
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.widget.FrameLayout
 import androidx.compose.runtime.Composable
@@ -9,17 +11,27 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.ComposeView
 import com.pokedaisy.app.companion.ui.CompanionBack
+import com.pokedaisy.app.companion.ui.CompanionKeys
 import com.pokedaisy.app.companion.ui.LocalClickSound
+import com.pokedaisy.app.companion.ui.MenuKey
 import com.pokedaisy.app.companion.ui.SidePanelCloseTab
-import com.pokedaisy.app.companion.ui.SidePanelCompanion
 import com.pokedaisy.app.companion.ui.SidePanelHandle
+import com.pokedaisy.app.companion.ui.SidePanelHost
 import com.pokedaisy.app.companion.ui.SidePanelOpenTab
+import com.pokedaisy.app.companion.ui.COMPACT_TEXT_INCHES
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
  * The companion on a device with one screen (no second display for
- * [DualScreenPresentation]): a panel on the right of the game's screen. A BACK
+ * [DualScreenPresentation]), held sideways, two ways (SETTINGS > COMPANION VIEW, [Prefs.companionWindow]):
+ *
+ * **A window** (the default): a BACK tap opens the companion in the middle of the screen, over the game (which
+ * keeps running under a dim), with an X at its top right. While it's open the game's buttons drive it
+ * ([menuKey]: L / R step tabs, B is the companion's back and closes it with nothing left to go back from, START
+ * closes it) and the game gets none; closed, they're the game's again. A tap on the dim closes it too.
+ *
+ * **The side panel**: a panel on the right of the game's screen. A BACK
  * tap slides it in over the game; the tab on its edge locks it beside the game
  * instead (the game then fits in what's left - [game]'s right margin, which
  * [GameStageLayout] honours) and unlocks it again. Dragging that tab sideways
@@ -45,10 +57,14 @@ class SidePanel(
     private val touchControls: View,
     private val prefs: Prefs,
     private val back: CompanionBack,
+    /** The window's keys ([menuKey]); the companion inside registers on them. */
+    private val keys: CompanionKeys,
     private val clickSound: () -> Unit,
     private val companion: @Composable () -> Unit,
     /** The panel and its tabs go right above this view (the FIELD HUD, itself above the touch pad). */
     private val under: View = touchControls,
+    /** The window opened (true: the game's buttons are the companion's now) or closed. */
+    private val onWindow: (Boolean) -> Unit = {},
 ) {
     private val context: Context get() = root.context
 
@@ -57,10 +73,23 @@ class SidePanel(
         private set
     private var open = false
     private val docked = mutableStateOf(prefs.sidePanelDocked)
+    /** The window on a tall screen ([COMPACT_TEXT_INCHES]): the companion's main text a step smaller (Compose state, set
+     * in [apply]). Not the side panel: its [sidePanelDensity] already sets its text smaller than the window's. */
+    private val compactText = mutableStateOf(false)
+
+    /** A window in the middle rather than the side panel (Compose state: the panel's content draws it). */
+    private val window = mutableStateOf(prefs.companionWindow)
     private var fraction = prefs.sidePanelWidth.coerceIn(MIN_FRACTION, MAX_FRACTION)
 
     /** On and closed: a tap could open it (the FIELD HUD's button for it shows then). Compose state. */
     val closed = mutableStateOf(false)
+
+    /** SETTINGS > COMPANION VIEW is WINDOW (Compose state): the HUD keeps its COMPANION button while the window is up. */
+    val windowMode: Boolean get() = window.value
+
+    /** The window is up: the game's buttons are the companion's ([menuKey]). */
+    var windowOpen = false
+        private set
 
     /** The FIELD HUD has the open button on screen: the edge tab steps aside. */
     var tabInHud = false
@@ -95,12 +124,20 @@ class SidePanel(
         enabled = on
         if (on) {
             docked.value = prefs.sidePanelDocked
-            open = docked.value
+            window.value = prefs.companionWindow
+            open = !window.value && docked.value
             outside = View(context).apply { setOnTouchListener { _, e -> catchOutside(e) } }
                 .also { root.addView(it, root.indexOfChild(under) + 1, FrameLayout.LayoutParams(-1, -1)) }
             val at = root.indexOfChild(under) + 2
             panel = CompanionColors.track(ComposeView(context)).apply {
-                setContent { SidePanelCompanion(companion) }
+                setContent {
+                    CompositionLocalProvider(LocalClickSound provides clickSound) {
+                        SidePanelHost(
+                            window.value, onClose = ::hide, keys = keys, focusKeys = ::focusKey, compactText = compactText.value,
+                            content = companion,
+                        )
+                    }
+                }
             }.also { root.addView(it, at, FrameLayout.LayoutParams(panelWidth, -1, Gravity.END)) }
             handle = DragFrame(context, vertical = false, ::onDragStart, ::onDrag, ::onDragEnd).apply {
                 addView(CompanionColors.track(ComposeView(context)).apply {
@@ -146,9 +183,34 @@ class SidePanel(
         when {
             !open -> show()
             back.back() -> Unit
-            !docked.value -> hide()
+            window.value || !docked.value -> hide()
         }
         return true
+    }
+
+    /**
+     * One of the game's buttons while the window is open (a press, or a held direction repeating): B is BACK, START
+     * closes it, the rest go to the companion ([CompanionKeys]: L / R step tabs).
+     */
+    fun menuKey(key: MenuKey, repeat: Boolean = false) {
+        if (!windowOpen) return
+        when (key) {
+            MenuKey.B -> if (!repeat) onBack()
+            MenuKey.START -> if (!repeat) hide()
+            else -> keys.key(key, repeat)
+        }
+    }
+
+    /** Closes the window (a battle pick, FLY: the game's to see); the side panel stays. */
+    fun closeWindow() {
+        if (windowOpen) hide()
+    }
+
+    /** SETTINGS > COMPANION VIEW: the window or the side panel, at once (the companion asking stays open). */
+    fun setWindow(on: Boolean) {
+        if (window.value == on) return
+        window.value = on
+        apply()
     }
 
     /**
@@ -157,8 +219,34 @@ class SidePanel(
      * buttons are how the game is played then.
      */
     private fun catchOutside(e: android.view.MotionEvent): Boolean {
-        if (touchControls.visibility != View.VISIBLE && e.actionMasked == android.view.MotionEvent.ACTION_DOWN) hide()
+        // The panel's own empty spots (nothing to tap there) let the touch through to here: inside it, it stays open.
+        val onPanel = panel?.let { e.x >= it.left + it.translationX } == true
+        if (!onPanel && touchControls.visibility != View.VISIBLE && e.actionMasked == android.view.MotionEvent.ACTION_DOWN) hide()
         return false
+    }
+
+    /**
+     * A D-pad direction or A that nothing in the window's companion took: the key event a D-pad sends, handed to the
+     * companion's view - focused first and out of touch mode, so its rows and buttons can take the focus ([start] then
+     * puts it on the cursor when nothing has it). Compose moves the focus (scrolling it into view) and presses what has it.
+     */
+    private fun focusKey(key: MenuKey, repeat: Boolean, start: () -> Unit): Boolean {
+        val view = panel ?: return false
+        val code = when (key) {
+            MenuKey.UP -> KeyEvent.KEYCODE_DPAD_UP
+            MenuKey.DOWN -> KeyEvent.KEYCODE_DPAD_DOWN
+            MenuKey.LEFT -> KeyEvent.KEYCODE_DPAD_LEFT
+            MenuKey.RIGHT -> KeyEvent.KEYCODE_DPAD_RIGHT
+            MenuKey.A -> KeyEvent.KEYCODE_DPAD_CENTER
+            else -> return false
+        }
+        if (key == MenuKey.A && repeat) return true
+        if (view.isInTouchMode) view.requestFocusFromTouch() else if (!view.hasFocus()) view.requestFocus()
+        start()
+        val now = SystemClock.uptimeMillis()
+        view.dispatchKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_DOWN, code, if (repeat) 1 else 0))
+        view.dispatchKeyEvent(KeyEvent(now, now, KeyEvent.ACTION_UP, code, 0))
+        return true
     }
 
     /** Opens it (the FIELD HUD's button). */
@@ -168,6 +256,16 @@ class SidePanel(
         if (open) return
         open = true
         apply()
+        if (window.value) {
+            panel?.let { v ->
+                // Out of touch mode at once: the first D-pad press moves the cursor (Android would eat it to leave
+                // touch mode), and the rows can take the focus.
+                v.requestFocusFromTouch()
+                v.alpha = 0f
+                v.animate().alpha(1f).setDuration(FADE_MS).setUpdateListener { punchThrough() }.withEndAction(null).start()
+            }
+            return
+        }
         val w = panelWidth.toFloat()
         for (v in listOfNotNull(panel, handle, closeTab)) {
             v.translationX = w
@@ -178,6 +276,15 @@ class SidePanel(
     private fun hide() {
         if (!open) return
         open = false
+        if (window.value) {
+            // The buttons are the game's again now; the window fades out over it. Its focus goes: the next opening
+            // starts from the cursor, and nothing in it stays lit.
+            syncWindow()
+            panel?.findFocus()?.clearFocus()
+            panel?.animate()?.alpha(0f)?.setDuration(FADE_MS)?.setUpdateListener { punchThrough() }
+                ?.withEndAction { if (!open) apply() }?.start()
+            return
+        }
         // The game and the touch pad take the whole screen back now; the panel slides out over them.
         outside?.visibility = View.GONE
         setRightMargin(game, 0)
@@ -205,23 +312,44 @@ class SidePanel(
         apply()
     }
 
+    /** Tells [onWindow] when the window comes up or goes away. */
+    private fun syncWindow() {
+        val up = enabled && open && window.value
+        if (up == windowOpen) return
+        windowOpen = up
+        onWindow(up)
+    }
+
+    /** The screen's height (its short side) in inches, from the root's size (the whole screen: the game is full screen)
+     * and its dpi. */
+    private fun screenHeightInches(): Float {
+        val dm = context.resources.displayMetrics
+        return minOf(rootWidth / dm.xdpi, rootHeight / dm.ydpi)
+    }
+
     /** Lays everything out for the current state. */
     private fun apply() {
+        syncWindow()
+        compactText.value = window.value && screenHeightInches() >= COMPACT_TEXT_INCHES
         val w = panelWidth
         val shown = enabled && open
-        outside?.visibility = if (shown && !docked.value) View.VISIBLE else View.GONE
+        val win = window.value
+        // The window: the panel's view is the whole screen (its dim), the companion drawn in the middle, no tabs.
+        val side = shown && !win
+        outside?.visibility = if (side && !docked.value) View.VISIBLE else View.GONE
         panel?.apply {
             visibility = if (shown) View.VISIBLE else View.GONE
             translationX = 0f
-            layoutParams = layoutParams.apply { width = w }
+            alpha = 1f
+            layoutParams = layoutParams.apply { width = if (win) FrameLayout.LayoutParams.MATCH_PARENT else w }
         }
         handle?.apply {
-            visibility = if (shown) View.VISIBLE else View.GONE
+            visibility = if (side) View.VISIBLE else View.GONE
             translationX = 0f
             setRightMargin(this, w)
         }
         closeTab?.apply {
-            visibility = if (shown) View.VISIBLE else View.GONE
+            visibility = if (side) View.VISIBLE else View.GONE
             translationX = 0f
             alpha = if (docked.value) LOCKED_TAB_ALPHA else 1f
             setRightMargin(this, w)
@@ -229,10 +357,10 @@ class SidePanel(
         closed.value = enabled && !open
         openTab?.apply {
             visibility = if (enabled && !open && !tabInHud) View.VISIBLE else View.GONE
-            alpha = if (docked.value) LOCKED_TAB_ALPHA else 1f
+            alpha = if (docked.value && !win) LOCKED_TAB_ALPHA else 1f
         }
-        setRightMargin(game, if (shown && docked.value) w else 0)
-        setRightMargin(touchControls, if (shown) w else 0)
+        setRightMargin(game, if (side && docked.value) w else 0)
+        setRightMargin(touchControls, if (side) w else 0)
     }
 
     private fun setRightMargin(v: View, margin: Int) {
@@ -275,6 +403,7 @@ class SidePanel(
         /** The open / close tabs while the panel is locked: there, but out of the way. */
         const val LOCKED_TAB_ALPHA = 0.35f
         const val SLIDE_MS = 160L
+        const val FADE_MS = 120L
         const val GBA_W = 240
         const val GBA_H = 160
         const val SNAP_PX = 48

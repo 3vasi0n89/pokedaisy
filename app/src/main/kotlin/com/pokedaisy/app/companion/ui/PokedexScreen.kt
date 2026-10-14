@@ -69,6 +69,7 @@ import com.pokedaisy.app.companion.i18n.tr
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.floor
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 
 /** Which entries the list shows. SEEN = seen but not caught yet. [label] is English; OptionRows translates it. */
 enum class DexFilter(val label: String) { ALL(tk("ALL")), CAUGHT(tk("CAUGHT")), SEEN(tk("SEEN ONLY")), UNSEEN(tk("NOT SEEN")) }
@@ -85,6 +86,8 @@ class DexUiState(val list: LazyListState) {
     var national by mutableStateOf<Boolean?>(null)
     /** National dex number of the open entry; null = the list. */
     var open by mutableStateOf<Int?>(null)
+    /** The entry last opened: where the D-pad's cursor goes back to in the list (the companion's window). */
+    var lastOpened by mutableStateOf<Int?>(null)
     /** The entry page's section (INFO / EVOLVE / AREA / MOVES), kept while stepping through entries. */
     var section by mutableStateOf(DexSection.INFO)
 
@@ -204,9 +207,15 @@ fun PokedexScreen(dex: PokedexState, ui: DexUiState, modifier: Modifier = Modifi
                     GbaText(tr("NONE"), OptionColors.muted, OptionColors.mutedShadow, m)
                 }
             } else {
+                // The D-pad starts on the entry last opened while it's in the list, else on the top row showing.
+                val back = ui.lastOpened?.takeIf { it in entries }
+                val top = entries.getOrNull(ui.list.firstVisibleItemIndex)
                 LazyColumn(Modifier.fillMaxSize(), state = ui.list) {
                     items(entries, key = { it }) { n ->
-                        DexRow(order.number(n), species?.getOrNull(n) ?: 0, n in dex.caught, n in dex.seen, m, small) { ui.open = n }
+                        DexRow(
+                            order.number(n), species?.getOrNull(n) ?: 0, n in dex.caught, n in dex.seen, m, small,
+                            start = n == (back ?: top),
+                        ) { ui.lastOpened = n; ui.open = n }
                     }
                 }
             }
@@ -227,15 +236,22 @@ private fun CountLine(label: String, value: Int, small: GbaTextMetrics) {
 @Composable
 private fun DexRow(
     n: Int, species: Int, caught: Boolean, seen: Boolean,
-    m: GbaTextMetrics, small: GbaTextMetrics, onClick: () -> Unit,
+    m: GbaTextMetrics, small: GbaTextMetrics,
+    /** Where the D-pad starts in the list (the companion's window). */
+    start: Boolean = false,
+    onClick: () -> Unit,
 ) {
     val u = m.u
     val noRipple = remember { MutableInteractionSource() }
+    // The D-pad's row (the companion's window) turns white, the OPTION lists' cursor.
+    val focused by noRipple.collectIsFocusedAsState()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
+            .focusStart(start)
             .fillMaxWidth()
             .height(u * 34)
+            .background(if (focused) OptionColors.rowSelected else Color.Transparent)
             .drawBehind { drawRowDivider(OptionColors.divider, u.toPx(), 4 * u.toPx()) }
             .soundClickable(interactionSource = noRipple, indication = null, onClick = onClick)
             .padding(horizontal = u * 4),

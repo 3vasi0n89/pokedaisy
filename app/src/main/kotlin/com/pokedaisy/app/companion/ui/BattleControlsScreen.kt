@@ -59,6 +59,9 @@ import com.pokedaisy.app.companion.data.MonView
 import com.pokedaisy.app.companion.data.MoveView
 import com.pokedaisy.app.companion.ui.theme.AppColors
 import com.pokedaisy.app.companion.ui.theme.pixelFontFamily
+import com.pokedaisy.app.companion.ui.theme.gbaFocusRing
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.interaction.MutableInteractionSource
 
 /**
  * Gen 4 (Platinum) style touch battle controls: party-health ball strips
@@ -301,7 +304,7 @@ private fun ActionButtons(
                 for (row in 0..1) Row(Modifier.fillMaxWidth().weight(1f), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     for (col in 0..1) {
                         val idx = row * 2 + col
-                        MoveCard(activeMon?.moves?.getOrNull(idx), battleInput, idx, busy, showHints, modifier = Modifier.weight(1f).fillMaxHeight(), compact = true)
+                        MoveCard(activeMon?.moves?.getOrNull(idx), battleInput, idx, busy, showHints, modifier = Modifier.focusStart(idx == 0).weight(1f).fillMaxHeight(), compact = true)
                     }
                 }
             }
@@ -309,7 +312,8 @@ private fun ActionButtons(
         // The active mon's mini icon sits to the left of the word, like the game.
         PlatinumButton(
             fill = FightRed, frame = FightRedDark,
-            modifier = Modifier.fillMaxWidth(0.76f).weight(1.6f),
+            // The D-pad (the companion's window) starts on FIGHT, like the game's cursor.
+            modifier = Modifier.focusStart(true).fillMaxWidth(0.76f).weight(1.6f),
             enabled = enabled,
             pressesGame = onFight == null, onClick = { onFight?.invoke() ?: battleInput?.selectAction(0) },
         ) {
@@ -368,7 +372,8 @@ internal fun MoveGrid(
             ) {
                 for (col in 0..1) {
                     val idx = row * 2 + col
-                    MoveCard(moves.getOrNull(idx), battleInput, idx, busy, showHints, modifier = Modifier.weight(1f).fillMaxHeight(), compact = compact)
+                    // The D-pad (the companion's window) starts on the first move.
+                    MoveCard(moves.getOrNull(idx), battleInput, idx, busy, showHints, modifier = Modifier.focusStart(idx == 0).weight(1f).fillMaxHeight(), compact = compact)
                 }
             }
         }
@@ -537,9 +542,13 @@ internal fun PlatinumButton(
     val shape = PixelRoundedShape(5.dp)
     val sound = LocalClickSound.current
     val gameSilent = LocalGameSilent.current
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
     Box(
         modifier = modifier
             .alpha(if (enabled) 1f else 0.45f)
+            // The D-pad's focus (the companion's window), over the bevel and the content.
+            .gbaFocusRing(focused, shape)
             .then(
                 // Gen 1 (Yellow): a button is its text box - white inside the double line.
                 if (gen1Buttons) Modifier.drawBehind {
@@ -555,7 +564,7 @@ internal fun PlatinumButton(
             )
             .then(
                 if (enabled) {
-                    Modifier.clickable(onClick = {
+                    Modifier.clickable(interactionSource = interaction, indication = androidx.compose.foundation.LocalIndication.current, onClick = {
                         onClick()
                         // The game sounds its own button - unless it can't be heard (FF's STEADY music mutes it).
                         if (!pressesGame || gameSilent()) sound()
@@ -624,7 +633,7 @@ private fun Gen1ActionButtons(
     val m = rememberGbaTextMetrics(2f)
     @Composable
     fun cell(label: String, index: Int, mod: Modifier, icon: Boolean = false) = PlatinumButton(
-        fill = Color.White, frame = Color.White, modifier = mod, enabled = enabled,
+        fill = Color.White, frame = Color.White, modifier = mod.focusStart(index == 0), enabled = enabled,
         pressesGame = index != 2 || onPokemon == null,
         onClick = { if (index == 2 && onPokemon != null) onPokemon() else battleInput?.selectAction(index) },
     ) {

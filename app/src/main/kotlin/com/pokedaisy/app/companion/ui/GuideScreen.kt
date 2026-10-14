@@ -76,6 +76,8 @@ import com.pokedaisy.app.companion.i18n.tr
 import com.pokedaisy.app.companion.i18n.trGuide
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 /** What the GUIDE tab has for a game: its hand-written [text], the ROM's
  * evolution table ([evolutions]) and the live pages' tables ([live]). */
@@ -243,8 +245,14 @@ fun GuideNotice(verified: Boolean, onAccept: () -> Unit, onBack: () -> Unit, mod
         Column(Modifier.widthIn(max = 560.dp)) {
             OptionTitleWindow(tk("BEFORE YOU READ"), m)
             Spacer(Modifier.height(u * 4))
-            OptionListWindow(m, Modifier.fillMaxWidth()) {
+            // Shorter than the text (the one-screen window, an unchecked guide's extra line): the text scrolls, the
+            // buttons stay in view under it (they used to be pushed off the bottom).
+            OptionListWindow(m, Modifier.fillMaxWidth().weight(1f, fill = false)) {
                 Column(Modifier.padding(horizontal = u * 8, vertical = u * 6), verticalArrangement = Arrangement.spacedBy(u * 6)) {
+                    Column(
+                        Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(u * 6),
+                    ) {
                     GbaText(
                         tr("This guide was written with the help of AI, from the game's own data. It can still get details wrong or leave things out - double-check anything that matters before relying on it.") +
                             if (verified) "" else " " + tr("This game's guide hasn't been checked in-game yet."),
@@ -254,6 +262,7 @@ fun GuideNotice(verified: Boolean, onAccept: () -> Unit, onBack: () -> Unit, mod
                         tr("HERE, NEXT BOSS and EVOLUTIONS come straight from the game's own data."),
                         OptionColors.muted, OptionColors.mutedShadow, rememberGbaTextMetrics(1f), maxLines = Int.MAX_VALUE,
                     )
+                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(u * 4)) {
                         OptionButton(tk("GO BACK"), m, onClick = onBack, modifier = Modifier.weight(1f).height(m.rowHeight * 1.4f))
                         OptionButton(tk("I UNDERSTAND"), m, onClick = onAccept, emphasis = true, modifier = Modifier.weight(1f).height(m.rowHeight * 1.4f))

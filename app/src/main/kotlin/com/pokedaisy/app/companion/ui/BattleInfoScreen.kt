@@ -53,6 +53,8 @@ import com.pokedaisy.app.companion.i18n.tr
 import com.pokedaisy.app.companion.ui.theme.LocalGameFont
 import com.pokedaisy.app.companion.ui.theme.AppColors
 import com.pokedaisy.app.companion.ui.theme.pixelFontFamily
+import com.pokedaisy.app.companion.ui.theme.gbaFocusRing
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 
 /**
  * The BATTLE tab's INFO pane, laid out around the questions a player has
@@ -645,10 +647,13 @@ internal fun FoeTeamStrip(
 private fun FoeSlot(mon: MonView, shown: Boolean, current: Boolean, small: GbaTextMetrics, cell: androidx.compose.ui.unit.Dp, onClick: () -> Unit) {
     val u = small.u
     val noRipple = remember { MutableInteractionSource() }
+    val focused by noRipple.collectIsFocusedAsState()
     Box(
         contentAlignment = Alignment.Center,
         modifier = Modifier
             .size(cell)
+            // The D-pad's focus (the companion's window), over the slot's own frame.
+            .gbaFocusRing(focused, PixelRoundedShape(u * 3))
             .drawBehind {
                 val px = u.toPx()
                 val frame = if (current) listOf(OptionColors.value to 2 * px, OptionColors.valueShadow to px) else OptionColors.titleLayers.inPx(px)

@@ -43,6 +43,7 @@ import com.pokedaisy.app.companion.GameAspect
 import com.pokedaisy.app.companion.GridStrength
 import com.pokedaisy.app.companion.ScreenFilter
 import com.pokedaisy.app.companion.Smoothing
+import com.pokedaisy.app.companion.ui.MenuKey
 import com.pokedaisy.app.overlay.OverlayChoice
 import com.pokedaisy.app.overlay.OverlayStore
 import com.pokedaisy.app.companion.FfMusicMode
@@ -149,6 +150,8 @@ class PokeDaisyActivity : Activity() {
     private val companionBack = com.pokedaisy.app.companion.ui.CompanionBack()
     private val mirrorBack = com.pokedaisy.app.companion.ui.CompanionBack()
     private val panelBack = com.pokedaisy.app.companion.ui.CompanionBack()
+    /** The game's buttons for the one-screen companion while it's the window over the game (SidePanel). */
+    private val panelKeys = com.pokedaisy.app.companion.ui.CompanionKeys()
     private val portraitBack = com.pokedaisy.app.companion.ui.CompanionBack()
     /** BACK for the FIELD HUD's panels (map, bag, wild, summary): the first thing a BACK tap closes. */
     private val hudBack = com.pokedaisy.app.companion.ui.CompanionBack()
@@ -213,15 +216,31 @@ class PokeDaisyActivity : Activity() {
         override fun requestUndoLoad() { if (::engine.isInitialized) engine.requestUndoLoad() }
     }
 
-    /** Backs the bottom-screen touch battle control (see PLAN.md Phase 5). */
+    /** Backs the bottom-screen touch battle control (see PLAN.md Phase 5). A pick that hands the turn to the game
+     * (a move, a switch, RUN, or BAG / POKéMON opening the game's own screen) closes the one-screen companion's window,
+     * so the player sees it play out; FIGHT keeps it open, for the move list in it. */
     private val battleInput = object : com.pokedaisy.app.companion.BattleInput {
         override val busy get() = if (::engine.isInitialized) engine.battleInputBusy else false
         override val gameSilent get() = ::engine.isInitialized && engine.gameAudioPaused
-        override fun selectAction(actionIndex: Int) { if (::engine.isInitialized) engine.battleSelectAction(actionIndex) }
-        override fun selectMove(moveIndex: Int) { if (::engine.isInitialized) engine.battleSelectMove(moveIndex) }
+        override fun selectAction(actionIndex: Int) {
+            if (actionIndex != 0) closeCompanionWindow()
+            if (::engine.isInitialized) engine.battleSelectAction(actionIndex)
+        }
+        override fun selectMove(moveIndex: Int) {
+            closeCompanionWindow()
+            if (::engine.isInitialized) engine.battleSelectMove(moveIndex)
+        }
         override fun back() { if (::engine.isInitialized) engine.battleBack() }
         override val canSwitch get() = ::engine.isInitialized && engine.battleSwitchAddrs != null
-        override fun switchTo(personality: Long) { if (::engine.isInitialized) engine.battleSwitchTo(personality) }
+        override fun switchTo(personality: Long) {
+            closeCompanionWindow()
+            if (::engine.isInitialized) engine.battleSwitchTo(personality)
+        }
+    }
+
+    /** The one-screen companion's window goes away (a battle pick, FLY): the game's to see now. Any thread. */
+    private fun closeCompanionWindow() {
+        runOnUiThread { if (::sidePanel.isInitialized) sidePanel.closeWindow() }
     }
 
     /** USE / GIVE / TAKE, the way the game does them (FieldItems.kt): the retail games in every language mapped so
@@ -330,8 +349,9 @@ class PokeDaisyActivity : Activity() {
 
         override fun canPc() = fieldItemSupport()?.canPc == true
 
+        // The PC is worked with the game's buttons: an open companion window steps aside once it's up.
         override fun openPc(done: (com.pokedaisy.app.companion.data.ItemUseOutcome) -> Unit) =
-            onGame(failed, done) { s, calls, busy ->
+            onGame(failed, { o -> if (o.result == com.pokedaisy.app.companion.data.ItemUseResult.USED) closeCompanionWindow(); done(o) }) { s, calls, busy ->
                 com.pokedaisy.app.companion.data.ItemUseOutcome(com.pokedaisy.app.companion.data.openPc(s.fns, busy, calls))
             }
     }
@@ -365,6 +385,8 @@ class PokeDaisyActivity : Activity() {
                 done(com.pokedaisy.app.companion.data.FlyResult.FAILED)
                 return
             }
+            // The flight is the game's to show: the window over it goes.
+            closeCompanionWindow()
             val inBattle = telemetry.snapshot.value.inBattle
             engine.requestFieldItemJob(inBattle) { calls, busy ->
                 val started = runCatching { com.pokedaisy.app.companion.data.flyStart(support.fns, mapsec, targets, busy, calls) }
@@ -689,6 +711,12 @@ class PokeDaisyActivity : Activity() {
             Prefs(this@PokeDaisyActivity).portraitCompanionUnderGame = on
             runOnUiThread { portraitPanel.refresh() }
         }
+        override val companionWindow get() =
+            if (::sidePanel.isInitialized && sidePanel.enabled) Prefs(this@PokeDaisyActivity).companionWindow else null
+        override fun setCompanionWindow(on: Boolean) {
+            Prefs(this@PokeDaisyActivity).companionWindow = on
+            runOnUiThread { sidePanel.setWindow(on) }
+        }
         override fun setSwapScreens(on: Boolean) {
             Prefs(this@PokeDaisyActivity).swapScreens = on
             // The companion that asked moves screens: it comes back on SETTINGS, on SWAP SCREENS.
@@ -862,9 +890,9 @@ class PokeDaisyActivity : Activity() {
         root.setViewTreeSavedStateRegistryOwner(owner)
         root.setViewTreeViewModelStoreOwner(owner)
         // Its panel and tabs above the FIELD HUD (which sits above the touch pad).
-        sidePanel = SidePanel(root, view, touchControls, Prefs(this), panelBack, playClick, under = fieldHud, companion = {
+        sidePanel = SidePanel(root, view, touchControls, Prefs(this), panelBack, panelKeys, playClick, under = fieldHud, onWindow = ::onCompanionWindow, companion = {
             val snap by telemetry.snapshot.collectAsState()
-            CompanionScreen(snap, stateSlots, companionSettings, battleInput, back = panelBack, clickSound = playClick, achievements = RetroAchievements, statusBar = companionStatusBar, itemUse = itemUse, fly = flyAction, askForSupport = askForSupport, gamePick = gamePick, shareBestEffort = shareBestEffort)
+            CompanionScreen(snap, stateSlots, companionSettings, battleInput, back = panelBack, keys = panelKeys, clickSound = playClick, achievements = RetroAchievements, statusBar = companionStatusBar, itemUse = itemUse, fly = flyAction, askForSupport = askForSupport, gamePick = gamePick, shareBestEffort = shareBestEffort)
         })
         portraitPanel = PortraitPanel(root, view, touchControls, Prefs(this), portraitBack, playClick) {
             val snap by telemetry.snapshot.collectAsState()
@@ -1498,8 +1526,9 @@ class PokeDaisyActivity : Activity() {
             val onField by (engine?.onField ?: idle).collectAsState()
             val shown = hudOn.value && !hudUpright.value && onField && snap.hasData && !snap.unsupported && !snap.inBattle
             // One screen, the companion's panel closed: its open button joins the HUD's, and the edge tab steps aside
-            // (for BATTLE BUTTONS' party window too, which sits in that corner).
-            val panelClosed = ::sidePanel.isInitialized && sidePanel.closed.value
+            // (for BATTLE BUTTONS' party window too, which sits in that corner). As the window it stays put while the
+            // window is up too (under its dim): it doesn't vanish from the HUD the player sees around it.
+            val panelClosed = ::sidePanel.isInitialized && (sidePanel.closed.value || sidePanel.enabled && sidePanel.windowMode)
             androidx.compose.runtime.SideEffect {
                 if (::sidePanel.isInitialized) sidePanel.tabInHud = shown && panelClosed || battlePicking.value
             }
@@ -1591,6 +1620,7 @@ class PokeDaisyActivity : Activity() {
             return super.dispatchKeyEvent(event)
         }
         val down = event.action == KeyEvent.ACTION_DOWN
+        menuKeyTakes(event)?.let { return it }
         if (hotkeyTakes(event.keyCode, down)) return true
         if (input.onKey(event.keyCode, down)) {
             if (down && !physicalPadUsed && event.device?.isVirtual == false) {
@@ -1609,6 +1639,76 @@ class PokeDaisyActivity : Activity() {
             Log.i("pokedaisy", "unmapped key ${event.keyCode} (${KeyEvent.keyCodeToString(event.keyCode)})")
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    // --- the companion's window (one screen, SidePanel) -----------------------------
+
+    /** Keys pressed while the window was open: the game doesn't see them until they're let go (the B that closed it). */
+    private val menuHeld = HashSet<Int>()
+    /** The joystick's D-pad / stick directions while the window is open, so a new one is a press. */
+    private var menuHat = 0
+
+    /** The window came up (the buttons are the companion's: the player's held keys let go in the game, which runs
+     * on) or went away (the buttons are the game's again). */
+    private fun onCompanionWindow(open: Boolean) {
+        input.releaseAll()
+        menuHat = 0
+        if (open) view.camera.let { it.stickX = 0f; it.stickY = 0f }
+    }
+
+    /**
+     * A key while the companion's window is open: the game's buttons (as the player bound them) steer it - null = not
+     * the window's business (it's closed and the key wasn't pressed in it, BACK, or a key that's no button, like
+     * the volume). The hotkeys still hear every key, but only to let go of a hold (FF / slow-mo held as it opened).
+     */
+    private fun menuKeyTakes(event: KeyEvent): Boolean? {
+        val code = event.keyCode
+        val down = event.action == KeyEvent.ACTION_DOWN
+        if (code == KeyEvent.KEYCODE_BACK) return null
+        if (!::sidePanel.isInitialized || !sidePanel.windowOpen) {
+            if (code !in menuHeld) return null
+            if (!down) menuHeld.remove(code)
+            return true
+        }
+        if (::hotkeys.isInitialized && hotkeysOn) for (e in hotkeys.onKey(code, down)) if (!e.pressed) handleHotkey(e)
+        if (code == KeyEvent.KEYCODE_BUTTON_MODE) {
+            if (!down && !event.isCanceled) companionBackTap()
+            return true
+        }
+        val key = menuKeyFor(input.buttonFor(code) ?: 0) ?: return super.dispatchKeyEvent(event)
+        if (!down) {
+            menuHeld.remove(code)
+            return true
+        }
+        val first = event.repeatCount == 0
+        // A key held from before the window opened: its repeats aren't presses.
+        if (first) menuHeld.add(code) else if (code !in menuHeld) return true
+        sidePanel.menuKey(key, repeat = !first)
+        return true
+    }
+
+    /** The window's key for a GBA button bit (a diagonal counts as its up / down). */
+    private fun menuKeyFor(bits: Int): MenuKey? = when {
+        bits and MgbaCore.Key.UP != 0 -> MenuKey.UP
+        bits and MgbaCore.Key.DOWN != 0 -> MenuKey.DOWN
+        bits and MgbaCore.Key.LEFT != 0 -> MenuKey.LEFT
+        bits and MgbaCore.Key.RIGHT != 0 -> MenuKey.RIGHT
+        bits and MgbaCore.Key.A != 0 -> MenuKey.A
+        bits and MgbaCore.Key.B != 0 -> MenuKey.B
+        bits and MgbaCore.Key.L != 0 -> MenuKey.L
+        bits and MgbaCore.Key.R != 0 -> MenuKey.R
+        bits and MgbaCore.Key.START != 0 -> MenuKey.START
+        bits and MgbaCore.Key.SELECT != 0 -> MenuKey.SELECT
+        else -> null
+    }
+
+    /** A joystick's D-pad / stick while the window is open: each direction that comes on is a press. */
+    private fun menuMotion(event: MotionEvent): Boolean {
+        val bits = GbaInput.motionBits(event) ?: return false
+        val pressed = bits and menuHat.inv()
+        menuHat = bits
+        menuKeyFor(pressed)?.let { sidePanel.menuKey(it) }
+        return true
     }
 
     // BACK: a tap is the companion's back (closes what's open there, else
@@ -1676,6 +1776,7 @@ class PokeDaisyActivity : Activity() {
             if ((rt > 0.5f) != rtDown) { rtDown = rt > 0.5f; triggerKey(KeyEvent.KEYCODE_BUTTON_R2, rtDown) }
             if ((lt > 0.5f) != ltDown) { ltDown = lt > 0.5f; triggerKey(KeyEvent.KEYCODE_BUTTON_L2, ltDown) }
         }
+        if (::sidePanel.isInitialized && sidePanel.windowOpen && menuMotion(event)) return true
         if (event.isFromSource(InputDevice.SOURCE_JOYSTICK)) {
             // The right stick: WIDE's look-around (WideCamera). Most pads report it as Z / RZ, some as RX / RY.
             fun axis(a: Int, b: Int) = event.getAxisValue(a).let { v -> if (kotlin.math.abs(v) > 0.05f) v else event.getAxisValue(b) }
@@ -1689,6 +1790,11 @@ class PokeDaisyActivity : Activity() {
     /** An analog trigger as its key. A pad that also sends the key itself is harmless: the hotkeys
      *  fire a chord once while it's held, and the game's button is just set twice. */
     private fun triggerKey(keyCode: Int, down: Boolean) {
+        // The window over the game: a trigger only lets go of a hold (FF held on it as the window opened).
+        if (::sidePanel.isInitialized && sidePanel.windowOpen) {
+            if (!down) hotkeyTakes(keyCode, false)
+            return
+        }
         if (!hotkeyTakes(keyCode, down)) input.onKey(keyCode, down)
     }
 

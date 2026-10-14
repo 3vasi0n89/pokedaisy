@@ -333,6 +333,12 @@ class Prefs(context: Context) {
         get() = p.getFloat("side_panel_width", 0.5f)
         set(v) = p.edit().putFloat("side_panel_width", v).apply()
 
+    /** One screen held sideways: the companion opens as a window in the middle, over the game (true), or in the side
+     * panel on the right (SETTINGS > COMPANION VIEW; see [SidePanel]). */
+    var companionWindow: Boolean
+        get() = p.getBoolean("companion_window", true)
+        set(v) = p.edit().putBoolean("companion_window", v).apply()
+
     /** A phone held upright: the companion right under the game, the touch pad at the screen's bottom, instead of
      * the companion along the bottom (SETTINGS > COMPANION; see [PortraitPanel]). */
     var portraitCompanionUnderGame: Boolean

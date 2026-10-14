@@ -50,6 +50,8 @@ import com.pokedaisy.app.companion.i18n.tk
 import com.pokedaisy.app.companion.i18n.tr
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.pokedaisy.app.companion.ui.theme.gbaFocusRing
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 
 /*
  * The DEX page's sections past INFO (GitHub #28): EVOLVE (the whole family, both
@@ -77,9 +79,12 @@ internal fun DexSectionChips(sections: List<DexSection>, selected: DexSection, s
         sections.forEach { s ->
             val on = s == selected
             val noRipple = remember { MutableInteractionSource() }
+            val focused by noRipple.collectIsFocusedAsState()
             Box(
                 Modifier
                     .weight(1f)
+                    // The D-pad's focus (the companion's window), flush inside the chip's 3u corner, like the tab bar's.
+                    .gbaFocusRing(focused, PixelRoundedShape(u * 3))
                     .drawBehind {
                         val px = u.toPx()
                         drawLayeredBox(OptionColors.chipLayers.inPx(px), if (on) OptionColors.tabSelectedFill else OptionColors.tabIdleFill, radius = 3 * px)

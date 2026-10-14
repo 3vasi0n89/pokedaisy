@@ -29,41 +29,56 @@ fun Density.gbaPixelPx(): Float = (20.dp.toPx() / 16f).roundToInt().coerceAtLeas
  * A pixel-stepped rounded rect path. [radius] is coerced to half the smaller
  * side (so a huge radius makes a pixel pill / circle) and to whole [step]s.
  */
-fun pixelRoundRectPath(size: Size, radius: Float, step: Float, offset: Offset = Offset.Zero): Path {
+fun pixelRoundRectPath(size: Size, radius: Float, step: Float, offset: Offset = Offset.Zero): Path =
+    pixelCornersPath(size, radius, radius, radius, radius, step, offset)
+
+/**
+ * [pixelRoundRectPath] with a radius per corner (top-left, top-right, bottom-right, bottom-left): a shoulder button's
+ * one big corner. Each is coerced like the single radius.
+ */
+fun pixelCornersPath(
+    size: Size, topLeft: Float, topRight: Float, bottomRight: Float, bottomLeft: Float, step: Float, offset: Offset = Offset.Zero,
+): Path {
     val w = size.width
     val h = size.height
-    val n = floor(radius.coerceAtMost(minOf(w, h) / 2f).coerceAtLeast(0f) / step).toInt()
     // Row j of a corner (from the outer edge) is inset insets[j] steps: a
     // quarter circle of radius n, sampled at each row's outer edge.
-    val insets = IntArray(n) { j -> n - floor(sqrt((n * n - (n - j) * (n - j)).toFloat())).toInt() }
-    fun inset(j: Int) = if (j < n) insets[j] * step else 0f
+    class Corner(radius: Float) {
+        val n = floor(radius.coerceAtMost(minOf(w, h) / 2f).coerceAtLeast(0f) / step).toInt()
+        private val insets = IntArray(n) { j -> n - floor(sqrt((n * n - (n - j) * (n - j)).toFloat())).toInt() }
+        fun inset(j: Int) = if (j < n) insets[j] * step else 0f
+    }
+    val tl = Corner(topLeft)
+    val tr = Corner(topRight)
+    val br = Corner(bottomRight)
+    val bl = Corner(bottomLeft)
     val x0 = offset.x
     val y0 = offset.y
     return Path().apply {
-        moveTo(x0 + inset(0), y0)
-        lineTo(x0 + w - inset(0), y0)
+        moveTo(x0 + tl.inset(0), y0)
+        lineTo(x0 + w - tr.inset(0), y0)
         // Top-right, walking down.
-        for (j in 0 until n) {
-            lineTo(x0 + w - inset(j), y0 + (j + 1) * step)
-            lineTo(x0 + w - inset(j + 1), y0 + (j + 1) * step)
+        for (j in 0 until tr.n) {
+            lineTo(x0 + w - tr.inset(j), y0 + (j + 1) * step)
+            lineTo(x0 + w - tr.inset(j + 1), y0 + (j + 1) * step)
         }
-        lineTo(x0 + w, y0 + h - n * step)
+        lineTo(x0 + w, y0 + h - br.n * step)
         // Bottom-right, walking down.
-        for (j in n - 1 downTo 0) {
-            lineTo(x0 + w - inset(j), y0 + h - (j + 1) * step)
-            lineTo(x0 + w - inset(j), y0 + h - j * step)
+        for (j in br.n - 1 downTo 0) {
+            lineTo(x0 + w - br.inset(j), y0 + h - (j + 1) * step)
+            lineTo(x0 + w - br.inset(j), y0 + h - j * step)
         }
-        lineTo(x0 + inset(0), y0 + h)
+        lineTo(x0 + bl.inset(0), y0 + h)
         // Bottom-left, walking up.
-        for (j in 0 until n) {
-            lineTo(x0 + inset(j), y0 + h - (j + 1) * step)
-            lineTo(x0 + inset(j + 1), y0 + h - (j + 1) * step)
+        for (j in 0 until bl.n) {
+            lineTo(x0 + bl.inset(j), y0 + h - (j + 1) * step)
+            lineTo(x0 + bl.inset(j + 1), y0 + h - (j + 1) * step)
         }
-        lineTo(x0, y0 + n * step)
+        lineTo(x0, y0 + tl.n * step)
         // Top-left, walking up.
-        for (j in n - 1 downTo 0) {
-            lineTo(x0 + inset(j), y0 + (j + 1) * step)
-            lineTo(x0 + inset(j), y0 + j * step)
+        for (j in tl.n - 1 downTo 0) {
+            lineTo(x0 + tl.inset(j), y0 + (j + 1) * step)
+            lineTo(x0 + tl.inset(j), y0 + j * step)
         }
         close()
     }

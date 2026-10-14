@@ -45,11 +45,12 @@ import org.junit.Rule
 import org.junit.Test
 
 /**
- * A single-screen device's side panel (SidePanel): the companion beside the
+ * A single-screen device's companion (SidePanel): the side panel beside the
  * game, locked, and over it, with the lock tab ([SidePanelHandle]) on its edge,
- * on a Retroid Pocket 6-sized screen (1920x1080; its 3 px GBA pixel), plus
- * [tab] - the tab's corner close up. The game is a drawn stand-in (Paparazzi
- * can't run the core). See CompanionScreenshotTest.
+ * and the window in the middle over the game ([SidePanelHost]: dimmed, its X and its
+ * buttons' legend beside it), on a Retroid Pocket 6-sized screen (1920x1080; its 3 px
+ * GBA pixel) and a 4:3 one ([windowNarrow]), plus [tab] - the tab's corner close up.
+ * The game is a drawn stand-in (Paparazzi can't run the core). See CompanionScreenshotTest.
  *
  *     ./gradlew :app:recordPaparazziDebug --tests '*SidePanelScreenshotTest'
  */
@@ -83,6 +84,38 @@ class SidePanelScreenshotTest {
     @Test fun locked() = paparazzi.snapshot { Scene(docked = true) }
 
     @Test fun over() = paparazzi.snapshot { Scene(docked = false) }
+
+    @Test fun window() = paparazzi.snapshot { Window(SCREEN_W) }
+
+    /** SETTINGS in the window: the TOOLS row keeps the bar's columns between the L / R hints. */
+    @Test fun windowSettings() = paparazzi.snapshot { Window(SCREEN_W, "SETTINGS") }
+
+    /** BATTLE in the window, on the player's turn: INFO (and SUGGESTIONS from it), no battle buttons. */
+    @Test fun windowBattle() = paparazzi.snapshot {
+        Window(SCREEN_W, "BATTLE", BattleButtonsScreenshotTest.battle, BattleButtonsScreenshotTest.input)
+    }
+
+    /** The window on a 4:3 screen (1440x1080 of the canvas): its X on its corner, no room beside it for the legend. */
+    @Test fun windowNarrow() = paparazzi.snapshot {
+        Box(Modifier.fillMaxSize().background(Color(0xFF303030))) {
+            Box(Modifier.requiredSize(px(1440), px(SCREEN_H)).align(Alignment.CenterStart)) { Window(1440) }
+        }
+    }
+
+    /** SETTINGS > COMPANION VIEW's window over a game filling the screen's height ([w] wide). */
+    @Composable
+    private fun Window(
+        w: Int, tab: String = "PARTY", snapshot: com.pokedaisy.app.companion.data.SnapshotView = SampleCompanion.snapshot,
+        battleInput: com.pokedaisy.app.companion.BattleInput? = null,
+    ) {
+        Box(Modifier.fillMaxSize().background(Color.Black)) {
+            val gameW = SCREEN_H * 3 / 2
+            FakeGame(Modifier.offset(x = px((w - gameW) / 2)).size(px(gameW), px(SCREEN_H)))
+            SidePanelHost(window = true, onClose = {}) {
+                CompanionScreen(snapshot, SampleCompanion.Slots, SampleCompanion.Settings(), battleInput, initialTab = tab)
+            }
+        }
+    }
 
     /** Closed: the game alone, the open tab on the screen's right edge. */
     @Test fun closed() = paparazzi.snapshot {
@@ -134,7 +167,7 @@ class SidePanelScreenshotTest {
                 FakeGame(Modifier.offset(x = px(150)).size(px(1620), px(1080)))
             }
             Box(Modifier.align(Alignment.TopEnd).width(px(PANEL_W)).fillMaxHeight()) {
-                SidePanelCompanion {
+                SidePanelHost(window = false, onClose = {}) {
                     CompanionScreen(SampleCompanion.snapshot, SampleCompanion.Slots, SampleCompanion.Settings())
                 }
             }

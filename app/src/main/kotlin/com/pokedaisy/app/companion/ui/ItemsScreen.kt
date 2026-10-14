@@ -83,6 +83,12 @@ import com.pokedaisy.app.companion.data.localText
 import com.pokedaisy.app.companion.data.pocketLabel
 import com.pokedaisy.app.companion.data.pocketOrder
 import com.pokedaisy.app.companion.ui.theme.pixelFontFamily
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.focus.focusProperties
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
+import com.pokedaisy.app.companion.ui.theme.gbaFocusRing
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 
 /**
  * DEFAULT keeps the bag's own slot order, as the game lists it, with the player's
@@ -536,6 +542,9 @@ fun ItemsScreen(
     var sort by remember { mutableStateOf(ItemSort.DEFAULT) }
     var selectedItem by remember { mutableStateOf(items.firstOrNull { it.itemId == initialItemId }) }
     var selectedKey by remember { mutableStateOf(selectedItem?.let { "${it.itemId}#0" }) }
+    // A D-pad's A and a tap mean different things on the selected item (USE / GIVE vs closing it).
+    val inputModes = androidx.compose.ui.platform.LocalInputModeManager.current
+    val actionFocus = remember { FocusRequester() }
     val pal = bagPaletteFor(activeGame)
     val caps = gameItemNames(activeGame)
     val shown = items.map { item ->
@@ -699,9 +708,23 @@ fun ItemsScreen(
                             ItemRow(
                                 item, pal, m, selected = selectedItem != null && key == selectedKey, favorite = item.itemId in favorites,
                                 marked = itemUse?.marked(item.itemId) == true,
+                                // With none picked, the D-pad starts on the first item, like the game's bag cursor.
+                                start = selectedItem == null && i == 0,
+                                // The D-pad (the companion's window): the cursor picks the item as it moves, as in
+                                // the game's bag, its description showing. Only then: a mouse click focuses the row
+                                // too, and picking it here first made the click close it again.
+                                onFocus = {
+                                    if (inputModes.inputMode == androidx.compose.ui.input.InputMode.Keyboard) {
+                                        selectedItem = item
+                                        selectedKey = key
+                                    }
+                                },
                             ) {
                                 if (selectedItem != null && key == selectedKey) {
-                                    selectedItem = null
+                                    // A on the item the cursor's on goes to its USE / GIVE; a tap closes it again.
+                                    if (inputModes.inputMode == androidx.compose.ui.input.InputMode.Keyboard) {
+                                        runCatching { actionFocus.requestFocus() }
+                                    } else selectedItem = null
                                 } else {
                                     selectedItem = item
                                     selectedKey = key
@@ -760,6 +783,7 @@ fun ItemsScreen(
                 onDismiss = { selectedItem = null },
                 favorite = item.itemId in favorites,
                 onFavorite = { FavoriteItems.toggle(item.itemId) },
+                actionFocus = actionFocus,
                 message = message,
                 // An item used or given away to the last leaves the bag: nothing left to tap.
                 onUse = itemUse?.takeIf { it.canUse(item.itemId) && items.any { i -> i.itemId == item.itemId } }?.let { use ->
@@ -798,6 +822,7 @@ private fun FolderTab(
     // window's outline, so the two borders meet in a clean corner - and it
     // carries the orange underline the game draws under its pocket title.
     val reach = if (selected) pal.selectedFillReach else 0
+    val focused by noRipple.collectIsFocusedAsState()
     Box(
         contentAlignment = Alignment.CenterStart,
         modifier = Modifier
@@ -833,6 +858,8 @@ private fun FolderTab(
                 }
             }
             .soundClickable(interactionSource = noRipple, indication = null, onClick = onClick)
+            // The D-pad's focus (the companion's window), inside the tab.
+            .gbaFocusRing(focused, PixelRoundedShape(u * 3))
             .padding(start = u * 10, end = u * (10 + reach), top = u * 6, bottom = u * 6),
     ) {
         // Tab-wide underline, drawn behind the label with its top half under
@@ -860,12 +887,14 @@ private fun FolderTab(
 private fun SortButton(label: String, pal: BagPalette, m: GbaTextMetrics, width: Dp, onClick: () -> Unit) {
     val u = m.u
     val noRipple = remember { MutableInteractionSource() }
+    val focused by noRipple.collectIsFocusedAsState()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
         modifier = Modifier
             .padding(start = u * 2)
             .width(width)
+            .gbaFocusRing(focused, PixelRoundedShape(u * 6))
             .drawBehind {
                 drawLayeredBox(pal.descLayers.inPx(u.toPx()), pal.descFill, radius = 6 * u.toPx())
             }
@@ -883,17 +912,22 @@ private fun SortButton(label: String, pal: BagPalette, m: GbaTextMetrics, width:
 private fun PcButton(pal: BagPalette, m: GbaTextMetrics, width: Dp, onClick: () -> Unit) {
     val u = m.u
     val noRipple = remember { MutableInteractionSource() }
+    val focused by noRipple.collectIsFocusedAsState()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
         modifier = Modifier
             .padding(start = u * 2)
             .width(width)
+            .gbaFocusRing(focused, PixelRoundedShape(u * 6))
             .drawBehind { drawLayeredBox(pal.descLayers.inPx(u.toPx()), pal.descFill, radius = 6 * u.toPx()) }
             .soundClickable(interactionSource = noRipple, indication = null, onClick = onClick)
             .padding(horizontal = u * 6, vertical = u * 6),
     ) {
         GbaText(tr("PC"), pal.descText, pal.descTextShadow, m)
+        // It opens the game's own PC, not a companion page (the HUD's PC has the same mark).
+        Spacer(Modifier.width(u * 3))
+        ShadowedPixelIcon(PixelIcons.inGame, pal.descText, pal.descTextShadow, m, cell = m.fontPixel.let { with(LocalDensity.current) { it.toDp() } })
     }
 }
 
@@ -926,13 +960,21 @@ private fun ItemRow(
     item: ItemView, pal: BagPalette, m: GbaTextMetrics, selected: Boolean, favorite: Boolean,
     /** The companion can USE / GIVE it here: the Poké Ball mark, in the list's own text colours. */
     marked: Boolean = false,
+    /** The row took the D-pad's focus: the list's cursor goes to it ([selected] draws the bag's own cursor). */
+    onFocus: () -> Unit = {},
+    /** Where the D-pad starts with no item picked (the list's first). */
+    start: Boolean = false,
     onClick: () -> Unit,
 ) {
     val u = m.u
     val noRipple = remember { MutableInteractionSource() }
+    val focused by noRipple.collectIsFocusedAsState()
+    val currentOnFocus by rememberUpdatedState(onFocus)
+    LaunchedEffect(focused) { if (focused) currentOnFocus() }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
+            .focusStart(selected || start)
             .fillMaxWidth()
             .height(m.rowHeight)
             .drawBehind {
@@ -1016,15 +1058,20 @@ private fun ItemDescriptionBar(
     onUse: (() -> Unit)? = null,
     onGive: (() -> Unit)? = null,
     extra: (@Composable (item: ItemView, text: Color, shadow: Color) -> Unit)? = null,
+    /** Where A on the list's selected item sends the D-pad: USE, else GIVE, else the star. */
+    actionFocus: FocusRequester? = null,
 ) {
     val u = m.u
     val noRipple = remember { MutableInteractionSource() }
+    fun Modifier.action(first: Boolean) = if (first && actionFocus != null) focusRequester(actionFocus) else this
     Column(
         modifier
             .fillMaxWidth()
             .drawBehind {
                 drawLayeredBox(pal.descLayers.inPx(u.toPx()), pal.descFill, radius = 4 * u.toPx())
             }
+            // A tap anywhere closes it; not a D-pad stop (B does that, and its buttons are).
+            .focusProperties { canFocus = false }
             .soundClickable(interactionSource = noRipple, indication = null, onClick = onDismiss)
             .padding(start = u * 7, end = u * 7, top = u * 7, bottom = u * 7),
     ) {
@@ -1068,14 +1115,14 @@ private fun ItemDescriptionBar(
                         onClick = onFavorite,
                         pixelIcon = PixelIcons.star,
                         pixelIconColor = if (favorite) OptionColors.favorite else OptionColors.muted,
-                        modifier = Modifier.semantics { contentDescription = label },
+                        modifier = Modifier.action(onUse == null && onGive == null).semantics { contentDescription = label },
                     )
                 }
                 if (onUse != null || onGive != null) {
                     Spacer(Modifier.weight(1f))
                     Row(horizontalArrangement = Arrangement.spacedBy(u * 6)) {
-                        if (onUse != null) OptionButton("USE", m, onClick = onUse)
-                        if (onGive != null) OptionButton("GIVE", m, onClick = onGive)
+                        if (onUse != null) OptionButton("USE", m, onClick = onUse, modifier = Modifier.action(true))
+                        if (onGive != null) OptionButton("GIVE", m, onClick = onGive, modifier = Modifier.action(onUse == null))
                     }
                 }
             }
@@ -1125,6 +1172,7 @@ private fun ItemNoticeWindow(n: ItemNotice, m: GbaTextMetrics, modifier: Modifie
         modifier = modifier
             .widthIn(max = 560.dp)
             .drawBehind { drawLayeredBox(OptionColors.titleLayers.inPx(u.toPx()), OptionColors.titleFill, radius = 3 * u.toPx()) }
+            .focusProperties { canFocus = false }
             .soundClickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)
             .padding(horizontal = u * 10, vertical = u * 6),
     ) {

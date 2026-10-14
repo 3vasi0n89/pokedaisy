@@ -31,6 +31,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,9 +50,13 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.layout.SubcomposeLayout
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -63,6 +69,7 @@ import com.pokedaisy.app.companion.FieldHudSize
 import com.pokedaisy.app.companion.FieldHudStyle
 import com.pokedaisy.app.companion.FlyAction
 import com.pokedaisy.app.companion.ItemUse
+import com.pokedaisy.app.companion.NewFeatures
 import com.pokedaisy.app.companion.data.GuideRomSource
 import com.pokedaisy.app.companion.data.ItemUseOutcome
 import com.pokedaisy.app.companion.data.ItemUseResult
@@ -142,31 +149,35 @@ fun fieldHudRows(
     style: FieldHudStyle,
     setOn: (Boolean) -> Unit,
     setStyle: (FieldHudStyle) -> Unit,
-    /** Opens a pick-list: title, options, the current one, what a pick does. */
-    select: (String, List<String>, String, (String) -> Unit) -> Unit,
 ): List<SettingRow> {
     fun onOff(b: Boolean) = if (b) tk("ON") else tk("OFF")
     return listOf(
         SettingRow(tk("HUD"), onOff(on), subtitle = "Party, map and more on the field") { setOn(!on) },
-        SettingRow(tk("LAYOUT"), style.layout.label, enabled = on) {
-            val all = FieldHudLayout.entries
-            select(tk("LAYOUT"), all.map { it.label }, style.layout.label) { l -> setStyle(style.copy(layout = all.first { it.label == l })) }
+        // LAYOUT, LOOK and SIZE cycle on a tap, not a pick-list (the user's call, like SHADERS' FILTER): each one
+        // shows on the HUD at once, over the game, while the next tap is a thumb away.
+        // The compact HUD has one layout (FieldHudFit): no choice while the picture is too narrow for the others.
+        SettingRow(
+            tk("LAYOUT"), style.layout.label, enabled = on && !FieldHudFit.tight,
+            subtitle = if (FieldHudFit.tight) "Unavailable: screen too small" else null,
+        ) {
+            if (!FieldHudFit.tight) setStyle(style.copy(layout = style.layout.next()))
         },
-        // Two looks: a tap flips it.
         SettingRow(tk("LOOK"), style.look.label, enabled = on) {
-            setStyle(style.copy(look = if (style.look == FieldHudLook.GLASS) FieldHudLook.WINDOW else FieldHudLook.GLASS))
+            setStyle(style.copy(look = style.look.next()))
         },
         SettingRow(tk("SIZE"), style.size.label, enabled = on) {
-            val all = FieldHudSize.entries
-            select(tk("SIZE"), all.map { it.label }, style.size.label) { l -> setStyle(style.copy(size = all.first { it.label == l })) }
+            setStyle(style.copy(size = style.size.next()))
         },
         groupTitle(tk("SHOW")),
     ) + FieldHudPart.entries.map { p ->
-        SettingRow(p.label, onOff(style.shows(p)), enabled = on) {
+        SettingRow(p.label, onOff(style.shows(p)), enabled = on, labelBadge = if (p == FieldHudPart.PC) NewFeatures.badge(NewFeatures.HUD_PC) else null) {
             setStyle(style.copy(hidden = if (style.shows(p)) style.hidden + p else style.hidden - p))
         }
     }
 }
+
+/** The next value round (LAYOUT / LOOK / SIZE cycle on a tap). */
+private inline fun <reified E : Enum<E>> E.next(): E = enumValues<E>().let { it[(ordinal + 1) % it.size] }
 
 // ---- Looks --------------------------------------------------------------------------------------
 
@@ -188,11 +199,26 @@ private val GLASS_INK = HudInk(
     cell = Color(0x26FFFFFF), cellOn = Color(0x59FFFFFF), divider = GLASS_EDGE,
 )
 
+/** WHITE GLASS: the same see-through panel in white, dark text with a light shadow (the OPTION text's way round). */
+private val WHITE_FILL = Color(0xC4F6F7FA)
+private val WHITE_EDGE = Color(0x59000000)
+
+private val WHITE_INK = HudInk(
+    text = Color(0xFF262B34), shadow = Color(0xFFD9DCE3),
+    accent = Color(0xFFC8321E), accentShadow = Color(0xFFF2C9C0), onAccent = Color.White,
+    muted = Color(0xFF6A7282),
+    cell = Color(0x1F000000), cellOn = Color(0x4D000000), divider = WHITE_EDGE,
+)
+
 internal val LocalHudLook = staticCompositionLocalOf { FieldHudLook.GLASS }
+
+/** A see-through look (GLASS or WHITE GLASS), not the app's windows. */
+internal val FieldHudLook.glass get() = this != FieldHudLook.WINDOW
 
 internal val ink: HudInk
     @Composable get() = when (LocalHudLook.current) {
         FieldHudLook.GLASS -> GLASS_INK
+        FieldHudLook.WHITE_GLASS -> WHITE_INK
         FieldHudLook.WINDOW -> HudInk(
             OptionColors.label, OptionColors.labelShadow,
             OptionColors.value, OptionColors.valueShadow, Color.White,
@@ -212,6 +238,10 @@ internal fun Modifier.hudPanel(u: Dp, radius: Int = 3): Modifier {
             FieldHudLook.GLASS -> {
                 drawPixelRoundRect(GLASS_FILL, radius = (radius + 1) * px, step = px)
                 drawPixelRoundFrame(GLASS_EDGE, Offset.Zero, size, (radius + 1) * px, px, step = px)
+            }
+            FieldHudLook.WHITE_GLASS -> {
+                drawPixelRoundRect(WHITE_FILL, radius = (radius + 1) * px, step = px)
+                drawPixelRoundFrame(WHITE_EDGE, Offset.Zero, size, (radius + 1) * px, px, step = px)
             }
         }
     }
@@ -268,6 +298,10 @@ fun FieldHud(
     var summary by remember { mutableStateOf(0) }
     // The pocket the BAG opens on: the balls' own when they were tapped (-1 = the first).
     var bagPocket by remember { mutableStateOf(-1) }
+    // PC: why the game's PC didn't open (not now, in a battle), over the HUD for a moment.
+    var pcNotice by remember { mutableStateOf<ItemNotice?>(null) }
+    // Gone (the game closed): SETTINGS no longer hears of a screen too small for it.
+    DisposableEffect(Unit) { onDispose { FieldHudFit.tight = false } }
     LaunchedEffect(shown) { if (!shown) panel = null }
     val alpha by animateFloatAsState(if (shown) 1f else 0f, tween(if (shown) 220 else 120), label = "field-hud")
     if (alpha == 0f && !shown) return
@@ -290,6 +324,7 @@ fun FieldHud(
     val baseK = with(base) { (20.dp.toPx() / 16f).roundToInt().coerceAtLeast(2) }
     val k = (baseK + style.size.step).coerceAtLeast(2)
     val hudDensity = remember(k, base.fontScale) { Density(k * 16f / 20f, base.fontScale) }
+    val scale = HUD_SCALE
 
     CompositionLocalProvider(LocalHudLook provides style.look) {
         BoxWithConstraints(modifier.fillMaxSize().alpha(alpha)) {
@@ -302,28 +337,49 @@ fun FieldHud(
             val inB = frame?.let { (boxH - it.bottom).coerceAtLeast(0f) } ?: 0f
             CompositionLocalProvider(LocalDensity provides hudDensity) {
                 val m = rememberGbaTextMetrics(1f)
-                val parts = HudParts(snapshot, style, wildHere, m, onOpenCompanion) { p, i ->
+                val pc = itemUse?.takeIf { it.canPc() }?.let { use ->
+                    {
+                        use.openPc { o -> pcNotice = if (o.result == ItemUseResult.USED) null else ItemNotice(0, itemUseMessage(o), ok = false) }
+                    }
+                }
+                val parts = HudParts(snapshot, style, wildHere, m, onOpenCompanion, pc) { p, i ->
                     if (p == FieldHudPanel.SUMMARY) summary = i
                     if (p == FieldHudPanel.BAG) bagPocket = i
                     panel = p
                 }
                 with(hudDensity) {
-                    if (style.layout == FieldHudLayout.RAILS) {
-                        // RAILS use the room beside the picture: the whole box, told where the picture's sides are.
-                        Box(Modifier.fillMaxSize().padding(top = clearTop.toDp(), bottom = clearBottom.toDp())) {
-                            RailsLayout(parts, inL.toDp(), inR.toDp())
-                        }
-                    } else {
-                        // The others stay on the picture; the touch pad's rows only where they reach into it.
-                        Box(
-                            Modifier.fillMaxSize()
-                                .padding(start = inL.toDp(), top = inT.toDp(), end = inR.toDp(), bottom = inB.toDp())
-                                .padding(top = (clearTop - inT).coerceAtLeast(0f).toDp(), bottom = (clearBottom - inB).coerceAtLeast(0f).toDp()),
-                        ) {
-                            when (style.layout) {
-                                FieldHudLayout.CORNERS -> CornersLayout(parts, swapped = false)
-                                FieldHudLayout.CORNERS_2 -> CornersLayout(parts, swapped = true)
-                                else -> DockLayout(parts)
+                    // Too narrow for the party beside its buttons (a docked side panel's game): every LAYOUT gives way to
+                    // the compact HUD, and SETTINGS > HUD > LAYOUT says why it's off ([FieldHudFit]). Decided in the
+                    // same layout pass that draws it, so the wrong one never shows for a frame.
+                    HudFit(parts, (boxW - inL - inR) / scale) { tight ->
+                        SideEffect { FieldHudFit.tight = tight }
+                        if (tight) {
+                            Box(
+                                Modifier.fillMaxSize()
+                                    .padding(start = inL.toDp(), top = inT.toDp(), end = inR.toDp(), bottom = inB.toDp())
+                                    .padding(top = (clearTop - inT).coerceAtLeast(0f).toDp(), bottom = (clearBottom - inB).coerceAtLeast(0f).toDp()),
+                            ) {
+                                Box(Modifier.fillMaxSize().hudScale(scale)) { CompactLayout(parts) }
+                            }
+                        } else if (style.layout == FieldHudLayout.RAILS) {
+                            // RAILS use the room beside the picture: the whole box, told where the picture's sides are.
+                            Box(Modifier.fillMaxSize().padding(top = clearTop.toDp(), bottom = clearBottom.toDp()).hudScale(scale)) {
+                                RailsLayout(parts, (inL / scale).toDp(), (inR / scale).toDp())
+                            }
+                        } else {
+                            // The others stay on the picture; the touch pad's rows only where they reach into it.
+                            Box(
+                                Modifier.fillMaxSize()
+                                    .padding(start = inL.toDp(), top = inT.toDp(), end = inR.toDp(), bottom = inB.toDp())
+                                    .padding(top = (clearTop - inT).coerceAtLeast(0f).toDp(), bottom = (clearBottom - inB).coerceAtLeast(0f).toDp()),
+                            ) {
+                                Box(Modifier.fillMaxSize().hudScale(scale)) {
+                                    when (style.layout) {
+                                        FieldHudLayout.CORNERS -> CornersLayout(parts, swapped = false)
+                                        FieldHudLayout.CORNERS_2 -> CornersLayout(parts, swapped = true)
+                                        else -> DockLayout(parts)
+                                    }
+                                }
                             }
                         }
                     }
@@ -332,14 +388,15 @@ fun FieldHud(
             // The panels at the companion's own size, whatever SIZE says.
             val m = rememberGbaTextMetrics(1f)
             val dock = style.layout == FieldHudLayout.DOCK
-            // CORNERS 2's buttons are top right: BAG and WILD open there.
+            // CORNERS 2's buttons are top right: BAG and WILD open there (the compact HUD's: bottom left, panelPlace).
             val top = style.layout == FieldHudLayout.CORNERS_2
             val close = { panel = null }
             // BAG and WILD open over the buttons: on the picture, like them (RAILS: the screen's corner).
-            val onPicture = style.layout != FieldHudLayout.RAILS
+            val onPicture = style.layout != FieldHudLayout.RAILS || FieldHudFit.tight
             val inset = with(base) {
                 if (onPicture) PaddingValues(start = inL.toDp(), top = inT.toDp(), end = inR.toDp(), bottom = inB.toDp()) else PaddingValues()
             }
+            ItemNoticeHost(pcNotice, m, Modifier.align(Alignment.TopCenter).padding(inset).padding(top = m.u * 6, start = m.u * 8, end = m.u * 8)) { pcNotice = null }
             when (panel) {
                 FieldHudPanel.MAP -> HudMapPanel(snapshot, m, fly, close)
                 FieldHudPanel.BAG -> HudBagPanel(snapshot, m, itemUse, dock, top, inset, bagPocket, close)
@@ -347,6 +404,31 @@ fun FieldHud(
                 FieldHudPanel.SUMMARY -> HudSummaryPanel(snapshot, summary, { summary = it }, m, itemUse, close)
                 null -> Unit
             }
+        }
+    }
+}
+
+/** The HUD's picture too narrow for the party beside its buttons (FieldHud's compact HUD): SETTINGS > HUD > LAYOUT is off
+ * meanwhile, saying why. Compose state, set by the HUD on each layout; false once it's gone. */
+object FieldHudFit {
+    var tight by mutableStateOf(false)
+}
+
+/** Every SIZE drawn 12.5% bigger than its whole GBA pixel (the user's call: a whole pixel more was too much; NORMAL
+ * 3 -> 3.375 on the RP6, liked over 3.5), so the HUD's pixels are no longer whole screen pixels. */
+private const val HUD_SCALE = 1.125f
+
+/** Lays the content out in this box shrunk by [scale], then draws it scaled back up from the top left: the parts keep
+ * their places (corners stay corners) and taps still land (Compose hit-tests through the layer). */
+private fun Modifier.hudScale(scale: Float): Modifier = layout { measurable, c ->
+    val w = c.maxWidth
+    val h = c.maxHeight
+    val p = measurable.measure(Constraints.fixed((w / scale).roundToInt(), (h / scale).roundToInt()))
+    layout(w, h) {
+        p.placeWithLayer(0, 0) {
+            scaleX = scale
+            scaleY = scale
+            transformOrigin = TransformOrigin(0f, 0f)
         }
     }
 }
@@ -359,6 +441,8 @@ private class HudParts(
     val m: GbaTextMetrics,
     /** Opens the single screen's side panel (the companion); null = no button for it. */
     val companion: (() -> Unit)?,
+    /** Opens the game's PC (ItemUse.openPc); null = this game has none. */
+    pcOpen: (() -> Unit)?,
     /** Opens a panel; the index is the party member for SUMMARY, the pocket for BAG (-1: the first). */
     val open: (FieldHudPanel, Int) -> Unit,
 ) {
@@ -367,6 +451,7 @@ private class HudParts(
     val bag = style.shows(FieldHudPart.BAG) && snapshot.items.isNotEmpty()
     val wildButton = style.shows(FieldHudPart.WILD) && wild != null
     val map = style.shows(FieldHudPart.MAP)
+    val pc = pcOpen?.takeIf { style.shows(FieldHudPart.PC) }
 }
 
 // ---- Layouts ------------------------------------------------------------------------------------
@@ -383,12 +468,7 @@ private fun CornersLayout(p: HudParts, swapped: Boolean) {
                 modifier = Modifier.align(if (swapped) Alignment.BottomEnd else Alignment.TopEnd),
             ) { p.open(FieldHudPanel.MAP, 0) }
         }
-        if (p.party.isNotEmpty()) {
-            Row(
-                Modifier.align(Alignment.BottomStart).hudPanel(u).padding(horizontal = u * 5, vertical = u * 4),
-                horizontalArrangement = Arrangement.spacedBy(u * 3),
-            ) { p.party.forEachIndexed { i, mon -> HudMonTile(mon, p.m, lead = i == 0) { p.open(FieldHudPanel.SUMMARY, i) } } }
-        }
+        PartyRow(p, Modifier.align(Alignment.BottomStart))
         Column(
             Modifier.align(if (swapped) Alignment.TopEnd else Alignment.BottomEnd),
             horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(u * 4),
@@ -398,6 +478,52 @@ private fun CornersLayout(p: HudParts, swapped: Boolean) {
             if (p.balls.isNotEmpty()) HudBalls(p, vertical = false)
             if (!swapped) HudButtons(p, vertical = false)
         }
+    }
+}
+
+/** The party as one row of tiles in a panel (CORNERS). */
+@Composable
+private fun PartyRow(p: HudParts, modifier: Modifier) {
+    if (p.party.isEmpty()) return
+    val u = p.m.u
+    Row(
+        modifier.hudPanel(u).padding(horizontal = u * 5, vertical = u * 4),
+        horizontalArrangement = Arrangement.spacedBy(u * 3),
+    ) { p.party.forEachIndexed { i, mon -> HudMonTile(mon, p.m, lead = i == 0) { p.open(FieldHudPanel.SUMMARY, i) } } }
+}
+
+/** CORNERS' bottom-right corner: the balls over the buttons. */
+@Composable
+private fun BallsAndButtons(p: HudParts, modifier: Modifier = Modifier, alignment: Alignment.Horizontal = Alignment.End, mapButton: Boolean = false) {
+    Column(modifier, horizontalAlignment = alignment, verticalArrangement = Arrangement.spacedBy(p.m.u * 4)) {
+        if (p.balls.isNotEmpty()) HudBalls(p, vertical = false)
+        HudButtons(p, vertical = false, mapButton = mapButton)
+    }
+}
+
+/**
+ * [content] given whether the picture is too narrow for the party beside the balls and buttons (CORNERS' bottom row;
+ * [width] in the HUD's own px, before [hudScale]): then the compact HUD, whatever LAYOUT says. Both measured at their own
+ * widths in the same layout pass, so it follows the picture (a side panel docked or not, SIZE) without a wrong frame.
+ */
+@Composable
+private fun HudFit(p: HudParts, width: Float, content: @Composable (tight: Boolean) -> Unit) {
+    SubcomposeLayout(Modifier.fillMaxSize()) { c ->
+        val loose = Constraints()
+        val partyW = if (p.party.isEmpty()) 0 else subcompose("party") { PartyRow(p, Modifier) }.maxOfOrNull { it.measure(loose).width } ?: 0
+        val rightW = subcompose("right") { BallsAndButtons(p) }.maxOfOrNull { it.measure(loose).width } ?: 0
+        val tight = partyW > 0 && partyW + rightW + 3 * (p.m.u * 6).roundToPx() > width
+        val placeables = subcompose(tight) { content(tight) }.map { it.measure(c) }
+        layout(c.maxWidth, c.maxHeight) { placeables.forEach { it.place(0, 0) } }
+    }
+}
+
+/** The compact HUD (too narrow a picture, [HudFit]): no party or minimap - the balls over PC / BAG / WILD and a MAP
+ * button, all in the bottom left corner, the balls left-aligned too. */
+@Composable
+private fun CompactLayout(p: HudParts) {
+    Box(Modifier.fillMaxSize().padding(p.m.u * 6)) {
+        BallsAndButtons(p, Modifier.align(Alignment.BottomStart), alignment = Alignment.Start, mapButton = true)
     }
 }
 
@@ -431,26 +557,45 @@ private fun RailsLayout(p: HudParts, left: Dp, right: Dp) {
     }
 }
 
+/** DOCK: the party, balls and buttons in one bar along the bottom, the minimap top right; CORNERS where that bar is
+ * wider than the picture (CORNERS fits, or the HUD would be compact). */
 @Composable
 private fun DockLayout(p: HudParts) {
     val u = p.m.u
-    Box(Modifier.fillMaxSize().padding(u * 6)) {
-        if (p.map) HudMiniMap(p.snapshot, mapW = 80, mapH = 52, m = p.m, modifier = Modifier.align(Alignment.TopEnd)) { p.open(FieldHudPanel.MAP, 0) }
-        if (p.party.isEmpty() && p.balls.isEmpty() && !p.bag && !p.wildButton && p.companion == null) return@Box
-        Row(
-            Modifier.align(Alignment.BottomCenter).hudPanel(u).padding(horizontal = u * 5, vertical = u * 4),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(u * 3),
-        ) {
-            p.party.forEachIndexed { i, mon -> HudMonTile(mon, p.m, lead = i == 0) { p.open(FieldHudPanel.SUMMARY, i) } }
-            if (p.balls.isNotEmpty()) {
-                if (p.party.isNotEmpty()) DockDivider(p.m)
-                HudBallsInline(p)
+    SubcomposeLayout(Modifier.fillMaxSize()) { c ->
+        val barW = subcompose("bar") { DockBar(p, party = true, Modifier) }.maxOfOrNull { it.measure(Constraints()).width } ?: 0
+        val fits = barW + 2 * (u * 6).roundToPx() <= c.maxWidth
+        val placeables = subcompose(fits) {
+            if (!fits) CornersLayout(p, swapped = false)
+            else Box(Modifier.fillMaxSize().padding(u * 6)) {
+                if (p.map) HudMiniMap(p.snapshot, mapW = 80, mapH = 52, m = p.m, modifier = Modifier.align(Alignment.TopEnd)) { p.open(FieldHudPanel.MAP, 0) }
+                DockBar(p, party = true, Modifier.align(Alignment.BottomCenter))
             }
-            if (p.bag || p.wildButton || p.companion != null) {
-                if (p.party.isNotEmpty() || p.balls.isNotEmpty()) DockDivider(p.m)
-                HudButtons(p, vertical = false, framed = false)
-            }
+        }.map { it.measure(c) }
+        layout(c.maxWidth, c.maxHeight) { placeables.forEach { it.place(0, 0) } }
+    }
+}
+
+/** DOCK's bar: the party ([party]), the balls, then the buttons, with dividers. */
+@Composable
+private fun DockBar(p: HudParts, party: Boolean, modifier: Modifier) {
+    val u = p.m.u
+    val mons = if (party) p.party else emptyList()
+    val buttons = p.bag || p.wildButton || p.companion != null || p.pc != null
+    if (mons.isEmpty() && p.balls.isEmpty() && !buttons) return
+    Row(
+        modifier.hudPanel(u).padding(horizontal = u * 5, vertical = u * 4),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(u * 3),
+    ) {
+        mons.forEachIndexed { i, mon -> HudMonTile(mon, p.m, lead = i == 0) { p.open(FieldHudPanel.SUMMARY, i) } }
+        if (p.balls.isNotEmpty()) {
+            if (mons.isNotEmpty()) DockDivider(p.m)
+            HudBallsInline(p)
+        }
+        if (buttons) {
+            if (mons.isNotEmpty() || p.balls.isNotEmpty()) DockDivider(p.m)
+            HudButtons(p, vertical = false, framed = false)
         }
     }
 }
@@ -613,14 +758,18 @@ private fun BallCount(item: ItemView, m: GbaTextMetrics, text: GbaTextMetrics) {
 
 /** BAG and WILD (with how many species here aren't caught yet). */
 @Composable
-private fun HudButtons(p: HudParts, vertical: Boolean, framed: Boolean = true) {
+private fun HudButtons(p: HudParts, vertical: Boolean, framed: Boolean = true, mapButton: Boolean = false) {
     val u = p.m.u
     val buttons = buildList<@Composable () -> Unit> {
+        // Left of BAG: the game's own PC, not a HUD panel: the corner arrow says it leaves for the game ([PixelIcons.inGame]).
+        p.pc?.let { openPc -> add { HudButton(PC_ICON, PC_COLORS, tk("PC"), null, p.m, framed, inGame = true, onClick = openPc) } }
         if (p.bag) add { HudButton(BAG_ICON, BAG_COLORS, tk("BAG"), null, p.m, framed) { p.open(FieldHudPanel.BAG, -1) } }
         if (p.wildButton) {
             val uncaught = p.wild.orEmpty().distinctBy { it.species }.count { !it.caught }
             add { HudButton(GRASS_ICON, GRASS_COLORS, tk("WILD"), uncaught.takeIf { it > 0 }?.toString(), p.m, framed) { p.open(FieldHudPanel.WILD, 0) } }
         }
+        // The compact HUD ([CompactLayout]): no minimap, so the map from a button, right of WILD.
+        if (mapButton && p.map) add { HudButton(MAP_ICON, MAP_COLORS, tk("MAP"), null, p.m, framed) { p.open(FieldHudPanel.MAP, 0) } }
         // One screen: the side panel's open tab, as one of these buttons while the HUD is up (SidePanel.tabInHud).
         p.companion?.let { openCompanion ->
             add { HudButton(COMPANION_ICON, mapOf('1' to ink.text), tk("COMPANION"), null, p.m, framed, onClick = openCompanion) }
@@ -630,10 +779,12 @@ private fun HudButtons(p: HudParts, vertical: Boolean, framed: Boolean = true) {
     else Row(horizontalArrangement = Arrangement.spacedBy(u * 3)) { buttons.forEach { it() } }
 }
 
-/** A square button: pixel [icon] over a small label; [badge] a red count on its corner. */
+/** A square button: pixel [icon] over a small label; [badge] a red count on its corner; [inGame] a small arrow in its
+ * top-right corner: it opens the game's own screen, not a HUD panel. */
 @Composable
 private fun HudButton(
-    icon: List<String>, colors: Map<Char, Color>, label: String, badge: String?, m: GbaTextMetrics, framed: Boolean, onClick: () -> Unit,
+    icon: List<String>, colors: Map<Char, Color>, label: String, badge: String?, m: GbaTextMetrics, framed: Boolean,
+    inGame: Boolean = false, onClick: () -> Unit,
 ) {
     val u = m.u
     val small = rememberGbaTextMetrics(0.75f)
@@ -646,6 +797,9 @@ private fun HudButton(
             PixelArt(icon, colors, Modifier.size(u * 16))
             Spacer(Modifier.height(u))
             GbaText(tr(label), ink.text, ink.shadow, small, bold = gameBoldLabels())
+        }
+        if (inGame) {
+            ShadowedPixelIcon(PixelIcons.inGame, ink.text, ink.shadow, m, Modifier.align(Alignment.TopEnd).padding(top = u * 2, end = u * 2))
         }
         badge?.let { Box(Modifier.align(Alignment.TopEnd).offset(x = u * 3, y = -u * 3)) { OptionBadge(it, m) } }
     }
@@ -778,7 +932,7 @@ private fun HudMapPanel(snapshot: SnapshotView, m: GbaTextMetrics, fly: FlyActio
     val region = model?.sections?.get(snapshot.regionMapSectionId)?.region?.takeIf { it in model.images.indices } ?: 0
     val bitmap = regionMapBitmap(model?.images?.getOrNull(region))
     val aspect = remember(bitmap) { bitmap?.let { regionMapContentBounds(it) }?.let { it.width.toFloat() / it.height } ?: 1.5f }
-    val glass = LocalHudLook.current == FieldHudLook.GLASS
+    val glass = LocalHudLook.current.glass
     HudPanelScrim(onClose, Alignment.Center) { window ->
         BoxWithConstraints(Modifier.fillMaxSize().padding(u * 10), contentAlignment = Alignment.Center) {
             val gap = u * 3
@@ -804,7 +958,11 @@ private fun HudSummaryPanel(
         ?.takeIf { com.pokedaisy.app.companion.data.MoveLearning.available(it, snapshot.guideTables) }
         ?.let { LearnContext(it, snapshot.guideTables, snapshot.items, true) }
     // GLASS: the summary's windows and text in the HUD's see-through look too.
-    val look = if (LocalHudLook.current == FieldHudLook.GLASS) HudGlassLook else HudWindowLook
+    val look = when (LocalHudLook.current) {
+        FieldHudLook.GLASS -> HudGlassLook
+        FieldHudLook.WHITE_GLASS -> HudWhiteGlassLook
+        FieldHudLook.WINDOW -> HudWindowLook
+    }
     HudPanelScrim(onClose, Alignment.Center) { window ->
         BoxWithConstraints(Modifier.fillMaxSize().padding(u * 10), contentAlignment = Alignment.Center) {
             // The companion's own proportions (the Thor's bottom screen), as tall as there's room for.
@@ -860,6 +1018,28 @@ private object HudGlassLook : OptionLook {
     override val windowPadSides = SUMMARY_PAD_SIDES
 }
 
+/** The summary in the WHITE GLASS look: [HudGlassLook] the other way round. */
+private object HudWhiteGlassLook : OptionLook {
+    override val label = WHITE_INK.text
+    override val labelShadow = WHITE_INK.shadow
+    override val value = WHITE_INK.accent
+    override val valueShadow = WHITE_INK.accentShadow
+    override val muted = WHITE_INK.muted
+    override val mutedShadow = WHITE_INK.shadow
+    override val titleFill = WHITE_FILL
+    override val listFill = WHITE_INK.cell
+    override val listLayers = listOf(WHITE_EDGE to 1)
+    override val frameDark = Color(0xFF3A404C)
+    override val separatorDark = Color(0x40000000)
+    override val separatorLight = Color(0x80FFFFFF)
+    // Nearly solid: a see-through cell showed the buttons' black outline under it.
+    override val stripIdle = Color(0xE6E4E7EE)
+    override val stripIdleFrame = Color(0xFF9AA2B2)
+    override val stripLit = Color(0xE6FFFFFF)
+    override val stripLitFrame = WHITE_INK.accent
+    override val windowPadSides = SUMMARY_PAD_SIDES
+}
+
 /** The summary in the WINDOW look: the app's own colours, with the HUD's room at the sides. */
 private object HudWindowLook : OptionLook by OptionLook.Live {
     override val windowPadSides = SUMMARY_PAD_SIDES
@@ -871,6 +1051,8 @@ private const val SUMMARY_PAD_SIDES = 6
 /** Where BAG and WILD open: over the buttons (bottom right, CORNERS 2's top right), or above the DOCK's bar. */
 @Composable
 private fun panelPlace(dock: Boolean, top: Boolean, u: Dp, inset: PaddingValues): Pair<Alignment, Modifier> = when {
+    // The compact HUD's buttons sit bottom left: the panel opens over them there.
+    FieldHudFit.tight -> Alignment.BottomStart to Modifier.padding(inset).padding(u * 6)
     dock -> Alignment.BottomCenter to Modifier.padding(inset).padding(start = u * 6, end = u * 6, top = u * 6, bottom = u * 60)
     top -> Alignment.TopEnd to Modifier.padding(inset).padding(u * 6)
     else -> Alignment.BottomEnd to Modifier.padding(inset).padding(u * 6)
@@ -1058,6 +1240,54 @@ private val BAG_ICON = listOf(
     "................",
 )
 private val BAG_COLORS = mapOf('K' to Color(0xFF3A2414), 'B' to Color(0xFFC0783A), 'L' to Color(0xFFE8A868), 'Y' to Color(0xFFF8D030))
+
+/** A region map: K frame, G land, B water, Y a road, R a pin with a W glint. */
+private val MAP_ICON = listOf(
+    "................",
+    ".KKKKKKKKKKKKKK.",
+    ".KBBBBBGGGGGGGK.",
+    ".KBBBBGGGGRRGGK.",
+    ".KBBBGGGGRWRRGK.",
+    ".KBBGGGGGRRRRGK.",
+    ".KBGGGGGGGRRGGK.",
+    ".KGGGGYYYYYRGGK.",
+    ".KGGGYGGGGGGGGK.",
+    ".KGGYGGGGGGGGGK.",
+    ".KGGYGGGGGBBBBK.",
+    ".KYYGGGGGBBBBBK.",
+    ".KGGGGGGBBBBBBK.",
+    ".KGGGGGBBBBBBBK.",
+    ".KKKKKKKKKKKKKK.",
+    "................",
+)
+private val MAP_COLORS = mapOf(
+    'K' to Color(0xFF202838), 'G' to Color(0xFF58B048), 'B' to Color(0xFF4890E0), 'Y' to Color(0xFFF0D060),
+    'R' to Color(0xFFE83028), 'W' to Color.White,
+)
+
+/** A PC: K outline, L its light grey case, D the darker shade, S the blue screen with an H glint, G the power light. */
+private val PC_ICON = listOf(
+    "................",
+    ".KKKKKKKKKKKKKK.",
+    ".KLLLLLLLLLLLLK.",
+    ".KLKKKKKKKKKKLK.",
+    ".KLKSSSSSSHHKLK.",
+    ".KLKSSSSSHHSKLK.",
+    ".KLKSSSSHHSSKLK.",
+    ".KLKSSSSSSSSKLK.",
+    ".KLKKKKKKKKKKLK.",
+    ".KLLLLLLLLLLGLK.",
+    ".KDDDDDDDDDDDDK.",
+    ".KKKKKKKKKKKKKK.",
+    "......KDDK......",
+    "....KKKKKKKK....",
+    "...KLLLLLLLLK...",
+    "...KKKKKKKKKK...",
+)
+private val PC_COLORS = mapOf(
+    'K' to Color(0xFF202838), 'L' to Color(0xFFD8D8E0), 'D' to Color(0xFF9098A8),
+    'S' to Color(0xFF3070C8), 'H' to Color(0xFF90C8F8), 'G' to Color(0xFF40D040),
+)
 
 /** The side panel's open arrow (PixelIcons.panelOpen) a size down, its strokes 2 thick: COMPANION. */
 private val COMPANION_ICON = listOf(

@@ -84,7 +84,7 @@ class PortraitPanel(
             val at = root.indexOfChild(touchControls) + 1
             panel = CompanionColors.track(ComposeView(context)).apply {
                 setContent {
-                    CompositionLocalProvider(LocalCompanionTopInset provides topInset.intValue) { SidePanelCompanion(companion) }
+                    CompositionLocalProvider(LocalCompanionTopInset provides topInset.intValue) { SidePanelCompanion(content = companion) }
                 }
             }.also { root.addView(it, at, FrameLayout.LayoutParams(-1, 0, Gravity.TOP)) }
             gripView = DragFrame(context, vertical = true, ::onDragStart, ::onDrag, ::onDragEnd).apply {
