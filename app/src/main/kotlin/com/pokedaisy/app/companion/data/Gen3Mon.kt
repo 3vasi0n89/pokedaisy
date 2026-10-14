@@ -49,6 +49,8 @@ data class PartyMonLayout(
     val flags: Int = 0x13,
     /** The species bits of a plaintext (unencrypted) box: SoulGold packs teraType above its 11. */
     val plainSpeciesMask: Int = 0xFFFF,
+    /** The held item's bits in a plaintext box (growth +2): SoulGold's are expansion's 10, with bits it sets above them. */
+    val plainItemMask: Int = 0xFFFF,
     /** Where a plaintext box's substructs start (growth, attacks, EVs, misc, in that order). */
     val plainBox: Int = 0x20,
     /** A plaintext box's experience is read (growth +4); the older plaintext games' never was. */
@@ -122,6 +124,7 @@ val QUETZAL_PARTY_MON = PartyMonLayout(
 )
 val SOULGOLD_PARTY_MON = PartyMonLayout(
     size = 96, status = 0x4C, level = 0x50, hp = 0x52, maxHp = 0x54, flags = 0x15, plainSpeciesMask = 0x07FF,
+    plainItemMask = 0x03FF,   // heldItem:10 - Cyndaquil's 0x0400 read as an "Item#1024" tag on its party slot
 )
 
 /**
@@ -155,7 +158,7 @@ fun decodePartyMon(raw: ByteArray, off: Int, layout: PartyMonLayout = VANILLA_PA
         val box = off + layout.plainBox
         species = u16(raw, box) and layout.plainSpeciesMask
         if (species == 0 || species > 4000) return null
-        heldItem = u16(raw, box + 2)
+        heldItem = u16(raw, box + 2) and layout.plainItemMask
         moves = IntArray(NUM_MOVES) { u16(raw, box + 0x0C + it * 2) }
         pp = IntArray(NUM_MOVES) { raw[box + 0x0C + 8 + it].toInt() and 0xFF }
         // Plaintext boxes keep the substructs in G-A-E-M order: EVs at +0x18, IVs at Misc +4.

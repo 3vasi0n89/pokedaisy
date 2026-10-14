@@ -24,6 +24,8 @@ class SoulGoldDecodeTest {
         assertEquals(listOf("Tackle", "Leer"), mon.moves.filter { it != 0 }.map { lookupMove(it).name })
         assertEquals(listOf(35, 30), mon.pp.take(2))
         assertEquals(GENDER_SYMBOL_MALE, mon.genderSymbol) // the party menu's blue symbol
+        // heldItem is 10 bits: the word is 0x0400 here, which showed an "Item#1024" tag on its party slot.
+        assertEquals(0, mon.heldItem)
     }
 
     @Test
@@ -90,10 +92,23 @@ class SoulGoldDecodeTest {
         val mon = t.party.single()
         assertEquals(155 to 6, mon.species to mon.level)
         assertEquals(21 to 21, mon.hp to mon.maxHp)
+        assertEquals(0, mon.heldItem) // nothing held (the word is 0x0400)
         assertEquals(listOf("Tackle", "Leer"), mon.moves.filter { it != 0 }.map { lookupMove(it).name })
         assertEquals("Cherrygrove City", lookupLocation(t.regionMapSectionId).mapSecName)
         assertEquals(3080L, t.money)
         assertEquals("Potion", itemName(t.items.single().itemId))
+    }
+
+    @Test
+    fun `held item - the low 10 bits, the bits SoulGold sets above them left out`() {
+        activeGame = GameKind.SOULGOLD
+        val ram = FixtureMemoryReader.load("soulgold_v12")
+        val raw = ram.readCoreMemory(NATIVE_SOULGOLD_V1_2.playerParty, 96)
+        assertEquals(0x0400, u16le(raw, 0x22)) // the Cyndaquil's growth +2: nothing held
+        raw[0x22] = (516 and 0xFF).toByte() // a Pecha Berry put in, bit 10 kept
+        raw[0x23] = (0x0400 or 516 shr 8).toByte()
+        val mon = decodePartyMon(raw, 0, SOULGOLD_PARTY_MON)!!
+        assertEquals("Pecha Berry", itemName(mon.heldItem))
     }
 
     @Test
