@@ -125,7 +125,7 @@ import com.pokedaisy.app.companion.ui.drawPixelRoundRect
  */
 class SettingsActivity : ComponentActivity() {
 
-    private enum class Screen { HOME, HOTKEYS, CONTROLS, SHADERS, OVERLAYS, FOLDERS, COVER_ART, SCREENSCRAPER, HIDDEN, ACHIEVEMENTS, CHEATS, CHEAT_ADD, LICENSES, HELP }
+    private enum class Screen { HOME, HOTKEYS, CONTROLS, SHADERS, FIELD_HUD, OVERLAYS, FOLDERS, COVER_ART, SCREENSCRAPER, HIDDEN, ACHIEVEMENTS, CHEATS, CHEAT_ADD, LICENSES, HELP }
 
     private lateinit var prefs: Prefs
     private var screen by mutableStateOf(Screen.HOME)
@@ -313,6 +313,7 @@ class SettingsActivity : ComponentActivity() {
                         Screen.HOTKEYS -> tk("HOTKEYS")
                         Screen.CONTROLS -> tk("GAME BUTTONS")
                         Screen.SHADERS -> tk("SHADERS")
+                        Screen.FIELD_HUD -> tk("HUD")
                         Screen.OVERLAYS -> tk("OVERLAY")
                         Screen.FOLDERS -> tk("FOLDERS")
                         Screen.COVER_ART -> tk("COVER ART")
@@ -336,6 +337,7 @@ class SettingsActivity : ComponentActivity() {
                     Screen.HOTKEYS -> HotkeysScreen(m, small)
                     Screen.CONTROLS -> ControlsScreen(m, small)
                     Screen.SHADERS -> ShadersScreen(m)
+                    Screen.FIELD_HUD -> FieldHudScreen(m)
                     Screen.OVERLAYS -> OverlaysScreen(m, small)
                     Screen.FOLDERS -> FoldersScreen(m, small)
                     Screen.COVER_ART -> CoverArtScreen(m, small)
@@ -575,6 +577,16 @@ class SettingsActivity : ComponentActivity() {
                 prefs.expandZoomOnText = !prefs.expandZoomOnText
                 revision++
             }.takeIf { prefs.gameAspect == com.pokedaisy.app.companion.GameAspect.WIDE },
+            // The party, a minimap, the balls and BAG / WILD over the game on the field: its own page (layout, look, size, parts).
+            SettingRow(tk("HUD"), onOff(prefs.fieldHud), labelBadge = com.pokedaisy.app.companion.NewFeatures.badge(com.pokedaisy.app.companion.NewFeatures.HUD)) { screen = Screen.FIELD_HUD },
+            // One screen: FIGHT, POKéMON and RUN in the room beside a battle (BattleButtons).
+            SettingRow(
+                tk("BATTLE BUTTONS"), onOff(prefs.battleButtons), subtitle = "FIGHT, POKéMON and RUN beside a battle",
+                labelBadge = com.pokedaisy.app.companion.NewFeatures.badge(com.pokedaisy.app.companion.NewFeatures.BATTLE_BUTTONS),
+            ) {
+                prefs.battleButtons = !prefs.battleButtons
+                revision++
+            }.takeIf { !hasSecondScreen },
             // FILTER (LCD / LCD PAPER / SCANLINES / CRT) and GBA COLORS, on their own page.
             SettingRow(tk("SHADERS"), prefs.screenFilter.label) { screen = Screen.SHADERS },
             // A frame around the game: the built-in ones and imported RetroArch overlays, on their own page.
@@ -748,6 +760,23 @@ class SettingsActivity : ComponentActivity() {
                 prefs.companionShaders = !prefs.companionShaders
                 revision++
             },
+        )
+        Column(Modifier.fillMaxWidth()) {
+            OptionListWindow(m, Modifier.fillMaxWidth().weight(1f, fill = false)) {
+                GroupedRows(rows, m, cursor = -1, onClick = { rows[it].onClick() })
+            }
+        }
+    }
+
+    /** FIELD HUD: the HUD over the overworld, like the companion's page; the game picks it up on resume. */
+    @Composable
+    private fun FieldHudScreen(m: GbaTextMetrics) {
+        @Suppress("UNUSED_EXPRESSION") revision
+        val rows = com.pokedaisy.app.companion.ui.fieldHudRows(
+            prefs.fieldHud, prefs.fieldHudStyle,
+            setOn = { prefs.fieldHud = it; revision++ },
+            setStyle = { prefs.fieldHudStyle = it; revision++ },
+            select = { title, options, current, pick -> selector = Selector(title, options, current) { pick(it); revision++ } },
         )
         Column(Modifier.fillMaxWidth()) {
             OptionListWindow(m, Modifier.fillMaxWidth().weight(1f, fill = false)) {

@@ -44,4 +44,10 @@ interface ItemUse {
 
     /** Takes the item [target]'s Pokémon holds into the bag. */
     fun take(target: PartyTarget, done: (ItemUseOutcome) -> Unit) = done(ItemUseOutcome(ItemUseResult.FAILED))
+
+    /** Whether the BAG has a PC button here (PC anywhere, GitHub #85). */
+    fun canPc(): Boolean = false
+
+    /** Opens the game's own PC on the field (USED = it's open; NOT_NOW / IN_BATTLE: not from here, now). */
+    fun openPc(done: (ItemUseOutcome) -> Unit) = done(ItemUseOutcome(ItemUseResult.FAILED))
 }

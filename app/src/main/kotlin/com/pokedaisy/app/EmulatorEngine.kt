@@ -74,6 +74,34 @@ class EmulatorEngine(
     /** WIDE's native tables for this game ([WideScreen.gameFor]), or [WideScreen.OFF]; applied between frames. */
     @Volatile var wideGame = WideScreen.OFF
 
+    /** The same tables for the field reads behind SCENE SPEEDS' TEXT, AUTO-RUN and RUN INDOORS, EXPAND on or off
+     * ([WideScreen.gameFor], [WideScreen.OFF] = a game they don't know); applied between frames. */
+    @Volatile var fieldGame = WideScreen.OFF
+
+    /** SETTINGS > SCENE SPEEDS (GitHub #43 / #85): the speed in a battle, while a text box is up on the field, and on
+     * a menu screen, while fast-forward is off; 0 = GAME SPEED's, as on the field. FF and slow-mo still win. */
+    @Volatile var battleSpeed = 0f
+    @Volatile var textSpeed = 0f
+    @Volatile var menuSpeed = 0f
+    /** ... and riding a bike / surfing on the field (batch 2 of #43 / #85): the whole game at that speed meanwhile. */
+    @Volatile var bikeSpeed = 0f
+    @Volatile var surfSpeed = 0f
+
+    /** The field read knows the player's bike / surf state on this game ([MgbaCore.FIELD_AVATAR]): BIKE / SURF SPEED. */
+    @Volatile var fieldMovesKnown = false
+        private set
+
+    /** AUTO-RUN: B held for the player while walking on the field (holding B walks); never on a bike or in a menu. */
+    @Volatile var autoRun = false
+
+    /** RUN INDOORS: the current map lets the player run (gMapHeader.allowRunning; FireRed / Emerald engines). */
+    @Volatile var runIndoors = false
+
+    /** WILD ENCOUNTERS: the game's own switch ([WildEncounters.find]; 0 = not found) and the percent of wild
+     * encounters left (100 = the game's own rate, 0 = none). */
+    @Volatile var wildFlag = 0L
+    @Volatile var wildEncounters = 100
+
     /** ZOOM and the look-around over WIDE: asked for the window to draw before each frame ([EmulatorView.camera]). */
     @Volatile var wideCamera: WideCamera? = null
 
@@ -275,11 +303,78 @@ class EmulatorEngine(
     private var mapOpen = false
     private var menuOpen = false
 
+    /**
+     * FIELD HUD: the player is on the plain overworld - a GBA game on its field screen (FfMenuWatch: learned from the
+     * player's first steps, then remembered per ROM), no battle or region map up,
+     * and at EXPAND (whose scene is known every frame, [MgbaCore.pkWideScene]) no text box, map preview or battle
+     * transition either; a fade between maps changes nothing. Comes on [FIELD_SETTLE_FRAMES] after the field is
+     * back (a conversation's lines don't make the HUD blink), goes at once. Set on the emu thread.
+     */
+    val onField = kotlinx.coroutines.flow.MutableStateFlow(false)
+    private var fieldFrames = 0
+    /** The last frame's EXPAND scene ([WideCamera.SCENE_FIELD] ...), -1 without EXPAND. Emu thread. */
+    private var wideScene = -1
+
+    /** Emu thread: what's on screen for SCENE SPEEDS, and the field reads' last bits ([MgbaCore.pkFieldState]). */
+    private var scene = Scene.FIELD
+    private var fieldState = 0
+    private var fieldApplied = -1
+    private var wildApplied = -1L
+
+    /** Debug builds: the scene / speed and AUTO-RUN's state last logged ([logField]). */
+    private var loggedScene: Scene? = null
+    private var loggedSpeed = Float.NaN
+    private var loggedAutoRun: String? = null
+
+    /**
+     * Debug builds only: a line when the scene or the speed changes ("scene BATTLE at 2.0x", "(FF)" while fast-forward
+     * is on) and when AUTO-RUN becomes ready or blocked, and why - so SCENE SPEEDS, TEXT SPEED and AUTO-RUN's bike /
+     * script / battle checks can be read off `adb logcat -s pokedaisy` after a test on a device.
+     */
+    private fun logField(speed: Float) {
+        if (!BuildConfig.DEBUG) return
+        if (scene != loggedScene || speed != loggedSpeed) {
+            loggedScene = scene
+            loggedSpeed = speed
+            Log.i("pokedaisy", "scene $scene at ${speedTag(speed)}${if (ffHeld || ffToggled) " (FF)" else ""}")
+        }
+        if (!autoRun) return
+        val s = fieldState
+        val why = when {
+            s and MgbaCore.FIELD_KNOWN == 0 -> "not a game it reads"
+            s and MgbaCore.FIELD_BATTLE != 0 -> "battle"
+            s and MgbaCore.FIELD_BIKE != 0 -> "bike"
+            s and MgbaCore.FIELD_LOCKED != 0 -> "script / text / START menu"
+            !FfMenuWatch.onField -> "not the field (a menu screen, or the field not learned yet)"
+            else -> null
+        }
+        val state = why?.let { "blocked: $it" } ?: "ready"
+        if (state != loggedAutoRun) {
+            loggedAutoRun = state
+            Log.i("pokedaisy", "auto-run $state")
+        }
+    }
+
+    private enum class Scene { FIELD, TEXT, BATTLE, MENU, BIKE, SURF }
+
+    /** The speed for what's on screen with FF off: SCENE SPEEDS' pick for it, else GAME SPEED's step. */
+    private fun sceneSpeed(): Float {
+        val s = when (scene) {
+            Scene.BATTLE -> battleSpeed
+            Scene.TEXT -> textSpeed
+            Scene.MENU -> menuSpeed
+            Scene.BIKE -> bikeSpeed
+            Scene.SURF -> surfSpeed
+            Scene.FIELD -> 0f
+        }
+        return if (s > 0f) s else SPEED_STEPS[speedIdx]
+    }
+
     /** The speed the player asked for (FF, slow-mo, the speed steps); Float.POSITIVE_INFINITY = "run uncapped". */
     private fun requestedSpeed(): Float = when {
         ffHeld || ffToggled -> if (ffMaxSpeed > 0f) ffMaxSpeed else Float.POSITIVE_INFINITY
         slowmoHeld -> 0.5f
-        else -> SPEED_STEPS[speedIdx]
+        else -> sceneSpeed()
     }
 
     /** What the emulator actually runs at: [requestedSpeed], unless SMART is holding it at 1x for now. */
@@ -585,7 +680,8 @@ class EmulatorEngine(
                         if (draw) lastWideDraw = now
                         MgbaCore.pkWideSetDraw(draw)
                         camera.walking = input.mask and DIRECTIONS != 0
-                        val win = camera.frame(MgbaCore.pkWideScene())
+                        wideScene = MgbaCore.pkWideScene()
+                        val win = camera.frame(wideScene)
                         if (win != null) MgbaCore.pkWideSetView(win.x, win.y, win.w, win.h)
                         else MgbaCore.pkWideSetView(0, 0, 0, 0)
                     } catch (t: Throwable) {
@@ -599,7 +695,13 @@ class EmulatorEngine(
                 MgbaCore.pkSetRewinding(rewinding)
                 // TURBO A / B: pressed 2 frames, released 2, in game frames - so FF mashes faster too.
                 val reset = if (softResetFrames > 0) { softResetFrames--; SOFT_RESET_KEYS } else 0
-                MgbaCore.pkSetKeys(input.mask or reset or (if ((frame++ / 2) % 2 == 0L) input.turboMask else 0))
+                var keys = input.mask or reset or (if ((frame++ / 2) % 2 == 0L) input.turboMask else 0)
+                // AUTO-RUN: B flipped while walking on the player's own field (holding it walks) - never in a script, a
+                // battle, a menu screen (B leaves it) or on a bike (the Acro Bike's wheelie is B).
+                if (autoRun && gba && keys and DIRECTIONS != 0 && fieldState and AUTO_RUN_BLOCKERS == MgbaCore.FIELD_KNOWN &&
+                    FfMenuWatch.onField
+                ) keys = keys xor MgbaCore.Key.B
+                MgbaCore.pkSetKeys(keys)
                 MgbaCore.pkRunFrame()
                 onFrame?.invoke()
                 framesRun++
@@ -639,6 +741,46 @@ class EmulatorEngine(
                 mapOpen = gba && RegionMapWatch.isOpen(InProcessReader)
                 // A shop's screens count as the field: its clerk talks inside them (GitHub #41).
                 menuOpen = gba && FfMenuWatch.tick(InProcessReader) && !ShopWatch.isOpen(InProcessReader)
+                if (wideApplied == WideScreen.OFF || wideCamera == null) wideScene = -1
+                // A fade between two maps keeps whatever the HUD was doing.
+                if (wideScene != WideCamera.SCENE_FADE) {
+                    // The field's own screen, positively (FfMenuWatch): "no menu found" isn't enough - a game whose field
+                    // screen isn't learned yet (a new game) never reports a menu, so its naming screen passed as field.
+                    val field = gba && FfMenuWatch.onField && !mapOpen && !battleInput.holdFrame &&
+                        battleInput.gameState == com.pokedaisy.app.companion.data.BATTLE_INPUT_NONE &&
+                        (wideScene == -1 || wideScene == WideCamera.SCENE_FIELD)
+                    fieldFrames = if (field) fieldFrames + 1 else 0
+                    val show = fieldFrames >= FIELD_SETTLE_FRAMES
+                    if (onField.value != show) onField.value = show
+                }
+                // SCENE SPEEDS / AUTO-RUN / RUN INDOORS / WILD ENCOUNTERS: the field as WIDE's tables read it (or a
+                // pending hack's), every frame on a game they know - a few bytes, and SETTINGS learns from it whether
+                // BIKE / SURF SPEED can work here.
+                if (fieldGame != fieldApplied || wildFlag != wildApplied) {
+                    MgbaCore.pkFieldConfigure(if (gba) fieldGame else WideScreen.OFF, wildFlag.toInt())
+                    fieldApplied = fieldGame
+                    wildApplied = wildFlag
+                    fieldMovesKnown = false
+                }
+                val wildKeep = if (wildFlag != 0L) wildEncounters else 100
+                fieldState = if (gba && fieldGame != WideScreen.OFF) MgbaCore.pkFieldState(runIndoors, wildKeep) else 0
+                if (fieldState and MgbaCore.FIELD_AVATAR != 0) fieldMovesKnown = true
+                val battleState = battleInput.gameState
+                scene = when {
+                    // A battle's own bag and party screens count as menus, as SMART has them.
+                    battleState == com.pokedaisy.app.companion.data.BATTLE_INPUT_PARTY_OPEN ||
+                        battleState == com.pokedaisy.app.companion.data.BATTLE_INPUT_BAG_OPEN || menuOpen || mapOpen -> Scene.MENU
+                    battleState != com.pokedaisy.app.companion.data.BATTLE_INPUT_NONE || FfMenuWatch.battling ||
+                        fieldState and MgbaCore.FIELD_BATTLE != 0 -> Scene.BATTLE
+                    fieldState and MgbaCore.FIELD_TEXT != 0 -> Scene.TEXT
+                    // Riding / surfing on the field (a cutscene that holds the controls stays FIELD).
+                    fieldState and (MgbaCore.FIELD_LOCKED or MgbaCore.FIELD_AVATAR) == MgbaCore.FIELD_AVATAR &&
+                        fieldState and MgbaCore.FIELD_SURF != 0 -> Scene.SURF
+                    fieldState and (MgbaCore.FIELD_LOCKED or MgbaCore.FIELD_AVATAR) == MgbaCore.FIELD_AVATAR &&
+                        fieldState and MgbaCore.FIELD_BIKE != 0 -> Scene.BIKE
+                    else -> Scene.FIELD
+                }
+                logField(effectiveSpeed())
                 val speed = effectiveSpeed()
                 // FF the player still has on - SMART only holding it at 1x for a menu.
                 val ffWanted = requestedSpeed() > 1f
@@ -1043,6 +1185,9 @@ class EmulatorEngine(
     }
 
     private companion object {
+        /** FIELD HUD: frames of plain field before [onField] comes on (~1/3 s at 1x). */
+        const val FIELD_SETTLE_FRAMES = 20
+
         private const val SOFT_RESET_FRAMES = 10
         private const val SOFT_RESET_KEYS = MgbaCore.Key.A or MgbaCore.Key.B or MgbaCore.Key.SELECT or MgbaCore.Key.START
 
@@ -1061,6 +1206,8 @@ class EmulatorEngine(
         const val CYCLE_STEPS = 5
         /** At fast-forward, a WIDE window is drawn at most this often (~80 a second: every refresh of a 60 Hz screen). */
         const val WIDE_DRAW_NANOS = 12_000_000L
+        /** pkFieldState's bits that keep AUTO-RUN off: a script holding the field, a battle, a bike (known must be set). */
+        const val AUTO_RUN_BLOCKERS = MgbaCore.FIELD_KNOWN or MgbaCore.FIELD_LOCKED or MgbaCore.FIELD_BATTLE or MgbaCore.FIELD_BIKE
         /** The D-pad's bits: one held = the player walking (the look-around glides back). */
         const val DIRECTIONS = MgbaCore.Key.UP or MgbaCore.Key.DOWN or MgbaCore.Key.LEFT or MgbaCore.Key.RIGHT
     }

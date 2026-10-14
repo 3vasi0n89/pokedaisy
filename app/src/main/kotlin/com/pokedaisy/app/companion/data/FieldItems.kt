@@ -37,8 +37,14 @@ data class FieldItemFns(
     val itemNameLen: Int = 14,
     /** FLY from the MAP tab (Fly.kt); null = none. */
     val fly: FlyFns? = null,
+    /** PC anywhere from the BAG tab (Pc.kt); null = none. */
+    val pc: PcFns? = null,
+    /** USE / GIVE / TAKE from the bag; false = the table is there for FLY and the PC only (a game whose items the app
+     * doesn't know the ids / gItems layout of: the expansion hacks). */
+    val bagActions: Boolean = true,
 ) {
-    val functions get() = listOf(varGet, varSet, checkBagHasItem, removeBagItem, fieldControlsLocked)
+    /** The functions the code CRCs check, in order; a 0 is one the table doesn't use (the expansion hacks' bag). */
+    val functions get() = listOf(varGet, varSet, checkBagHasItem, removeBagItem, fieldControlsLocked).filter { it != 0L }
     val itemSize get() = itemNameLen + 30
     /** Offsets in struct Item: holdEffectParam, importance, pocket, fieldUseFunc. */
     val itemParamOff get() = itemNameLen + 5
@@ -105,7 +111,7 @@ data class PartyItemFns(
      * of them - a hack that turned an id into something else keeps it off. Empty = the id sets alone. */
     val useFuncs: Set<Long> = emptySet(),
 ) {
-    val functions get() = listOfNotNull(getMonData, setMonData, itemNoEffect, itemEffect, addBagItem)
+    val functions get() = listOfNotNull(getMonData, setMonData, itemNoEffect, itemEffect, addBagItem).filter { it != 0L }
     val usable get() = medicine + ppOneMove + ppAllMoves
 }
 
@@ -153,6 +159,7 @@ val FIELD_ITEMS_FIRERED_REV1 = FieldItemFns(
         useFuncs = setOf(0x080A16F4L, 0x080A1710L, 0x080A172CL, 0x080A19ACL), // FieldUseFunc_Medicine, _Ether, _PpUp, _Repel
     ),
     fly = FLY_FIRERED_REV1,
+    pc = PC_FIRERED_REV1,
 )
 
 /** Retail Emerald (BPEE): its functions sit where the pinned pokeemerald build has them (Emerald
@@ -174,6 +181,7 @@ val FIELD_ITEMS_EMERALD = FieldItemFns(
         useFuncs = setOf(0x080FDEA0L, 0x080FDEF4L, 0x080FDF10L, 0x080FE0BCL),
     ),
     fly = FLY_EMERALD,
+    pc = PC_EMERALD,
 )
 
 /** Retail LeafGreen rev 0 (BPGE): pret's pokefirered built clean as leafgreen (byte for byte retail, SHA1 574fa542...). */
@@ -188,6 +196,7 @@ val FIELD_ITEMS_LEAFGREEN_REV0 = FieldItemFns(
         useFuncs = setOf(0x080A16B4L, 0x080A16D0L, 0x080A16ECL, 0x080A196CL),
     ),
     fly = FLY_LEAFGREEN_REV0,
+    pc = PC_LEAFGREEN_REV0,
 )
 
 /** Retail LeafGreen rev 1 (BPGE): built clean as leafgreen_rev1 (SHA1 7862c67b...). FireRed rev 1's party code and RAM. */
@@ -199,6 +208,7 @@ val FIELD_ITEMS_LEAFGREEN_REV1 = FieldItemFns(
         addBagItem = 0x0809A06CL, useFuncs = setOf(0x080A16C8L, 0x080A16E4L, 0x080A1700L, 0x080A1980L),
     ),
     fly = FLY_LEAFGREEN_REV1,
+    pc = PC_LEAFGREEN_REV1,
 )
 
 /** Ruby / Sapphire's party side, revs 1 and 2 alike (pret's pokeruby built clean as each, byte for byte retail): the
@@ -218,19 +228,232 @@ val FIELD_ITEMS_RUBY = FieldItemFns(
     fieldControlsLocked = 0x08065568L, repelVar = 0x4021, items = 0x083C5580L,
     codeCrcs = listOf(0x98EFB2B6L, 0x82AA042BL, 0x87E0CA93L, 0xD7C65886L, 0xA306873DL),
     party = RUBY_SAPPHIRE_PARTY,
+    pc = PC_RUBY,
+    fly = FLY_RUBY,
 )
 
 /** Retail Sapphire rev 1 / rev 2 (AXPE; SHA1 4722efb8... / 89b45fb1...): Ruby's code a few bytes on. */
 val FIELD_ITEMS_SAPPHIRE = FIELD_ITEMS_RUBY.copy(
-    varGet = 0x08069278L, varSet = 0x08069294L, fieldControlsLocked = 0x0806556CL, items = 0x083C55DCL,
+    varGet = 0x08069278L, varSet = 0x08069294L, fieldControlsLocked = 0x0806556CL, items = 0x083C55DCL, pc = PC_SAPPHIRE,
+    fly = FLY_SAPPHIRE,
 )
 
 /** Glazed 9.2.0: retail Emerald edited in place - Emerald's code and RAM, its VarGet / VarSet hooked into its own
  * extended variables (a jump at their entry; still the game's own functions to call). Its edited items are what
  * [PartyItemFns.useFuncs] keeps honest. */
 val FIELD_ITEMS_GLAZED = FIELD_ITEMS_EMERALD.copy(
-    fly = null, // its own region (Tunod): the Fly map's tables aren't mapped
+    // FLY as Emerald's: its towns sit in Hoenn's map slots, and its Fly map's exit (CB_ExitFlyMap) and sMapHealLocations
+    // are retail's bytes - flown headless (a Tunod city's Pokémon Center). Johto's towns aren't in that table.
     codeCrcs = listOf(0x9D16316AL, 0xAC747C5FL) + FIELD_ITEMS_EMERALD.codeCrcs.drop(2),
+)
+
+/**
+ * Heart and Soul 2.0.6 (pokeemerald-expansion, gcc - nothing maps from retail): every address from its source
+ * (PokemonHnS-Development/pokehns-expansion at the 2.0.6 commit) built plain (-Og) with Debian's arm-none-eabi-gcc 12,
+ * each function then found in the release by its code (exact, masked, or through its callers' BLs: FlagGet, FadeScreen,
+ * the map warp), RAM and tables through the literal pools (gPartyMenu 0x020341FC = the battle switch's). PC anywhere and
+ * FLY only ([FieldItemFns.bagActions] false: the expansion renumbered items and reshaped gItemsInfo). FLY's gate is
+ * gFieldMoveInfo[FIELD_MOVE_FLY]'s own functions - IsFieldMoveUnlocked_Fly (badge 5 there, in place of a flag) and
+ * SetUpFieldMove_Fly; MON_DATA_MOVE1 / IS_EGG are 20 / 54. Flown headless (New Bark Town three times, two Johto cities),
+ * the PC opened and closed.
+ */
+val FIELD_ITEMS_HEART_AND_SOUL = FieldItemFns(
+    varGet = 0x0811E678L, varSet = 0x0811E70CL, checkBagHasItem = 0x081665C0L, removeBagItem = 0x081671CCL,
+    fieldControlsLocked = 0x08207FF8L, repelVar = 0x4021, items = 0x0878EFC0L,
+    codeCrcs = listOf(0xAEDB0050L, 0xC6FC58DDL, 0x4ACC0486L, 0xE1BB9533L, 0xFB4F8620L),
+    party = PartyItemFns(
+        getMonData = 0x081BE7F8L, setMonData = 0x081BF848L, itemNoEffect = null, itemEffect = 0,
+        addBagItem = 0x08167000L, party = 0x02034764L, partyCount = 0x020342A4L, scratch = 0x0203FFF0L,
+        itemCount = 0, unholdablePockets = emptySet(),
+        codeCrcs = listOf(0x5AEB875BL, 0x181C95BFL, 0x2616D154L),
+    ),
+    bagActions = false,
+    pc = PcFns(0x08208094L, 63, 0x08294028L, 0x081DA8CDL, listOf(0x9917FF09L, 0x3519E8E6L)),
+    fly = FlyFns(
+        flagGet = 0x08140258L, badgeFlag = 0, setUpFieldMoveFly = 0x081A6038L, getMapsecType = 0x081F6E58L,
+        fadeScreen = 0x0814D340L, lockControls = 0x08207FD8L, unlockControls = 0x08207FECL,
+        setFlyWarpDestination = 0, partyMenuSlotId = 0x02034205L, destinations = 0x08D4D1CCL, firstMapsec = 0, count = 0x7D,
+        codeCrcs = listOf(0x000D456DL, 0xEACE0EC0L, 0x1634A082L, 0xBEB09F41L, 0x3A5DE8F0L, 0xD7D52C9EL, 0xB5256472L, 0x4C7AD37BL, 0x61E354B6L),
+        flyTypes = setOf(2, 4), monMoveField = 20, monEggField = 54,
+        healWarp = HealWarp(
+            toHealLocation = 0x081986BCL, toMapWarp = 0x08198638L, returnToField = 0x0813CEF0L,
+            saveBlock2Ptr = 0x030041D4L, special = emptyMap(), genderMapsec = -1, maleHeal = 0, femaleHeal = 0,
+        ),
+    ),
+)
+
+/**
+ * Emerald Imperium 1.3.1 (pokeemerald-expansion 1.10.0, no source): pokeemerald-expansion's 1.10.0 tag built plain with
+ * Debian's arm-none-eabi-gcc 12 as the reference, each function found in Imperium by its first instructions (literal
+ * loads / BLs masked); the field-lock trio by its byte (EXPAND's CONTROLS_LOCKED, 0x03000E84), ReturnToFieldFromFlyMapSelect
+ * by its callback matching FieldCallback_UseFly, the town table by its first 32 entries, RAM from NATIVE_IMPERIUM / the
+ * battle switch. PC anywhere and FLY only; no bag functions (0 = not checked). Emerald's FLY rules (badge 6 = 0x86C,
+ * Littleroot by gender, Ever Grande / Battle Frontier); MON_DATA_MOVE1 / IS_EGG 20 / 52. Flown headless (Littleroot,
+ * Rustboro, Oldale, Ever Grande, the Battle Frontier), the PC opened and closed.
+ */
+val FIELD_ITEMS_IMPERIUM = FieldItemFns(
+    varGet = 0x08116BFCL, varSet = 0x08116C90L, checkBagHasItem = 0, removeBagItem = 0,
+    fieldControlsLocked = 0x08200894L, repelVar = 0x4021, items = 0,
+    codeCrcs = listOf(0xAEDB0050L, 0xC6FC58DDL, 0x75D3C574L),
+    party = PartyItemFns(
+        getMonData = 0x081BDE00L, setMonData = 0x081BE590L, itemNoEffect = null, itemEffect = 0, addBagItem = 0,
+        party = 0x020375F8L, partyCount = 0x020375F5L, scratch = 0x0203FFF0L, itemCount = 0, unholdablePockets = emptySet(),
+        codeCrcs = listOf(0xC6A5D42AL, 0xF260814BL),
+    ),
+    bagActions = false,
+    pc = PcFns(0x08200930L, 63, 0x0828A4A8L, 0x081CC0CDL, listOf(0x16121208L, 0x09BD3001L)),
+    fly = FlyFns(
+        flagGet = 0x08116E54L, badgeFlag = 0x86C, setUpFieldMoveFly = 0x08193A48L, getMapsecType = 0x081F26E4L,
+        fadeScreen = 0x08145BA8L, lockControls = 0x0820087CL, unlockControls = 0x08200888L, setFlyWarpDestination = 0,
+        partyMenuSlotId = 0x020370E9L, destinations = 0x08DDAE6CL, firstMapsec = 0, count = 50,
+        codeCrcs = listOf(0xF7861D9EL, 0x460F285DL, 0xE44F15FBL, 0x0D60DD4CL, 0x4522C4C5L, 0xFAD9A57BL, 0xED94C77DL, 0x9FA231EBL, 0x0F3C1484L),
+        flyTypes = setOf(2, 4), extraMapsecs = listOf(58), monMoveField = 20, monEggField = 52,
+        healWarp = HealWarp(
+            toHealLocation = 0x08187BA0L, toMapWarp = 0x08187B28L, returnToField = 0x081313F4L,
+            saveBlock2Ptr = 0x0300621CL, special = mapOf(15 to 11, 58 to 22),
+            genderMapsec = 0, maleHeal = 12, femaleHeal = 13,
+        ),
+    ),
+)
+
+/**
+ * Lazarus 2.0 (pokeemerald-expansion, no source): mapped like Imperium from expansion 1.10.0's build - FlagGet,
+ * GetMapsecType and FadeScreen through their callers' BLs, the field-lock trio by its byte (0x03003B38), RAM from
+ * NATIVE_LAZARUS / the battle switch. Its sMapHealLocations is retail's 50 Hoenn rows grown to 122: its own towns are
+ * sections 90-121 (Acrisia City first). MON_DATA as 1.10 (probed on the save: moves at 20, level 62). Badge 6 (0x86C, its
+ * party menu's FLAG_BADGE01_GET + 5). Flown headless (Acrisia, Sofos, Kalami City), the PC opened and closed.
+ */
+val FIELD_ITEMS_LAZARUS = FieldItemFns(
+    varGet = 0x08114644L, varSet = 0x081146D8L, checkBagHasItem = 0, removeBagItem = 0,
+    fieldControlsLocked = 0x0820B218L, repelVar = 0x4021, items = 0,
+    codeCrcs = listOf(0xAEDB0050L, 0xC6FC58DDL, 0x75F73111L),
+    party = PartyItemFns(
+        getMonData = 0x081C2F54L, setMonData = 0x081C36D0L, itemNoEffect = null, itemEffect = 0, addBagItem = 0,
+        party = 0x0201B960L, partyCount = 0x0201B95DL, scratch = 0x0203FFF0L, itemCount = 0, unholdablePockets = emptySet(),
+        codeCrcs = listOf(0xC6A5D42AL, 0xF260814BL),
+    ),
+    bagActions = false,
+    pc = PcFns(0x0820B2B0L, 63, 0x0828CBF4L, 0x081D54D9L, listOf(0x16121208L, 0xDC62C107L)),
+    fly = FlyFns(
+        flagGet = 0x081148A0L, badgeFlag = 0x86C, setUpFieldMoveFly = 0x0819C0C0L, getMapsecType = 0x081FD308L,
+        fadeScreen = 0x081450C0L, lockControls = 0x0820B200L, unlockControls = 0x0820B20CL, setFlyWarpDestination = 0,
+        partyMenuSlotId = 0x0201B685L, destinations = 0x08CE479CL, firstMapsec = 0, count = 122,
+        codeCrcs = listOf(0x6DE8DF3FL, 0x75E3EFAEL, 0xCA58413CL, 0x4F62D78CL, 0x824C20A1L, 0x3DB7411FL, 0xBC4A086AL, 0x06BC9D2AL, 0xE8CC9227L),
+        flyTypes = setOf(2, 4), extraMapsecs = listOf(), monMoveField = 20, monEggField = 52,
+        healWarp = HealWarp(
+            toHealLocation = 0x0818F0B8L, toMapWarp = 0x0818F040L, returnToField = 0x0812E4D0L,
+            saveBlock2Ptr = 0x03003668L, special = mapOf(),
+            genderMapsec = -1, maleHeal = 0, femaleHeal = 0,
+        ),
+    ),
+)
+
+/**
+ * SoulGold (pokeemerald-expansion, no source), its four builds: v1.1.4 mapped from pokeemerald-expansion 1.13.0's build
+ * (FlagGet, VarGet / VarSet, FadeScreen, the PC by code; GetMonData / SetMonData through their callers), the rest from its
+ * own code - gFieldMoveInfo's FLY entry (SetUpFieldMove_Fly, IsFieldMoveUnlocked_Fly), SetFlyDestination's literal and
+ * calls (sMapHealLocations 313 rows by u16 section, Johto from 196; the two warps; gSaveBlock2Ptr), the call after it in
+ * CB_ExitFlyMap (ReturnToFieldFromFlyMapSelect), GetMapsecType by its switch (it takes the section minus 0xC3), the
+ * field-lock trio by its byte (0x03001F74), the PC as special 71. MON_DATA_MOVE1 / IS_EGG 21 / 55 (probed: one field more
+ * than Heart and Soul's from 20). The v1.2 builds from v1.1.4 by code, SetUpFieldMove_Fly from their own gFieldMoveInfo
+ * (the masked match took a neighbour), checked against their own SetFlyDestination. Flown headless on all four (New Bark,
+ * Cherrygrove; v1.1.4 Goldenrod too), the PC opened on each. [fieldItemsCandidatesForGame] lets the CRCs pick the build.
+ */
+val FIELD_ITEMS_SOULGOLD = FieldItemFns(
+    varGet = 0x08133F38L, varSet = 0x08133FCCL, checkBagHasItem = 0, removeBagItem = 0,
+    fieldControlsLocked = 0x082363D8L, repelVar = 0x4021, items = 0,
+    codeCrcs = listOf(0xAEDB0050L, 0xC6FC58DDL, 0x41C9CB9EL),
+    party = PartyItemFns(
+        getMonData = 0x081ED710L, setMonData = 0x081EDD68L, itemNoEffect = null, itemEffect = 0, addBagItem = 0,
+        party = 0x0203901CL, partyCount = 0x02038DD5L, scratch = 0x0203FFF0L, itemCount = 0, unholdablePockets = emptySet(),
+        codeCrcs = listOf(0xDA6FC37DL, 0x7D68264BL),
+    ),
+    bagActions = false,
+    pc = PcFns(0x0823647CL, 71, 0x082D1804L, 0x08206835L, listOf(0xB41D4149L, 0x6EA471A2L)),
+    fly = FlyFns(
+        flagGet = 0x08155B88L, badgeFlag = 0x0, setUpFieldMoveFly = 0x081D2384L, getMapsecType = 0x08223064L,
+        fadeScreen = 0x0816187CL, lockControls = 0x082363B8L, unlockControls = 0x082363CCL, setFlyWarpDestination = 0,
+        partyMenuSlotId = 0x02038D2DL, destinations = 0x08F3738CL, firstMapsec = 0, count = 313,
+        codeCrcs = listOf(0xF2387223L, 0x26AB0FBDL, 0x1595030BL, 0x194580CBL, 0x49C48542L, 0x10E7E49AL, 0xC0BE06FBL, 0x99B2D9C6L, 0x6A74490DL),
+        flyTypes = setOf(2, 4), extraMapsecs = listOf(), monMoveField = 21, monEggField = 55,
+        healWarp = HealWarp(
+            toHealLocation = 0x081BD184L, toMapWarp = 0x081BD100L, returnToField = 0x081521ECL,
+            saveBlock2Ptr = 0x030040C0L, special = mapOf(),
+            genderMapsec = -1, maleHeal = 0, femaleHeal = 0,
+        ),
+    ),
+)
+val FIELD_ITEMS_SOULGOLD_V1_2 = FieldItemFns(
+    varGet = 0x0813466CL, varSet = 0x08134700L, checkBagHasItem = 0, removeBagItem = 0,
+    fieldControlsLocked = 0x08236CB8L, repelVar = 0x4021, items = 0,
+    codeCrcs = listOf(0xAEDB0050L, 0xC6FC58DDL, 0x41C9CB9EL),
+    party = PartyItemFns(
+        getMonData = 0x081EE340L, setMonData = 0x081EE998L, itemNoEffect = null, itemEffect = 0, addBagItem = 0,
+        party = 0x02039024L, partyCount = 0x02038DDDL, scratch = 0x0203FFF0L, itemCount = 0, unholdablePockets = emptySet(),
+        codeCrcs = listOf(0x9A0CA5AEL, 0x7D68264BL),
+    ),
+    bagActions = false,
+    pc = PcFns(0x08236D5CL, 71, 0x082D20C4L, 0x08207135L, listOf(0xB41D4149L, 0xCED42BCBL)),
+    fly = FlyFns(
+        flagGet = 0x08156238L, badgeFlag = 0x0, setUpFieldMoveFly = 0x081D302CL, getMapsecType = 0x0822393CL,
+        fadeScreen = 0x08161F28L, lockControls = 0x08236C98L, unlockControls = 0x08236CACL, setFlyWarpDestination = 0,
+        partyMenuSlotId = 0x02038D35L, destinations = 0x08F424D8L, firstMapsec = 0, count = 313,
+        codeCrcs = listOf(0x6BE6A214L, 0x26AB0FBDL, 0x7288EAB0L, 0x194580CBL, 0xCCA8CCA7L, 0x10E7E49AL, 0x7A5F4BEBL, 0x5C06F129L, 0x215DCE2AL),
+        flyTypes = setOf(2, 4), extraMapsecs = listOf(), monMoveField = 21, monEggField = 55,
+        healWarp = HealWarp(
+            toHealLocation = 0x081BDB78L, toMapWarp = 0x081BDAF4L, returnToField = 0x08152718L,
+            saveBlock2Ptr = 0x030040C0L, special = mapOf(),
+            genderMapsec = -1, maleHeal = 0, femaleHeal = 0,
+        ),
+    ),
+)
+val FIELD_ITEMS_SOULGOLD_V1_2B = FieldItemFns(
+    varGet = 0x0813465CL, varSet = 0x081346F0L, checkBagHasItem = 0, removeBagItem = 0,
+    fieldControlsLocked = 0x08236C20L, repelVar = 0x4021, items = 0,
+    codeCrcs = listOf(0xAEDB0050L, 0xC6FC58DDL, 0x41C9CB9EL),
+    party = PartyItemFns(
+        getMonData = 0x081EE2D4L, setMonData = 0x081EE92CL, itemNoEffect = null, itemEffect = 0, addBagItem = 0,
+        party = 0x02039024L, partyCount = 0x02038DDDL, scratch = 0x0203FFF0L, itemCount = 0, unholdablePockets = emptySet(),
+        codeCrcs = listOf(0x9A0CA5AEL, 0x7D68264BL),
+    ),
+    bagActions = false,
+    pc = PcFns(0x08236CC4L, 71, 0x082D202CL, 0x0820709DL, listOf(0xB41D4149L, 0xCED42BCBL)),
+    fly = FlyFns(
+        flagGet = 0x08156228L, badgeFlag = 0x0, setUpFieldMoveFly = 0x081D2FC0L, getMapsecType = 0x082238A4L,
+        fadeScreen = 0x08161F18L, lockControls = 0x08236C00L, unlockControls = 0x08236C14L, setFlyWarpDestination = 0,
+        partyMenuSlotId = 0x02038D35L, destinations = 0x08F42434L, firstMapsec = 0, count = 313,
+        codeCrcs = listOf(0x6BE6A214L, 0x26AB0FBDL, 0x2E44EAB9L, 0x194580CBL, 0x5A477C60L, 0x10E7E49AL, 0x20BA9723L, 0x5C06F129L, 0xE4CC882DL),
+        flyTypes = setOf(2, 4), extraMapsecs = listOf(), monMoveField = 21, monEggField = 55,
+        healWarp = HealWarp(
+            toHealLocation = 0x081BDB0CL, toMapWarp = 0x081BDA88L, returnToField = 0x08152708L,
+            saveBlock2Ptr = 0x030040C0L, special = mapOf(),
+            genderMapsec = -1, maleHeal = 0, femaleHeal = 0,
+        ),
+    ),
+)
+val FIELD_ITEMS_SOULGOLD_V1_2C = FieldItemFns(
+    varGet = 0x081346C8L, varSet = 0x0813475CL, checkBagHasItem = 0, removeBagItem = 0,
+    fieldControlsLocked = 0x08236D18L, repelVar = 0x4021, items = 0,
+    codeCrcs = listOf(0xAEDB0050L, 0xC6FC58DDL, 0x41C9CB9EL),
+    party = PartyItemFns(
+        getMonData = 0x081EE3A0L, setMonData = 0x081EE9F8L, itemNoEffect = null, itemEffect = 0, addBagItem = 0,
+        party = 0x02039024L, partyCount = 0x02038DDDL, scratch = 0x0203FFF0L, itemCount = 0, unholdablePockets = emptySet(),
+        codeCrcs = listOf(0x9A0CA5AEL, 0x7D68264BL),
+    ),
+    bagActions = false,
+    pc = PcFns(0x08236DBCL, 71, 0x082D2124L, 0x08207195L, listOf(0xB41D4149L, 0xCED42BCBL)),
+    fly = FlyFns(
+        flagGet = 0x08156294L, badgeFlag = 0x0, setUpFieldMoveFly = 0x081D308CL, getMapsecType = 0x0822399CL,
+        fadeScreen = 0x08161F84L, lockControls = 0x08236CF8L, unlockControls = 0x08236D0CL, setFlyWarpDestination = 0,
+        partyMenuSlotId = 0x02038D35L, destinations = 0x08F425CCL, firstMapsec = 0, count = 313,
+        codeCrcs = listOf(0x6BE6A214L, 0x26AB0FBDL, 0x40BE8832L, 0x194580CBL, 0xE2F80527L, 0x10E7E49AL, 0xCA6219BBL, 0x5C06F129L, 0x9A609E57L),
+        flyTypes = setOf(2, 4), extraMapsecs = listOf(), monMoveField = 21, monEggField = 55,
+        healWarp = HealWarp(
+            toHealLocation = 0x081BDBD8L, toMapWarp = 0x081BDB54L, returnToField = 0x08152774L,
+            saveBlock2Ptr = 0x030040C0L, special = mapOf(),
+            genderMapsec = -1, maleHeal = 0, femaleHeal = 0,
+        ),
+    ),
 )
 
 /** The CFRU hacks keep every function the tables use where FireRed rev 0 has it (each checked by CRC), with their
@@ -238,8 +461,11 @@ val FIELD_ITEMS_GLAZED = FIELD_ITEMS_EMERALD.copy(
  * [itemCount] is harmless). Sword and Shield moved Berries and Mail into pocket 2 beside the key items, so only the
  * TM case's pocket keeps items out by pocket there - its key items by their importance flag. */
 private fun cfru(items: Long, unholdablePockets: Set<Int> = setOf(2, 4)): FieldItemFns? = FIELD_ITEMS_PORTS["BPRE0"]?.let { t ->
-    t.copy(items = items, party = t.party!!.copy(itemCount = 0x300, unholdablePockets = unholdablePockets))
+    t.copy(items = items, party = t.party!!.copy(itemCount = 0x300, unholdablePockets = unholdablePockets)).u16Mapsecs()
 }
+
+/** FLY on a FireRed hack that widened map sections to 16 bits: its patched GetMapsecType counts as the game's. */
+private fun FieldItemFns.u16Mapsecs() = copy(fly = fly?.copy(getMapsecTypeAltCrc = GET_MAPSEC_TYPE_U16))
 
 /**
  * The tables for the running game: by [kind] for the hacks built on retail code (Glazed on Emerald; Orange Islands,
@@ -248,15 +474,30 @@ private fun cfru(items: Long, unholdablePockets: Set<Int> = setOf(2, 4)): FieldI
  */
 fun fieldItemsForGame(kind: GameKind?, gameCode: String, revision: Int): FieldItemFns? = when (kind) {
     GameKind.GLAZED -> FIELD_ITEMS_GLAZED.takeIf { gameCode == "BPEE" }
-    GameKind.ORANGE_ISLANDS -> FIELD_ITEMS_PORTS["BPRE0"].takeIf { gameCode == "BPRE" && revision == 0 }
-    GameKind.UNBOUND -> cfru(0x08876200L)
+    GameKind.ORANGE_ISLANDS -> FIELD_ITEMS_PORTS["BPRE0"]?.u16Mapsecs().takeIf { gameCode == "BPRE" && revision == 0 }
+    GameKind.HEART_AND_SOUL -> FIELD_ITEMS_HEART_AND_SOUL.takeIf { gameCode == "BPEE" }
+    GameKind.IMPERIUM -> FIELD_ITEMS_IMPERIUM.takeIf { gameCode == "BPEE" }
+    GameKind.LAZARUS -> FIELD_ITEMS_LAZARUS.takeIf { gameCode == "BPEE" }
+    GameKind.UNBOUND -> cfru(0x08876200L)?.let { t -> t.copy(fly = t.fly?.let(::flyUnbound)) }
     GameKind.RADICAL_RED -> cfru(0x093C0000L)
     GameKind.ODYSSEY, GameKind.GAIA -> cfru(0x083DB028L)
     GameKind.AMETHYST -> cfru(0x0872DB0CL)
     GameKind.SWORD_SHIELD -> cfru(0x093C0000L, unholdablePockets = setOf(4))
     GameKind.FIRERED -> if (gameCode == "PUVV") FIELD_ITEMS_PORTS["BPRE0"] else fieldItemsFor(gameCode, revision)
-    GameKind.EMERALD -> fieldItemsFor(gameCode, revision)
+    // Emerald Kaizo: retail's FLY code, but its map reload crashed when the game's ReturnToField came straight from the
+    // field (headless, on retail's save: the first flight, or the fourth once the overworld's windows were freed first),
+    // where the game's own Fly map flies fine. Off until it can be checked on a Kaizo save.
+    GameKind.EMERALD -> fieldItemsFor(gameCode, revision)?.let { if (romGameCode == KAIZO_TEXT) it.copy(fly = null) else it }
     else -> null
+}
+
+/** Every table a game may need, for the games whose builds share a [GameKind] and game code (SoulGold's four): the
+ * code CRCs pick the build ([fieldItemSupport] returns null for the others). Otherwise [fieldItemsForGame]'s one. */
+fun fieldItemsCandidatesForGame(kind: GameKind?, gameCode: String, revision: Int): List<FieldItemFns> = when (kind) {
+    GameKind.SOULGOLD -> if (gameCode == "BPEE") listOf(
+        FIELD_ITEMS_SOULGOLD, FIELD_ITEMS_SOULGOLD_V1_2, FIELD_ITEMS_SOULGOLD_V1_2B, FIELD_ITEMS_SOULGOLD_V1_2C,
+    ) else emptyList()
+    else -> listOfNotNull(fieldItemsForGame(kind, gameCode, revision))
 }
 
 /** The tables for a ROM by its header's game code and revision byte; the code CRCs still decide ([fieldItemSupport]). */
@@ -308,6 +549,8 @@ class FieldItemSupport(
     private val usable: Set<Int> = fns.party?.usable.orEmpty() + REPEL_ITEMS,
     /** FLY's code is where [FieldItemFns.fly] says. */
     val canFly: Boolean = false,
+    /** PC anywhere's code is where [FieldItemFns.pc] says. */
+    val canPc: Boolean = false,
 ) {
     private val party = fns.party
     /** USE: a Repel on the spot, or medicine / a PP item on a picked Pokémon. */
@@ -320,7 +563,7 @@ class FieldItemSupport(
     /** The bag row's mark: something to do with it here. */
     fun marked(itemId: Int): Boolean = party != null && (canUse(itemId) || canGive(itemId))
     /** TAKE on the summary. */
-    val canTake: Boolean get() = party != null
+    val canTake: Boolean get() = party != null && fns.bagActions
 }
 
 /** [fns]' support on the running ROM, or null when its code isn't where [fns] says (a hack
@@ -328,9 +571,11 @@ class FieldItemSupport(
 fun fieldItemSupport(fns: FieldItemFns, read: (addr: Long, len: Int) -> ByteArray): FieldItemSupport? {
     if (!fieldItemCodeMatches(fns, read)) return null
     val party = fns.party ?: return FieldItemSupport(fns, emptySet())
-    val items = read(fns.items, party.itemCount * fns.itemSize)
     val fly = fns.fly?.let { flyCodeMatches(it, read) } == true
-    return FieldItemSupport(fns, holdableItems(fns, items), usableItems(fns, items), canFly = fly)
+    val pc = fns.pc?.let { pcCodeMatches(it, read) } == true
+    if (!fns.bagActions) return FieldItemSupport(fns, emptySet(), emptySet(), canFly = fly, canPc = pc)
+    val items = read(fns.items, party.itemCount * fns.itemSize)
+    return FieldItemSupport(fns, holdableItems(fns, items), usableItems(fns, items), canFly = fly, canPc = pc)
 }
 
 /** What the bag's GIVE takes (item_menu.c's Task_ItemContext_FieldGive): importance 0 and not a key

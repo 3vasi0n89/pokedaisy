@@ -6,43 +6,43 @@ change to any of the places listed under "Where it's decided" updates its rows h
 
 ✅ yes · ◐ partly (see the note) · — no · n/a doesn't apply
 
-| Game | Version | EXPAND | Battle buttons | One-press picks | POKéMON switch | Field items | FLY | Trainer card |
-| ---- | ------- | :----: | :------------: | :-------------: | :------------: | :---------: | :-: | :----------: |
-| Yellow (GB) | USA/Europe | n/a | ✅ | ✅ ¹ | — | — | — | — |
-| FireRed | USA/Europe rev 1 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| FireRed | USA/Europe rev 0 | ✅ | ✅ | — | — | ✅ | — | — |
-| FireRed | ES | ✅ | ✅ | ◐ ² | ✅ | ✅ | — | — |
-| FireRed | DE / FR / IT / JP | ✅ | ✅ | — | ✅ | ✅ | — | — |
-| LeafGreen | USA/Europe rev 0 and 1 | ✅ | ✅ | — | — | ✅ | ✅ | ✅ |
-| LeafGreen | ES / DE / FR / IT / JP | ✅ | ✅ | — | ✅ | ✅ | — | — |
-| Emerald | USA/Europe | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
-| Emerald | ES / DE / FR / IT | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| Emerald | JP | ✅ | ✅ | — | ✅ | — | — | — |
-| Ruby / Sapphire | USA rev 1 and 2 | ✅ | — | — | — | ✅ | — | — |
-| Ruby / Sapphire | USA rev 0, ES / DE / FR / IT | ✅ | — | — | — | ✅ | — | — |
-| Ruby / Sapphire | JP | ✅ | — | — | — | — | — | — |
-| Unbound | 2.1.1.1, 2.1.1.1 French | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ |
-| Radical Red | 4.1 | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| Gaia | 3.2 | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| Odyssey | 4.1.1 | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| Heart and Soul | 2.0.6 | ✅ | ✅ | ✅ | ✅ | — | — | — |
-| Amethyst | 1.3.0, 1.4.1 | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| Celia's Stupid Romhack | 1.1.4 | ✅ | ✅ | ✅ | ✅ | — | — | — |
-| Orange Islands | Beta 5.7, an older beta | ◐ ³ | ✅ | ✅ | ✅ | ✅ | — | — |
-| Ultra Violet | 1.22 | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| Sword and Shield Ultimate Plus | 1.2.1.2 + its 3 patches | ✅ | ✅ | ✅ | ✅ | ✅ | — | — |
-| Recharged Yellow | 1.8.0, 1.9.0, 1.9.4, 1.9.7 | ✅ | ✅ | ✅ | ✅ | — | — | — |
-| Lazarus | 2.0 | ✅ | ✅ | ✅ | ✅ | — | — | — |
-| Emerald Seaglass | 3.0 | ✅ | ✅ | ✅ | ✅ | — | — | — |
-| Too Many Types 2 | 1.5.2 | ✅ | ✅ | ✅ | ✅ | — | — | — |
-| Glazed | 9.2.0 | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ |
-| Emerald Imperium | 1.3.1 | ✅ | ✅ | ✅ | ✅ | — | — | ✅ |
-| Emerald Kaizo | 2.0 | ✅ | ✅ | ✅ | ✅ | ✅ | ◐ ⁴ | ✅ |
-| Quetzal | English / Spanish Alpha 9 v0 | ◐ ³ | ✅ | ✅ | ✅ | — | — | — |
-| Super Mariomon | 1.2.1-1.3, 1.5.1, 1.5.2 | ✅ | ✅ | ✅ | ✅ | — | — | — |
-| Emerald Rogue | 2.2.1-EX | ✅ | — | — | — | — | — | — |
-| SoulGold | 1.1.4, 1.2 (3 builds) | ✅ | ✅ | ✅ | ✅ | — | — | — |
-| R.O.W.E. | 2.1.9.1 Experimental | ◐ ³ | ✅ | ✅ | ✅ | — | — | — |
+| Game | Version | EXPAND | Battle buttons | One-press picks | POKéMON switch | Field items | FLY | Trainer card | Field reads | Bike / surf | Wild encounters | PC anywhere |
+| ---- | ------- | :----: | :------------: | :-------------: | :------------: | :---------: | :-: | :----------: | :---------: | :---------: | :-------------: | :---------: |
+| Yellow (GB) | USA/Europe | n/a | ✅ | ✅ ¹ | — | — | — | — | n/a | n/a | n/a | n/a |
+| FireRed | USA/Europe rev 1 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| FireRed | USA/Europe rev 0 | ✅ | ✅ | — | — | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
+| FireRed | ES | ✅ | ✅ | ◐ ² | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
+| FireRed | DE / FR / IT / JP | ✅ | ✅ | — | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
+| LeafGreen | USA/Europe rev 0 and 1 | ✅ | ✅ | — | — | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| LeafGreen | ES / DE / FR / IT / JP | ✅ | ✅ | — | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
+| Emerald | USA/Europe | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Emerald | ES / DE / FR / IT | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
+| Emerald | JP | ✅ | ✅ | — | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
+| Ruby / Sapphire | USA rev 1 and 2 | ✅ | — | — | — | ✅ | ✅ | — | ◐ ⁵ | ✅ | ✅ | ✅ |
+| Ruby / Sapphire | USA rev 0, ES / DE / FR / IT | ✅ | — | — | — | ✅ | ✅ | — | ◐ ⁵ | ✅ | ✅ | ✅ |
+| Ruby / Sapphire | JP | ✅ | — | — | — | ✅ | ✅ | — | ◐ ⁵ | ✅ | ✅ | ✅ |
+| Unbound | 2.1.1.1, 2.1.1.1 French | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Radical Red | 4.1 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
+| Gaia | 3.2 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
+| Odyssey | 4.1.1 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
+| Heart and Soul | 2.0.6 | ✅ | ✅ | ✅ | ✅ | — | ✅ | — | ◐ ⁶ | — | — | ✅ |
+| Amethyst | 1.3.0, 1.4.1 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
+| Celia's Stupid Romhack | 1.1.4 | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | ✅ | ✅ | — |
+| Orange Islands | Beta 5.7, an older beta | ◐ ³ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
+| Ultra Violet | 1.22 | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
+| Sword and Shield Ultimate Plus | 1.2.1.2 + its 3 patches | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ |
+| Recharged Yellow | 1.8.0, 1.9.0, 1.9.4, 1.9.7 | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | ✅ | — | — |
+| Lazarus | 2.0 | ✅ | ✅ | ✅ | ✅ | — | ✅ | — | ✅ | ✅ | — | ✅ |
+| Emerald Seaglass | 3.0 | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | ✅ | — | — |
+| Too Many Types 2 | 1.5.2 | ✅ | ✅ | ✅ | ✅ | — | — | — | ◐ ⁶ | — | — | — |
+| Glazed | 9.2.0 | ✅ | ✅ | ✅ | ✅ | ✅ | ◐ ⁷ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Emerald Imperium | 1.3.1 | ✅ | ✅ | ✅ | ✅ | — | ✅ | ✅ | ✅ | ✅ | — | ✅ |
+| Emerald Kaizo | 2.0 | ✅ | ✅ | ✅ | ✅ | ✅ | — ⁴ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Quetzal | English / Spanish Alpha 9 v0 | ◐ ³ | ✅ | ✅ | ✅ | — | — | — | ◐ ⁶ | — | — | — |
+| Super Mariomon | 1.2.1-1.3, 1.5.1, 1.5.2 | ✅ | ✅ | ✅ | ✅ | — | — | — | ✅ | ✅ | — | — |
+| Emerald Rogue | 2.2.1-EX | ✅ | — | — | — | — | — | — | ◐ ⁶ | — | — | — |
+| SoulGold | 1.1.4, 1.2 (3 builds) | ✅ | ✅ | ✅ | ✅ | — | ✅ | — | ◐ ⁶ | — | — | ✅ |
+| R.O.W.E. | 2.1.9.1 Experimental | ◐ ³ | ✅ | ✅ | ✅ | — | — | — | ✅ | ✅ | — | — |
 
 1. Yellow's battle controls steer from the cursor they read off the screen (`readGen1BattleInput`), not from
    addresses on a config.
@@ -50,9 +50,17 @@ change to any of the places listed under "Where it's decided" updates its rows h
    byte (gBattleStruct 0x02023FE8, gEnemyParty 0x0202402C, the cursors sit between them), but it was never checked
    headless.
 3. Mapped and checked, but `pending` in `gen_wide_tables.py` (the middle isn't exact yet), so the app doesn't offer
-   it: Orange Islands (the top tile row once the walk turns north), Quetzal (its own engine), R.O.W.E. (an NPC's
+   EXPAND (the field reads use their rows anyway, `PK_FIELD_ONLY_ROMS`): Orange Islands (the top tile row once the walk turns north), Quetzal (its own engine), R.O.W.E. (an NPC's
    sprite and one building's metatiles).
-4. Kaizo uses Emerald's tables (same code, the functions' CRCs match), but FLY was never flown headless on it.
+4. Kaizo has Emerald's FLY code, but the shortcut crashed its map reload headless (on retail Emerald's save: the
+   first flight, or the fourth with the overworld's windows freed first), while its own Fly map flies fine: off
+   until it can be checked on a Kaizo save.
+5. RUN INDOORS doesn't apply: Ruby / Sapphire tell indoor maps by the map's type, which flash, weather and the region
+   map read too. TEXT SPEED and AUTO-RUN work.
+6. TEXT SPEED and RUN INDOORS work, but AUTO-RUN can't tell a bike from walking there (no player state found; the sprite
+   ids it falls back on are Hoenn's / Kanto's), so it may hold B on one.
+7. Glazed's first region only (Tunod, in Hoenn's map slots: Emerald's tables fly there); its Johto isn't in the
+   table.
 
 ## What each column is
 
@@ -65,6 +73,11 @@ change to any of the places listed under "Where it's decided" updates its rows h
 - **Field items**: ITEMS' USE (Repels, medicine, PP items) and GIVE / TAKE on a Pokémon (`FieldItems.kt`).
 - **FLY**: the MAP tab's FLY button (`Fly.kt`).
 - **Trainer card**: the CARD tab (`TrainerCard.kt`).
+- **Field reads**: SCENE SPEEDS' TEXT SPEED, CONTROLS > AUTO-RUN and RUN INDOORS (`pk_field_state`). BATTLE / MENU
+  SPEED and GUIDE > HERE's caught count need no per-ROM table: every game.
+- **Bike / surf**: SCENE SPEEDS' BIKE / SURF SPEED, from the game's own player state (and AUTO-RUN's bike check).
+- **Wild encounters**: CONTROLS > WILD ENCOUNTERS (`WildEncounters.kt`).
+- **PC anywhere**: the BAG's `PC` button (`Pc.kt`).
 
 ## Where it's decided
 
@@ -79,7 +92,40 @@ change to any of the places listed under "Where it's decided" updates its rows h
   FireRed / LeafGreen ports).
 - **Field items**: `fieldItemsForGame` in `FieldItems.kt` (retail tables + `FieldItemsPortsGen.kt`), each gated on
   its functions' code CRCs at run time.
-- **FLY**: `FieldItemFns.fly`, set on the English FireRed rev 1, LeafGreen rev 0 / 1 and Emerald tables only.
+- **FLY**: `FieldItemFns.fly`: the English FireRed rev 1, LeafGreen and Emerald tables, `FieldItemsPortsGen.kt`'s
+  (`scripts/port_field_items.py`, FireRed rev 0 from rev 1) and the hacks using FireRed rev 0's (the 16-bit map
+  section ones through `GET_MAPSEC_TYPE_U16`). Flown headless (party slot 0 given the move with SetMonData, the
+  badge flags set where the save hadn't them) on English FireRed rev 0, LeafGreen rev 0 / 1, Japanese FireRed /
+  LeafGreen, Spanish / French / German / Italian Emerald, Radical Red, Ultra Violet, Gaia, Amethyst, Sword and
+  Shield and Orange Islands, Ruby rev 1 / 2, Sapphire rev 1 / 2, German Ruby, French Sapphire and Glazed. Ruby /
+  Sapphire: `FLY_RUBY` / `FLY_SAPPHIRE` (Emerald's heal warp, their static map-type function, the map-type check with
+  gMapHeader in place of SetUpFieldMove_Fly, gLastFieldPokeMenuOpened), the other languages ported from Ruby rev 1.
+  Unbound: `flyUnbound` - CFRU's own GetMapsecType / SetFlyWarpDestination (their jump stubs' CRCs), the towns from
+  its list of fly spots, sRegionMap pinned for the warp (`RegionMapPin`); flown headless to Frozen Heights and another
+  spot. Not Kaizo, Celia (its VarGet isn't found, so no field-item table at all) or the other expansion builds. Heart and Soul, Lazarus
+  and Emerald Imperium (pokeemerald-expansion, gcc - nothing maps from retail): `FIELD_ITEMS_HEART_AND_SOUL` /
+  `_LAZARUS` / `_IMPERIUM`, FLY and PC only (`bagActions = false`; the Field items column stays —). Heart and Soul from its
+  own source (2.0.6) built plain with Debian's gcc 12; Lazarus and Imperium from pokeemerald-expansion 1.10.0 built the
+  same way - each function found by its masked first instructions or through its callers' BLs. The expansion renumbered
+  MON_DATA (`FlyFns.monMoveField` / `monEggField`); Lazarus's town table is 122 rows (its towns from section 90); Heart
+  and Soul's FLY gate is its gFieldMoveInfo entry's own functions. Flown headless on each, the PC opened on each. SoulGold (its four
+  builds, `fieldItemsCandidatesForGame`: the code CRCs pick one): v1.1.4 from pokeemerald-expansion 1.13.0's build plus its
+  own code (gFieldMoveInfo, SetFlyDestination's literal and calls, GetMapsecType's switch); the v1.2 builds from v1.1.4.
+- **PC anywhere** (the BAG's `PC`): `FieldItemFns.pc` (`Pc.kt`): the retail tables, `FieldItemsPortsGen.kt`'s
+  (`scripts/port_field_items.py` maps them, each entry checked against its gSpecials) and the hacks that use those
+  tables; gated on ScriptContext_SetupScript / the PC special's CRCs and its gSpecials entry. Opened headless on
+  Ruby rev 1, German Emerald, Japanese FireRed and Unbound.
+- **Field reads**: every row of `pk_wide_games.h` with CONTROLS_LOCKED, `PK_WIDE_ROMS` and the pending hacks'
+  `PK_FIELD_ONLY_ROMS` (`pk_field_knows`, `WideScreen.fieldGameFor`); RUN INDOORS not on Ruby / Sapphire. RUN INDOORS'
+  gMapHeader bit was checked on retail FireRed / Emerald; the hacks are assumed to keep it.
+- **Bike / surf**: `pk_wide.c`'s `playerAvatar`: gPlayerAvatar at gObjectEvents + 0x240 (R.O.W.E. + 0x4A8), checked
+  live (objectEventId, gender, one movement flag) and kept once found; Ruby / Sapphire by the player's sprite ids.
+  Probed headless on one save per game (FireRed, LeafGreen, Emerald with its German and Japanese releases, and every
+  hack marked ✅); the other languages and versions are assumed to share it - the live check turns it off where not.
+- **Wild encounters**: the games with field reads where `WildEncounters.find` finds the game's sWildEncountersDisabled by
+  StandardWildEncounter's code: retail FireRed / LeafGreen / Emerald / Ruby / Sapphire in every language, the hacks that
+  kept that code (Glazed, Kaizo, Gaia, Odyssey, Orange Islands, Ultra Violet, Celia) and the CFRU hacks (their own
+  StandardWildEncounter reads FireRed's switch). Not the pokeemerald-expansion / gcc builds.
 - **Trainer card**: `NativeConfig.trainerCard`.
 
 ## Next up (from the table)

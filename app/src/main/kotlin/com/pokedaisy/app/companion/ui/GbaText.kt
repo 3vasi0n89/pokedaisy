@@ -90,8 +90,10 @@ fun GbaText(
     maxLines: Int = 1,
     /** Drawn twice, half a font pixel apart ([boldOffsetPx]): heavier strokes for a thin game font. */
     bold: Boolean = false,
+    /** Letters this much narrower (null: the game font's own, [gameFontScaleX]). */
+    scaleX: Float? = null,
 ) {
-    val scaleX = gameFontScaleX(m)
+    val scaleX = scaleX ?: gameFontScaleX(m)
     val style = gbaTextStyle(pixelFontFamily(), m, scaleX)
     val k = m.fontPixel.roundToInt()
     val b = if (bold) boldOffsetPx(m.fontPixel * scaleX) else 0

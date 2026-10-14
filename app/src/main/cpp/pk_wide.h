@@ -102,6 +102,32 @@ int pk_wide_configure(uint32_t crc);
 /** Whether WIDE has the ROM with this CRC32 (no core needed). */
 int pk_wide_knows(uint32_t crc);
 
+/** SCENE SPEEDS / AUTO-RUN / RUN INDOORS: load this game's addresses for [pk_field_state] (0 = none: it says nothing). */
+int pk_field_configure(uint32_t crc);
+
+/** Whether [pk_field_state] can read the field of the ROM with this CRC32: WIDE's table or a pending hack's, with its
+ * CONTROLS_LOCKED known. Any thread. */
+int pk_field_knows(uint32_t crc);
+
+enum {
+    PK_FIELD_KNOWN = 1,      // the game is in the table: the other bits mean something
+    PK_FIELD_LOCKED = 2,     // a script holds the field's controls (a text box, the START menu, a cutscene)
+    PK_FIELD_BATTLE = 4,     // gMain.inBattle
+    PK_FIELD_TEXT = 8,       // a text box (or the START menu) up while locked, outside battles: TEXT SPEED's
+    PK_FIELD_BIKE = 16,      // the player on a bike (AUTO-RUN leaves B alone: the Acro Bike's wheelie)
+    PK_FIELD_WILD_HELD = 32, // WILD ENCOUNTERS set the game's switch: keep calling until it's put back
+    PK_FIELD_SURF = 64,      // surfing (or diving)
+    PK_FIELD_AVATAR = 128,   // the bike / surf bits are the game's own player state (FIELD SPEED can trust them)
+};
+
+/** WILD ENCOUNTERS: the game's sWildEncountersDisabled (EWRAM, found in the ROM by WildEncounters.kt; 0 = none). Call
+ * after [pk_field_configure], which forgets it. */
+void pk_field_wild(uint32_t addr);
+
+/** This frame's PK_FIELD_* bits; with [runIndoors], also lets the player run on the current map (gMapHeader); with
+ * [wildKeep] < 100, leaves about that share of wild encounters (0 = none). */
+int pk_field_state(struct mCore* core, int runIndoors, int wildKeep);
+
 /** Forgets what earlier frames left (a state load, a new core, a rewind). */
 void pk_wide_reset(void);
 

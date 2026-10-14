@@ -65,8 +65,8 @@ The gear opens the companion's SETTINGS, laid out like FireRed's OPTION screen. 
 
 The options come in groups:
 
-- **FAST-FORWARD**: `FF`, `FF SPEED`, `GAME SPEED`, `FF MODE`, `FF MUSIC` and `REWIND`. See [Fast-forward](fast-forward.md).
-- **CONTROLS**: `TOUCH PAD`, `GAME BUTTONS` and `HOTKEYS`. See [Controls](controls.md).
+- **FAST-FORWARD**: `FF`, `FF SPEED`, `GAME SPEED`, `SCENE SPEEDS`, `FF MODE`, `FF MUSIC` and `REWIND`. See [Fast-forward](fast-forward.md).
+- **CONTROLS**: `TOUCH PAD`, `AUTO-RUN`, `RUN INDOORS`, `WILD ENCOUNTERS`, `GAME BUTTONS` and `HOTKEYS`. See [Controls](controls.md).
 - **COMPANION**: `LANGUAGE`, `TAB BAR`, `BATTLE HINTS`, `ONE-TAP MOVES`, `FOE IVS`, `CLICK SOUND`, `TWEAKS` and `HELP` (this manual).
 - **SCREEN**: `STATUS BAR`, `ASPECT`, `SHADERS`, `OVERLAY`, `FPS / CPU`, `DARK MODE` and, with two screens, `SWAP SCREENS`. See [Screen and display](screen.md).
 - **GAME**: `CHEATS`. See [Cheats](cheats.md).

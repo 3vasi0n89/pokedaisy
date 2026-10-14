@@ -395,6 +395,11 @@ private fun herePage(
             hasWild && enc == null -> tr("Reading the map...")
             else -> buildList {
                 if (hasWild && methods.isEmpty()) add(tr("No wild POKéMON on this map."))
+                // The area's DexNav (GitHub #85): how many of its wild POKéMON are caught, every method counted once.
+                if (dex != null && methods.isNotEmpty()) {
+                    val here = methods.flatMap { (_, l) -> l.map { national(it.species) } }.filter { it > 0 }.toSet()
+                    if (here.isNotEmpty()) add(tr("{0} of {1} caught here.", here.count { it in dex.caught }, here.size))
+                }
                 if (items.isNotEmpty() || people.isNotEmpty()) add(tr("Its buildings included."))
                 if (snapshot.progress != null) add(tr("A ball = done."))
             }.joinToString(" ").ifEmpty { tr("Nothing listed for this area.") }

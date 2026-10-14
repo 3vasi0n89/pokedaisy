@@ -206,6 +206,62 @@ object OptionColors {
     }
 }
 
+/**
+ * The OPTION look's colours for one part of the UI, read through [optionLook]: [Live] (OptionColors, the default,
+ * dark mode included) unless a screen lays another over it with [LocalOptionLook] - the FIELD HUD's GLASS panels.
+ * Only the summary screens (MonDetailScreen and its sections) and [OptionListWindow] read it so far.
+ */
+interface OptionLook {
+    val label: Color
+    val labelShadow: Color
+    val value: Color
+    val valueShadow: Color
+    val muted: Color
+    val mutedShadow: Color
+    val titleFill: Color
+    val listFill: Color
+    val listLayers: List<Pair<Color, Int>>
+    /** A bar's dark outline (the summary's HP / EXP / IV bars). */
+    val frameDark: Color
+    /** The summary's [Separator]: a dark line over a light one. */
+    val separatorDark: Color
+    val separatorLight: Color
+    /** The summary's party strip: the squares, and the shown Pokémon's. */
+    val stripIdle: Color
+    val stripIdleFrame: Color
+    val stripLit: Color
+    val stripLitFrame: Color
+    /** More room inside [OptionListWindow] at its left and right, in GBA pixels (the HUD's summary). */
+    val windowPadSides: Int get() = 0
+
+    /** [OptionColors] itself, read when used (so dark mode follows at once). */
+    object Live : OptionLook {
+        override val label get() = OptionColors.label
+        override val labelShadow get() = OptionColors.labelShadow
+        override val value get() = OptionColors.value
+        override val valueShadow get() = OptionColors.valueShadow
+        override val muted get() = OptionColors.muted
+        override val mutedShadow get() = OptionColors.mutedShadow
+        override val titleFill get() = OptionColors.titleFill
+        override val listFill get() = OptionColors.listFill
+        override val listLayers get() = OptionColors.listLayers
+        override val frameDark get() = OptionColors.frameDark
+        override val separatorDark get() = if (OptionColors.dark) Color(0xFF0E1116) else Color(0xFFB8B8C0)
+        override val separatorLight get() = if (OptionColors.dark) Color(0xFF3A414D) else Color(0xFFE8E8EC)
+        // A slate blue, the lit one white (dark mode: deeper, the lit one the cursor row's).
+        override val stripIdle get() = if (OptionColors.dark) Color(0xFF2E3A52) else Color(0xFFA8B4C8)
+        override val stripIdleFrame get() = if (OptionColors.dark) Color(0xFF151B27) else Color(0xFF68748C)
+        override val stripLit get() = if (OptionColors.dark) Color(0xFF4A5468) else Color(0xFFF8F8F8)
+        override val stripLitFrame get() = if (OptionColors.dark) Color(0xFF6F7A90) else Color(0xFFC0C8D8)
+    }
+}
+
+val LocalOptionLook = androidx.compose.runtime.staticCompositionLocalOf<OptionLook> { OptionLook.Live }
+
+/** The [OptionLook] here. */
+val optionLook: OptionLook
+    @Composable get() = LocalOptionLook.current
+
 /** A dashed row divider along the bottom edge, from [start] px in - the bag
  * list's 6-on/2-off dash, 2 GBA px thick. [u] is one GBA pixel in px. */
 fun DrawScope.drawRowDivider(color: Color, u: Float, start: Float) {
@@ -264,7 +320,11 @@ fun OptionTitleWindow(
         if (onBack != null) {
             CompanionBackHandler(onBack = onBack)
             Box(Modifier.soundClickable(onClick = onBack).padding(end = u * 6)) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, tr("Back"), tint = OptionColors.titleText, modifier = Modifier.size(m.lineHeight))
+                // A pixel arrow, a font pixel per cell like the title beside it.
+                val cell = with(androidx.compose.ui.platform.LocalDensity.current) { m.fontPixel.toDp() }
+                Box(Modifier.size(m.lineHeight).semantics { contentDescription = tr("Back") }, contentAlignment = Alignment.Center) {
+                    ShadowedPixelIcon(PixelIcons.arrowBack, OptionColors.titleText, OptionColors.titleShadow, m, cell = cell)
+                }
             }
         }
         if (trailing == null) {
@@ -286,15 +346,17 @@ fun OptionTitleWindow(
 fun OptionListWindow(
     m: GbaTextMetrics,
     modifier: Modifier = Modifier,
-    fill: Color = OptionColors.listFill,
+    fill: Color = optionLook.listFill,
     content: @Composable () -> Unit,
 ) {
     val u = m.u
-    val frame = OptionColors.listLayers.sumOf { it.second }
+    val look = optionLook
+    val layers = look.listLayers
+    val frame = layers.sumOf { it.second }
     Box(
         modifier = modifier
-            .drawBehind { drawLayeredBox(OptionColors.listLayers.inPx(u.toPx()), fill, radius = 2 * u.toPx()) }
-            .padding(u * (frame + 2)),
+            .drawBehind { drawLayeredBox(layers.inPx(u.toPx()), fill, radius = 2 * u.toPx()) }
+            .padding(horizontal = u * (frame + 2 + look.windowPadSides), vertical = u * (frame + 2)),
     ) { content() }
 }
 
@@ -348,7 +410,15 @@ fun OptionLine(
                 labelIcon?.let { Box(Modifier.size(m.lineHeight)) { it() }; Spacer(Modifier.width(m.u * 4)) }
                 if (enabled) GbaText(tr(label), OptionColors.label, OptionColors.labelShadow, m)
                 else GbaText(tr(label), OptionColors.muted, OptionColors.mutedShadow, m)
-                labelBadge?.let { OptionBadge(it, m, Modifier.padding(start = m.u * 6)) }
+                labelBadge?.let {
+                    // NEW (a just-shipped feature, companion.NewFeatures) in the Library's green; anything else red.
+                    val new = it == com.pokedaisy.app.companion.NewFeatures.NEW_TAG
+                    OptionBadge(
+                        it, m, Modifier.padding(start = m.u * 6),
+                        fill = if (new) OptionColors.newBadge else OptionColors.value,
+                        shadow = if (new) OptionColors.newBadgeShadow else OptionColors.valueShadow.copy(alpha = 0.6f),
+                    )
+                }
             }
             subtitle?.let {
                 val small = rememberGbaTextMetrics(0.8f * m.fontPixel / m.px)

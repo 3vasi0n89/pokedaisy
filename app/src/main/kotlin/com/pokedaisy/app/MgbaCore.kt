@@ -52,6 +52,28 @@ object MgbaCore {
     external fun pkWideConfigure(crc: Int)
     /** WIDE: whether pk_wide.c has tables for the ROM with this CRC32 (pk_wide_games.h). Any thread. */
     external fun pkWideKnows(crc: Int): Boolean
+    /** SCENE SPEEDS / AUTO-RUN / RUN INDOORS / WILD ENCOUNTERS: read the field with WIDE's tables for the ROM with
+     * this CRC32, WIDE on or off (0 = none), and its wild-encounter switch at [wildFlag] ([WildEncounters.find]; 0 =
+     * none). Emu thread. */
+    external fun pkFieldConfigure(crc: Int, wildFlag: Int)
+    /** Whether the field reads know the ROM with this CRC32 (WIDE's table, or a hack WIDE doesn't draw yet). Any thread. */
+    external fun pkFieldKnows(crc: Int): Boolean
+    /** This frame's [FIELD_KNOWN] ... [FIELD_WILD_HELD] bits (0 = a game it doesn't know); [runIndoors] also lets the
+     * player run on the current map, [wildKeep] < 100 leaves about that percent of wild encounters. Emu thread,
+     * between frames. */
+    external fun pkFieldState(runIndoors: Boolean, wildKeep: Int): Int
+
+    // pkFieldState's bits (pk_wide.h's PK_FIELD_*).
+    const val FIELD_KNOWN = 1
+    const val FIELD_LOCKED = 2
+    const val FIELD_BATTLE = 4
+    const val FIELD_TEXT = 8
+    const val FIELD_BIKE = 16
+    /** WILD ENCOUNTERS set the game's switch: keep calling (with 100) until it's been put back. */
+    const val FIELD_WILD_HELD = 32
+    const val FIELD_SURF = 64
+    /** [FIELD_BIKE] / [FIELD_SURF] come from the game's own player state (FIELD SPEED's BIKE / SURF rows work). */
+    const val FIELD_AVATAR = 128
     /** WIDE: the window to draw around the frame from the next frame on ([WideCamera]), in the frame's pixels
      * (its top-left 0, 0); [w] 0 = none. Any thread. */
     external fun pkWideSetView(x: Int, y: Int, w: Int, h: Int)

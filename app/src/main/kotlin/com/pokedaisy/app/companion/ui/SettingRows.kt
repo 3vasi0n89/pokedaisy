@@ -92,6 +92,8 @@ val SETTING_KEYWORDS: Map<String, String> = mapOf(
     "GAME BUTTONS" to "key bindings keybinds keybinding controls remap remapping rebind mapping input controller gamepad buttons turbo",
     "HOTKEYS" to "shortcuts combos save state load state slot rewind fast forward key bindings",
     "STATUS BAR" to "clock time battery money location top bar",
+    "BATTLE BUTTONS" to "battle buttons moves fight switch run flee side touch single screen one screen expand widescreen",
+    "HUD" to "field hud heads up display overlay party minimap mini map balls bag wild encounters overworld legends single screen",
     "ASPECT" to "stretch ratio fullscreen full screen size scale 3:2 wide widescreen 16:9 expand zoom",
     "AUTO ZOOM IN" to "expand wide zoom close-up closeup dialogue conversation sign menu text box pull in automatic",
     "SHADERS" to "filter lcd crt scanlines grid gba colors color correction effects screen look smoothing xbr xbrz scalefx upscale hd edges",
@@ -118,6 +120,10 @@ val SETTING_KEYWORDS: Map<String, String> = mapOf(
     "FOE IVS" to "enemy opponent ivs stats",
     "CLICK SOUND" to "sound effects button click audio",
     "TWEAKS" to "animations bounce blink cursor jump to battle effects motion",
+    "SCENE SPEEDS" to "battle speed text speed instant text fast text menu speed overworld speed faster battles quality of life qol bike speed surf speed faster bike faster surfing",
+    "AUTO-RUN" to "auto run autorun running shoes run sprint dash always run hold b",
+    "RUN INDOORS" to "run inside buildings indoor running shoes houses",
+    "WILD ENCOUNTERS" to "wild encounters encounter rate random battles grass caves repel no encounters fewer battles",
 )
 
 private fun fold(s: String): String =

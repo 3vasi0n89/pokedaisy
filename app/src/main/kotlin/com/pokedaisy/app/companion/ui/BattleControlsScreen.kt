@@ -212,7 +212,7 @@ fun BattleControlsScreen(
  * visual dim/undim; far cheaper than wiring a whole new observable path
  * through EmulatorEngine for what's ultimately a cosmetic affordance. */
 @Composable
-private fun rememberBattleInputBusy(battleInput: BattleInput?): Boolean {
+internal fun rememberBattleInputBusy(battleInput: BattleInput?): Boolean {
     var busy by remember(battleInput) { mutableStateOf(battleInput?.busy ?: false) }
     androidx.compose.runtime.LaunchedEffect(battleInput) {
         // Once per frame (not a delay() timer): paused along with rendering,
@@ -347,7 +347,7 @@ private fun ActionButtons(
 }
 
 @Composable
-private fun MoveGrid(
+internal fun MoveGrid(
     moves: List<MoveView>,
     battleInput: BattleInput?,
     busy: Boolean,
@@ -355,6 +355,8 @@ private fun MoveGrid(
     modifier: Modifier = Modifier,
     /** The grid was opened by us (FIGHT not sent yet): CANCEL / BACK just close it; null = press B. */
     onCancel: (() -> Unit)? = null,
+    /** ONE-TAP MOVES' two-line cards, names fitted (BATTLE BUTTONS' smaller window). */
+    compact: Boolean = false,
 ) {
     CompanionBackHandler(enabled = battleInput != null && !busy) { onCancel?.invoke() ?: battleInput?.back() }
     if (gen1Buttons) return Gen1MoveList(moves, battleInput, busy, showHints, modifier, onCancel)
@@ -366,7 +368,7 @@ private fun MoveGrid(
             ) {
                 for (col in 0..1) {
                     val idx = row * 2 + col
-                    MoveCard(moves.getOrNull(idx), battleInput, idx, busy, showHints, modifier = Modifier.weight(1f).fillMaxHeight())
+                    MoveCard(moves.getOrNull(idx), battleInput, idx, busy, showHints, modifier = Modifier.weight(1f).fillMaxHeight(), compact = compact)
                 }
             }
         }
@@ -390,7 +392,7 @@ private fun MoveGrid(
  * prompt and CANCEL, which runs [onBack].
  */
 @Composable
-private fun PartyPicker(
+internal fun PartyPicker(
     party: List<MonView>,
     foe: MonView?,
     active: List<MonView>,
@@ -426,7 +428,7 @@ private fun PartyPicker(
 }
 
 /** Whether [mon] can be sent in: not fainted, not an egg, not already out (and a real mon to find). */
-private fun canSendIn(mon: MonView, active: List<MonView>): Boolean =
+internal fun canSendIn(mon: MonView, active: List<MonView>): Boolean =
     !mon.isEgg && mon.hp > 0 && !isOut(mon, active) && mon.personality != 0L
 
 @Composable
@@ -527,6 +529,8 @@ internal fun PlatinumButton(
     enabled: Boolean = true,
     pressesGame: Boolean = false,
     contentPadding: PaddingValues = PaddingValues(8.dp),
+    /** The near-black outline's width. */
+    outline: Dp = 2.dp,
     onClick: () -> Unit,
     content: @Composable () -> Unit,
 ) {
@@ -544,7 +548,7 @@ internal fun PlatinumButton(
                     // Near-black outline, then the fill with Platinum's bevel.
                     .clip(shape)
                     .background(ButtonOutline)
-                    .padding(2.dp)
+                    .padding(outline)
                     .clip(shape)
                     .background(fill)
                     .platinumBevel(fill, frame),
@@ -725,8 +729,8 @@ internal val buttonContent: Color get() = if (gen1Buttons) OptionColors.titleTex
 
 private val ButtonOutline = Color(0xFF202020)
 private val RunDrop = 16.dp
-private val FightRed = Color(0xFFE8483C)
-private val FightRedDark = Color(0xFFA82820)
+internal val FightRed = Color(0xFFE8483C)
+internal val FightRedDark = Color(0xFFA82820)
 private val BagOrange = Color(0xFFE0A030)
 private val BagOrangeDark = Color(0xFFA87018)
 internal val RunBlue = Color(0xFF4890D8)

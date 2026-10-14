@@ -150,6 +150,35 @@ class FakeSettings(showHintsInitially: Boolean = true, initialTabs: List<String>
     override fun setFfMode(mode: com.pokedaisy.app.companion.FfMode) { ffModeValue = mode }
     override val touchControlsMode get() = touch
     override fun setTouchControlsMode(v: Int) { touch = v }
+    // SCENE SPEEDS: battles at 2x, the rest SAME; AUTO-RUN on (the preview's game is one the field reads know).
+    private var sceneBattle = 2f
+    private var sceneText = 0f
+    private var sceneMenu = 0f
+    override val battleSpeed get() = sceneBattle
+    override fun setBattleSpeed(v: Float) { sceneBattle = v }
+    override val textSpeed get() = sceneText
+    override fun setTextSpeed(v: Float) { sceneText = v }
+    override val menuSpeed get() = sceneMenu
+    private var sceneBike = 3f
+    private var sceneSurf = 0f
+    override val bikeSpeed get() = sceneBike
+    override fun setBikeSpeed(v: Float) { sceneBike = v }
+    override val surfSpeed get() = sceneSurf
+    override fun setSurfSpeed(v: Float) { sceneSurf = v }
+    override val fieldMovesReadable get() = true
+    override fun setMenuSpeed(v: Float) { sceneMenu = v }
+    override val fieldReadable get() = true
+    private var autoRunOn = true
+    override val autoRun get() = autoRunOn
+    override fun setAutoRun(on: Boolean) { autoRunOn = on }
+    private var runIndoorsOn = false
+    override val runIndoors get() = runIndoorsOn
+    override fun setRunIndoors(on: Boolean) { runIndoorsOn = on }
+    override val runIndoorsSupported get() = true
+    private var wildPercent = 50
+    override val wildEncounters get() = wildPercent
+    override fun setWildEncounters(percent: Int) { wildPercent = percent }
+    override val wildEncountersSupported get() = true
     override fun gbaControlBindings() = GbaControls.Btn.entries.associateWith {
         listOf(when (it) { GbaControls.Btn.START2 -> "BUTTON_X"; GbaControls.Btn.SELECT2 -> "BUTTON_Y"; else -> "BUTTON_${it.name}" })
     }
@@ -316,6 +345,10 @@ fun companion(
  */
 class PreviewItemUse(private val party: List<MonView>, private val bagFull: Boolean = false) : com.pokedaisy.app.companion.ItemUse {
     override fun canTake() = true
+    // PC anywhere: the button shows; a tap answers "not now" (a menu open), as the BAG pops it up.
+    override fun canPc() = true
+    override fun openPc(done: (com.pokedaisy.app.companion.data.ItemUseOutcome) -> Unit) =
+        done(com.pokedaisy.app.companion.data.ItemUseOutcome(com.pokedaisy.app.companion.data.ItemUseResult.NOT_NOW))
     // TAKE's answer: the QUICK CLAW can come off, or ([bagFull]) the bag has no room for it.
     override fun heldItems(done: (com.pokedaisy.app.companion.data.PartyTargets) -> Unit) = done(com.pokedaisy.app.companion.data.PartyTargets(
         com.pokedaisy.app.companion.data.ItemUseResult.USED,
@@ -938,6 +971,14 @@ fun main(args: Array<String>) {
         *(if (game == GameKind.FIRERED) arrayOf(
             Shot("$g-map-region", bw, bh, bd, companion("MAP")) { onNodeWithText("SEVII", substring = true).performClick() },
         ) else emptyArray()),
+        // R.O.W.E.'s three maps (its region button reads MAP 2 / MAP 3): the buttons' bottom-left row on each.
+        *(if (game == GameKind.ROWE) arrayOf(
+            Shot("$g-map-region", bw, bh, bd, companion("MAP")) { onNodeWithText("MAP ", substring = true).performClick() },
+            Shot("$g-map-region2", bw, bh, bd, companion("MAP")) {
+                onNodeWithText("MAP ", substring = true).performClick()
+                onNodeWithText("MAP ", substring = true).performClick()
+            },
+        ) else emptyArray()),
         *(if (game == GameKind.FIRERED || game == GameKind.EMERALD) arrayOf(
             Shot("$g-map-pick", bw, bh, bd, companion("MAP")) {
                 onNodeWithText("PLACES").performClick()
@@ -1053,6 +1094,10 @@ fun main(args: Array<String>) {
         },
         // USE / GIVE (FieldItems.kt): the row marks (the Potion and the Poké Ball; Oak's Parcel has none)...
         Shot("$g-items-marks", bw, bh, bd, companion("ITEMS", items = true)),
+        // PC anywhere: the PC button over the sort button, then its "not now" popped up over the bag.
+        Shot("$g-items-pc", bw, bh, bd, companion("ITEMS", items = true)) {
+            onNodeWithText("PC").performClick()
+        },
         // ...beside a star, on the FAVORITES tab (Potion starred, as is Oak's Parcel, which gets no mark)...
         Shot("$g-items-marks-favorites", bw, bh, bd, companion("ITEMS", items = true)) {
             for (name in listOf("Potion", "Parcel")) {
@@ -1125,6 +1170,21 @@ fun main(args: Array<String>) {
         // The COMPANION group, ONE-TAP MOVES under BATTLE HINTS.
         Shot("$g-settings-companion", bw, bh, bd, companion("SETTINGS")) {
             onNodeWithText("ONE-TAP MOVES").performScrollTo()
+        },
+        // CONTROLS: AUTO-RUN, RUN INDOORS and WILD ENCOUNTERS under the FAST-FORWARD rows, then WILD ENCOUNTERS' pick-list.
+        Shot("$g-settings-controls", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText("WILD ENCOUNTERS").performScrollTo()
+        },
+        Shot("$g-settings-wild", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText("WILD ENCOUNTERS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
+        // SCENE SPEEDS: its page (BATTLE / TEXT / MENU SPEED), then BATTLE SPEED's pick-list.
+        Shot("$g-settings-scenes", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText("SCENE SPEEDS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+        },
+        Shot("$g-settings-scenes-battle", bw, bh, bd, companion("SETTINGS")) {
+            onNodeWithText("SCENE SPEEDS").performScrollTo().performSemanticsAction(SemanticsActions.OnClick)
+            onNodeWithText("BATTLE SPEED").performClick()
         },
         // TWEAKS: the small on / off preferences.
         Shot("$g-settings-tweaks", bw, bh, bd, companion("SETTINGS")) {

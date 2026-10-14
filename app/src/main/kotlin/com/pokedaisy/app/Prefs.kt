@@ -106,6 +106,42 @@ class Prefs(context: Context) {
         get() = p.getBoolean("ff_toggled", false)
         set(v) = p.edit().putBoolean("ff_toggled", v).apply()
 
+    /** SCENE SPEEDS (GitHub #43 / #85): a battle's / a field text box's / a menu screen's speed while fast-forward is
+     * off; 0 = SAME (GAME SPEED's, like the field). Every game. */
+    var battleSpeed: Float
+        get() = p.getFloat("scene_speed_battle", 0f)
+        set(v) = p.edit().putFloat("scene_speed_battle", v).apply()
+    var textSpeed: Float
+        get() = p.getFloat("scene_speed_text", 0f)
+        set(v) = p.edit().putFloat("scene_speed_text", v).apply()
+    var menuSpeed: Float
+        get() = p.getFloat("scene_speed_menu", 0f)
+        set(v) = p.edit().putFloat("scene_speed_menu", v).apply()
+
+    /** SCENE SPEEDS' BIKE / SURF SPEED: riding a bike, surfing (0 = SAME). */
+    var bikeSpeed: Float
+        get() = p.getFloat("scene_speed_bike", 0f)
+        set(v) = p.edit().putFloat("scene_speed_bike", v).apply()
+    var surfSpeed: Float
+        get() = p.getFloat("scene_speed_surf", 0f)
+        set(v) = p.edit().putFloat("scene_speed_surf", v).apply()
+
+    /** AUTO-RUN: B held for the player while walking on the field (holding it walks). */
+    var autoRun: Boolean
+        get() = p.getBoolean("auto_run", false)
+        set(v) = p.edit().putBoolean("auto_run", v).apply()
+
+    /** RUN INDOORS: every map lets the player run (gMapHeader.allowRunning). */
+    var runIndoors: Boolean
+        get() = p.getBoolean("run_indoors", false)
+        set(v) = p.edit().putBoolean("run_indoors", v).apply()
+
+    /** WILD ENCOUNTERS: the percent of wild encounters left ([com.pokedaisy.app.companion.data.WildEncounters.STEPS]:
+     * 100 = the game's own rate, 0 = none). */
+    var wildEncounters: Int
+        get() = p.getInt("wild_encounters", 100)
+        set(v) = p.edit().putInt("wild_encounters", v).apply()
+
     /** Remembered speed-cycle index per ROM (keyed by CRC32). */
     fun speedIndexFor(romKey: String): Int = p.getInt("speed_$romKey", 0)
     fun setSpeedIndexFor(romKey: String, index: Int) = p.edit().putInt("speed_$romKey", index).apply()
@@ -188,6 +224,44 @@ class Prefs(context: Context) {
     var showPerformance: Boolean
         get() = p.getBoolean("show_performance", false)
         set(v) = p.edit().putBoolean("show_performance", v).apply()
+
+    /** When each NEW-tagged feature was first seen (companion.NewFeatures), by id: "id:millis,id:millis". */
+    var newFeatureSince: Map<String, Long>
+        get() = p.getString("new_feature_since", null).orEmpty().split(',').mapNotNull { e ->
+            val i = e.lastIndexOf(':')
+            if (i <= 0) null else e.substring(i + 1).toLongOrNull()?.let { e.substring(0, i) to it }
+        }.toMap()
+        set(v) = p.edit().putString("new_feature_since", v.entries.joinToString(",") { "${it.key}:${it.value}" }).apply()
+
+    /** BATTLE BUTTONS (companion.ui.BattleButtons): one screen, FIGHT, POKéMON and RUN beside a battle. */
+    var battleButtons: Boolean
+        get() = p.getBoolean("battle_buttons", true)
+        set(v) = p.edit().putBoolean("battle_buttons", v).apply()
+
+    /** FIELD HUD (companion.ui.FieldHud): the party, minimap, Poké Balls, BAG and WILD buttons over the overworld. */
+    var fieldHud: Boolean
+        get() = p.getBoolean("field_hud", true)
+        set(v) = p.edit().putBoolean("field_hud", v).apply()
+
+    /** The FIELD HUD's LAYOUT / LOOK / SIZE and the parts switched off (SETTINGS > HUD), by name. */
+    var fieldHudStyle: com.pokedaisy.app.companion.FieldHudStyle
+        get() {
+            fun <T : Enum<T>> pick(all: Array<T>, key: String, default: T) = p.getString(key, null)?.let { n -> all.firstOrNull { it.name == n } } ?: default
+            val d = com.pokedaisy.app.companion.FieldHudStyle()
+            return com.pokedaisy.app.companion.FieldHudStyle(
+                layout = pick(com.pokedaisy.app.companion.FieldHudLayout.values(), "field_hud_layout", d.layout),
+                look = pick(com.pokedaisy.app.companion.FieldHudLook.values(), "field_hud_look", d.look),
+                size = pick(com.pokedaisy.app.companion.FieldHudSize.values(), "field_hud_size", d.size),
+                hidden = p.getString("field_hud_hidden", null).orEmpty().split(',')
+                    .mapNotNull { n -> com.pokedaisy.app.companion.FieldHudPart.values().firstOrNull { it.name == n } }.toSet(),
+            )
+        }
+        set(v) = p.edit()
+            .putString("field_hud_layout", v.layout.name)
+            .putString("field_hud_look", v.look.name)
+            .putString("field_hud_size", v.size.name)
+            .putString("field_hud_hidden", v.hidden.joinToString(",") { it.name })
+            .apply()
 
     /** Whether the game has a status bar on top (game, location, money, clock, battery). */
     var statusBar: Boolean

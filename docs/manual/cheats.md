@@ -2,7 +2,7 @@
 title: Cheats
 summary: Add GameShark, Action Replay and CodeBreaker codes to a GBA game, and switch them on and off while you play.
 section: player
-order: 4
+order: 5
 keywords: [gameshark, action replay, codebreaker, codes, cht, ar, gs, money, shiny, walk through walls]
 ---
 

@@ -78,27 +78,27 @@ internal fun MonStatsSection(stats: MonStats, m: GbaTextMetrics, small: GbaTextM
             val iv = stats.ivs[s]
             StatRow(
                 {
-                    GbaText(tr(statLabels.getValue(s)), OptionColors.label, OptionColors.labelShadow, small)
+                    GbaText(tr(statLabels.getValue(s)), optionLook.label, optionLook.labelShadow, small)
                     when (s) {
                         up -> PixelIcon(PixelIcons.arrowUp, NatureUp, Modifier.padding(start = u * 2).size(small.lineHeight * 0.5f))
                         down -> PixelIcon(PixelIcons.arrowDown, NatureDown, Modifier.padding(start = u * 2).size(small.lineHeight * 0.5f))
                     }
                 },
-                { GbaText("${stats.stats[s]}", OptionColors.label, OptionColors.labelShadow, small) },
+                { GbaText("${stats.stats[s]}", optionLook.label, optionLook.labelShadow, small) },
                 { IvCell(iv, MAX_IV, small) },
-                { GbaText("${stats.evs[s]}", OptionColors.value, OptionColors.valueShadow, small) },
+                { GbaText("${stats.evs[s]}", optionLook.value, optionLook.valueShadow, small) },
             )
         }
         // The totals under their columns.
         StatRow(
-            { GbaText(tr("TOTAL"), OptionColors.label, OptionColors.labelShadow, small) },
+            { GbaText(tr("TOTAL"), optionLook.label, optionLook.labelShadow, small) },
             { },
             { IvCell(stats.ivs.sum(), MAX_IV * 6, small) },
-            { GbaText("${stats.evs.sum()}", OptionColors.value, OptionColors.valueShadow, small) },
+            { GbaText("${stats.evs.sum()}", optionLook.value, optionLook.valueShadow, small) },
         )
         Separator(m, Modifier.fillMaxWidth())
         InfoRow(tr("NATURE"), small) {
-            GbaText(natureName(stats.nature), OptionColors.value, OptionColors.valueShadow, small)
+            GbaText(natureName(stats.nature), optionLook.value, optionLook.valueShadow, small)
         }
         InfoRow(tr("HIDDEN POWER"), small) {
             TypeBadge(hiddenPowerType(stats.ivs))
@@ -112,7 +112,7 @@ internal fun MonStatsSection(stats: MonStats, m: GbaTextMetrics, small: GbaTextM
 private fun RowScope.IvCell(value: Int, max: Int, small: GbaTextMetrics) {
     val u = small.u
     IvBar(value, max, small, Modifier.weight(1f).padding(start = u * 2))
-    GbaText("$value", OptionColors.value, OptionColors.valueShadow, small, modifier = Modifier.padding(start = u * 3).width(small.lineHeight * 1.6f))
+    GbaText("$value", optionLook.value, optionLook.valueShadow, small, modifier = Modifier.padding(start = u * 3).width(small.lineHeight * 1.6f))
 }
 
 /** label | stat | IV bar + number | EV, at fixed shares of the width. */
@@ -134,26 +134,27 @@ private fun StatRow(
 @Composable
 private fun InfoRow(label: String, small: GbaTextMetrics, content: @Composable RowScope.() -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        GbaText(label, OptionColors.label, OptionColors.labelShadow, small, modifier = Modifier.weight(0.46f))
+        GbaText(label, optionLook.label, optionLook.labelShadow, small, modifier = Modifier.weight(0.46f))
         Row(Modifier.weight(0.54f), verticalAlignment = Alignment.CenterVertically, content = content)
     }
 }
 
 @Composable
 private fun Muted(text: String, small: GbaTextMetrics, modifier: Modifier = Modifier) =
-    GbaText(text, OptionColors.muted, OptionColors.mutedShadow, small, modifier = modifier)
+    GbaText(text, optionLook.muted, optionLook.mutedShadow, small, modifier = modifier)
 
 /** An IV out of [max], in the HP bar's frame: gold when perfect, else the HP colours by share. */
 @Composable
 private fun IvBar(iv: Int, max: Int, small: GbaTextMetrics, modifier: Modifier) {
     val u = small.u
     val color = if (iv >= max) IvPerfect else AppColors.hpColor(iv, max)
+    val frameDark = optionLook.frameDark
     Box(
         modifier
             .height(u * 6)
             .drawBehind {
                 val px = u.toPx()
-                drawPixelRoundRect(OptionColors.frameDark, radius = 2 * px, step = px)
+                drawPixelRoundRect(frameDark, radius = 2 * px, step = px)
                 val inner = Size(size.width - 2 * px, size.height - 2 * px)
                 drawPixelRoundRect(Color(0xFF506858), Offset(px, px), inner, radius = px, step = px)
                 val fill = kotlin.math.floor(inner.width * iv / max / px) * px
@@ -187,19 +188,19 @@ private fun StatsColumn(side: String, mons: List<MonView>, m: GbaTextMetrics, sm
     // One battler fills the column (its table scrolls if it must); a double's two scroll together.
     val single = mons.size <= 1
     Column(if (single) modifier else modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(u * 3)) {
-        if (mons.isEmpty()) GbaText(tr(side), OptionColors.value, OptionColors.valueShadow, small)
+        if (mons.isEmpty()) GbaText(tr(side), optionLook.value, optionLook.valueShadow, small)
         mons.forEachIndexed { i, mon ->
             if (i > 0) Separator(m, Modifier.fillMaxWidth())
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
-                    Modifier.size(u * 22).clip(PixelRoundedShape(u * 4)).background(OptionColors.listFill),
+                    Modifier.size(u * 22).clip(PixelRoundedShape(u * 4)).background(optionLook.listFill),
                     contentAlignment = Alignment.Center,
                 ) { SpeciesIcon(mon.iconAsset, size = u * 18) }
                 Spacer(Modifier.width(u * 4))
                 Column(Modifier.weight(1f)) {
-                    GbaText(tr(side), OptionColors.value, OptionColors.valueShadow, small)
+                    GbaText(tr(side), optionLook.value, optionLook.valueShadow, small)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        GbaText(mon.name, OptionColors.label, OptionColors.labelShadow, m, modifier = Modifier.weight(1f, fill = false))
+                        GbaText(mon.name, optionLook.label, optionLook.labelShadow, m, modifier = Modifier.weight(1f, fill = false))
                         GenderMark(mon.genderSymbol, m, Modifier.padding(start = u * 2))
                         Spacer(Modifier.width(u * 4))
                         Stat(tr("Lv"), "${mon.level}", small)
@@ -210,7 +211,7 @@ private fun StatsColumn(side: String, mons: List<MonView>, m: GbaTextMetrics, sm
             if (stats != null) {
                 MonStatsSection(stats, m, small, if (single) Modifier.fillMaxWidth().weight(1f) else Modifier.fillMaxWidth().height(small.lineHeight * 15))
             }
-            else GbaText(tr("NO STATS FOR THIS ONE"), OptionColors.muted, OptionColors.mutedShadow, small)
+            else GbaText(tr("NO STATS FOR THIS ONE"), optionLook.muted, optionLook.mutedShadow, small)
         }
     }
 }

@@ -71,10 +71,27 @@ static const int32_t FAMILIES[][PK_WIDE_CONFIG_SIZE - PK_WIDE_ADDRS] = {
 _Static_assert(sizeof(FAMILIES[0]) / sizeof(FAMILIES[0][0]) == PK_WIDE_CONFIG_SIZE - PK_WIDE_ADDRS, "FAMILIES rows");
 _Static_assert(sizeof(PK_WIDE_ROMS[0].a) / sizeof(PK_WIDE_ROMS[0].a[0]) == PK_WIDE_ADDRS, "pk_wide_games.h rows");
 
-static const struct PkWideRom* lookup(uint32_t crc) {
-    for (size_t i = 0; crc && i < sizeof(PK_WIDE_ROMS) / sizeof(PK_WIDE_ROMS[0]); i++)
-        if (PK_WIDE_ROMS[i].crc == crc) return &PK_WIDE_ROMS[i];
+static const struct PkWideRom* find(const struct PkWideRom* roms, size_t n, uint32_t crc) {
+    for (size_t i = 0; crc && i < n; i++)
+        if (roms[i].crc == crc) return &roms[i];
     return NULL;
+}
+
+#define FIND(roms, crc) find(roms, sizeof(roms) / sizeof(roms[0]), crc)
+
+/** WIDE's table for the ROM; the pending hacks too in verify_wide.py's build (PK_WIDE_PENDING). */
+static const struct PkWideRom* lookup(uint32_t crc) {
+    const struct PkWideRom* rom = FIND(PK_WIDE_ROMS, crc);
+#ifdef PK_WIDE_PENDING
+    if (!rom) rom = FIND(PK_FIELD_ONLY_ROMS, crc);
+#endif
+    return rom;
+}
+
+/** The field reads' table: WIDE's, or a hack WIDE doesn't draw yet (PK_FIELD_ONLY_ROMS). */
+static const struct PkWideRom* lookupField(uint32_t crc) {
+    const struct PkWideRom* rom = FIND(PK_WIDE_ROMS, crc);
+    return rom ? rom : FIND(PK_FIELD_ONLY_ROMS, crc);
 }
 
 static int32_t C[PK_WIDE_CONFIG_SIZE];
@@ -1711,6 +1728,155 @@ int pk_wide_configure(uint32_t crc) {
 
 int pk_wide_knows(uint32_t crc) {
     return lookup(crc) != NULL;
+}
+
+// SCENE SPEEDS, AUTO-RUN and RUN INDOORS (GitHub #43 / #85): the field read through this game's WIDE table whether or
+// not WIDE is drawing - its own copy of the few addresses they need, so WIDE's state is left alone.
+static struct { uint32_t locked, main, inBattleOff, objects, mapHeader, questLog, wild, avatar; int family; } F;
+/** WILD ENCOUNTERS: we set the game's switch last (so NORMAL puts it back once), and the roll's state. */
+static bool wildOwned;
+static uint32_t wildRng = 0x9E3779B9u;
+static bool textUp(void);
+
+int pk_field_knows(uint32_t crc) {
+    const struct PkWideRom* rom = lookupField(crc);
+    return rom && rom->a[PK_WIDE_CONTROLS_LOCKED] != 0;
+}
+
+int pk_field_configure(uint32_t crc) {
+    const struct PkWideRom* rom = lookupField(crc);
+    memset(&F, 0, sizeof(F));
+    wildOwned = false;
+    if (!rom) return 0;
+    F.locked = (uint32_t) rom->a[PK_WIDE_CONTROLS_LOCKED];
+    F.main = (uint32_t) rom->a[PK_WIDE_GMAIN];
+    F.inBattleOff = (uint32_t) FAMILIES[rom->family][PK_WIDE_INBATTLE_OFF - PK_WIDE_ADDRS];
+    F.objects = (uint32_t) rom->a[PK_WIDE_OBJECT_EVENTS];
+    F.mapHeader = (uint32_t) rom->a[PK_WIDE_MAP_HEADER];
+    F.questLog = (uint32_t) rom->a[PK_WIDE_QUEST_LOG];
+    F.family = rom->family;
+    return F.locked != 0;
+}
+
+/** The player's object event (localId 0xFF among the 16): its index, or -1. */
+static int playerObject(void) {
+    for (int k = 0; F.objects && k < 16; k++) {
+        const uint8_t* oe = mem(F.objects + 0x24u * (uint32_t) k, 0x24);
+        if (oe && (oe[0] & 1) && oe[8] == 0xFF) return k;
+    }
+    return -1;
+}
+
+/** The player's object event's graphics id, or -1. Expansion's is a u16 at +4 (its spriteId moved to +0x23),
+ * everyone else's a u8 at +5. */
+static int playerGraphics(void) {
+    int k = playerObject();
+    const uint8_t* oe = k < 0 ? NULL : mem(F.objects + 0x24u * (uint32_t) k, 0x24);
+    if (!oe) return -1;
+    bool wide = F.family == PK_WIDE_FAMILY_EX || F.family == PK_WIDE_FAMILY_FR_EX;
+    return wide ? (int) le16(oe + 4) : oe[5];
+}
+
+/** Whether a PlayerAvatar sits at [a]: objectEventId (+5) the player's object, gender (+7) 0 / 1, and flags (+0) one of
+ * ON_FOOT / MACH_BIKE / ACRO_BIKE / SURFING / UNDERWATER (bits 0-4) with nothing past CONTROLLABLE / FORCED / DASH. */
+static bool avatarAt(uint32_t a) {
+    const uint8_t* p = mem(a, 8);
+    int k = playerObject();
+    if (!p || k < 0 || p[5] != k || p[7] > 1) return false;
+    uint8_t move = p[0] & 0x1F;
+    return move && !(move & (move - 1));
+}
+
+/** gPlayerAvatar, found on the free field and kept for the game: right after gObjectEvents in every FireRed / Emerald
+ * build and hack checked (+0x240: retail, CFRU, Gaia, Odyssey, Orange Islands, Ultra Violet, Celia, Glazed, Kaizo,
+ * Mariomon, Imperium, Lazarus, Seaglass, Recharged Yellow), R.O.W.E.'s at +0x4A8 (its own ROM symbol table says so). 0
+ * until found; Ruby / Sapphire (elsewhere), Heart and Soul, SoulGold, TMT2, Rogue and Quetzal never find it. */
+static uint32_t playerAvatar(void) {
+    if (F.avatar || !F.objects || F.family == PK_WIDE_FAMILY_RS || F.family == PK_WIDE_FAMILY_RS_JA) return F.avatar;
+    if (avatarAt(F.objects + 0x240)) F.avatar = F.objects + 0x240;
+    else if (avatarAt(F.objects + 0x4A8)) F.avatar = F.objects + 0x4A8;
+    return F.avatar;
+}
+
+/** PlayerAvatar.flags' MACH_BIKE | ACRO_BIKE and SURFING (UNDERWATER, Dive, too). */
+enum { AVATAR_BIKE = 2 | 4, AVATAR_SURF = 8 | 16 };
+
+/** On a bike: holding B there is the Acro Bike's wheelie (Emerald, Ruby / Sapphire), so AUTO-RUN leaves it alone. The
+ * game's own avatar flags where found; else the player's sprite: FireRed's RED / GREEN (+ VS Seeker) bike, Hoenn's
+ * BRENDAN / MAY Mach and Acro (a u8 only where the family keeps it there - R.O.W.E.'s u16 read as one said bike). */
+static bool onBike(void) {
+    uint32_t a = playerAvatar();
+    if (a) return (r8(a) & AVATAR_BIKE) != 0;
+    int g = playerGraphics();
+    bool kanto = F.family == PK_WIDE_FAMILY_FR || F.family == PK_WIDE_FAMILY_FR_EX;
+    return kanto ? (g == 1 || g == 6 || g == 8 || g == 13) : (g == 1 || g == 63 || g == 90 || g == 91);
+}
+
+/** Surfing (or diving): the avatar's flags; else Ruby / Sapphire's surfing sprites (BRENDAN / MAY, Emerald's ids too).
+ * -1 = not known for this game (FIELD SPEED's SURF row then says so). */
+static int surfing(void) {
+    uint32_t a = playerAvatar();
+    if (a) return (r8(a) & AVATAR_SURF) != 0;
+    if (F.family != PK_WIDE_FAMILY_RS && F.family != PK_WIDE_FAMILY_RS_JA) return -1;
+    int g = playerGraphics();
+    return g == 2 || g == 92;
+}
+
+/** RUN INDOORS: gMapHeader's allowRunning, set - FireRed's at +0x19 bit 1, Emerald's (and expansion's) at +0x1A bit
+ * 2; Ruby / Sapphire decide by the map's type instead (which flash, weather and the region map also read): never. */
+static void allowRunning(void) {
+    if (!F.mapHeader) return;
+    uint32_t off;
+    uint8_t bit;
+    if (F.family == PK_WIDE_FAMILY_FR || F.family == PK_WIDE_FAMILY_FR_EX) { off = 0x19; bit = 2; }
+    else if (F.family == PK_WIDE_FAMILY_EM || F.family == PK_WIDE_FAMILY_EX) { off = 0x1A; bit = 4; }
+    else return;
+    uint8_t* p = (uint8_t*) mem(F.mapHeader + off, 1);
+    if (p && !(*p & bit)) *p |= bit;
+}
+
+void pk_field_wild(uint32_t addr) {
+    F.wild = addr;
+    wildOwned = false;
+}
+
+/** WILD ENCOUNTERS: the game's own switch (StandardWildEncounter returns at once while it's 1; fishing, Sweet Scent and
+ * scripted battles don't look at it), rolled every frame the player is free on the field, so the step that would have
+ * met a Pokémon finds it off with [keep]% left. Left alone in a battle, a script or FireRed's quest log replay (which
+ * turns it on itself), and only put back to 0 where we set it. */
+static void wildRoll(int s, int keep) {
+    if (!F.wild || (s & (PK_FIELD_LOCKED | PK_FIELD_BATTLE))) return;
+    if (F.questLog && (r8(F.questLog) == 2 || r8(F.questLog) == 3)) return;
+    uint8_t* p = (uint8_t*) mem(F.wild, 1);
+    if (!p) return;
+    if (keep >= 100) {
+        if (wildOwned) *p = 0;
+        wildOwned = false;
+        return;
+    }
+    wildRng ^= wildRng << 13;
+    wildRng ^= wildRng >> 17;
+    wildRng ^= wildRng << 5;
+    *p = (int) (wildRng % 100) >= keep;
+    wildOwned = true;
+}
+
+int pk_field_state(struct mCore* core, int runIndoors, int wildKeep) {
+    if (!F.locked) return 0;
+    G = (struct GBA*) core->board;
+    useLive();
+    if (runIndoors) allowRunning();
+    int s = PK_FIELD_KNOWN;
+    if (r8(F.locked)) s |= PK_FIELD_LOCKED;
+    if (F.main && (r8(F.main + F.inBattleOff) & 2)) s |= PK_FIELD_BATTLE;
+    else if ((s & PK_FIELD_LOCKED) && textUp()) s |= PK_FIELD_TEXT;   // a battle's text is BATTLE SPEED's
+    if (onBike()) s |= PK_FIELD_BIKE;
+    int surf = surfing();
+    if (surf > 0) s |= PK_FIELD_SURF;
+    if (surf >= 0) s |= PK_FIELD_AVATAR;
+    wildRoll(s, wildKeep);
+    if (wildOwned) s |= PK_FIELD_WILD_HELD;
+    return s;
 }
 
 void pk_wide_reset(void) {

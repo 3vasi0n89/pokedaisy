@@ -372,6 +372,29 @@ Java_com_pokedaisy_app_MgbaCore_pkWideConfigure(JNIEnv* env, jobject thiz, jint 
     g.wideCrc = pk_wide_configure(want) ? want : 0;
 }
 
+// SCENE SPEEDS / AUTO-RUN / RUN INDOORS / WILD ENCOUNTERS: read the field with the tables of the game whose ROM has
+// this CRC32 (0 = none), and its wild-encounter switch at wildFlag (0 = not found). Emu thread.
+JNIEXPORT void JNICALL
+Java_com_pokedaisy_app_MgbaCore_pkFieldConfigure(JNIEnv* env, jobject thiz, jint crc, jint wildFlag) {
+    bool gba = g.core && pk_is_gba(g.core);
+    pk_field_configure(gba ? (uint32_t) crc : 0);
+    pk_field_wild(gba ? (uint32_t) wildFlag : 0);
+}
+
+// This frame's PK_FIELD_* bits (pk_field_state; 0 = not a game it knows); runIndoors lets the player run indoors,
+// wildKeep (percent) thins out wild encounters. Emu thread, between frames.
+JNIEXPORT jint JNICALL
+Java_com_pokedaisy_app_MgbaCore_pkFieldState(JNIEnv* env, jobject thiz, jboolean runIndoors, jint wildKeep) {
+    return g.core && pk_is_gba(g.core) ? pk_field_state(g.core, runIndoors, wildKeep) : 0;
+}
+
+// SCENE SPEEDS' TEXT / AUTO-RUN / RUN INDOORS / WILD ENCOUNTERS: whether the field reads know the ROM with this CRC32.
+// Any thread, no core needed.
+JNIEXPORT jboolean JNICALL
+Java_com_pokedaisy_app_MgbaCore_pkFieldKnows(JNIEnv* env, jobject thiz, jint crc) {
+    return pk_field_knows((uint32_t) crc) ? JNI_TRUE : JNI_FALSE;
+}
+
 // WIDE: whether it has tables for the ROM with this CRC32. Any thread, no core needed.
 JNIEXPORT jboolean JNICALL
 Java_com_pokedaisy_app_MgbaCore_pkWideKnows(JNIEnv* env, jobject thiz, jint crc) {

@@ -21,4 +21,11 @@ object WideScreen {
         val v = crc.toLongOrNull(16)?.toInt() ?: return OFF
         return if (v != OFF && runCatching { MgbaCore.pkWideKnows(v) }.getOrDefault(false)) v else OFF
     }
+
+    /** The same for the field reads behind SCENE SPEEDS' TEXT, AUTO-RUN, RUN INDOORS and WILD ENCOUNTERS
+     * ([MgbaCore.pkFieldConfigure]): WIDE's games with the field's addresses, plus the hacks WIDE doesn't draw yet. */
+    fun fieldGameFor(crc: String): Int {
+        val v = crc.toLongOrNull(16)?.toInt() ?: return OFF
+        return if (v != OFF && runCatching { MgbaCore.pkFieldKnows(v) }.getOrDefault(false)) v else OFF
+    }
 }

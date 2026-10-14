@@ -149,6 +149,19 @@ object PixelIcons {
         "...11....",
     )
 
+    /** A left arrow, cap-height of the pixel font: BACK in a title window. */
+    val arrowBack = listOf(
+        "....1......",
+        "...11......",
+        "..111......",
+        ".1111111111",
+        "11111111111",
+        ".1111111111",
+        "..111......",
+        "...11......",
+        "....1......",
+    )
+
     /** A five-pointed star: a favorite (the ITEMS tab's starred items). Cap-height of the pixel font. */
     val star = listOf(
         "....1....",
@@ -161,6 +174,14 @@ object PixelIcons {
         ".111.111.",
         ".11...11.",
     )
+
+    /** [star]'s outline alone: not a favorite (yet) - the Library's FAVORITE menu entry. */
+    val starOutline: List<String> = star.mapIndexed { y, row ->
+        String(CharArray(row.length) { x ->
+            fun on(xx: Int, yy: Int) = star.getOrNull(yy)?.getOrNull(xx) == '1'
+            if (on(x, y) && !(on(x - 1, y) && on(x + 1, y) && on(x, y - 1) && on(x, y + 1))) '1' else '.'
+        })
+    }
 
     /** A Poké Ball, its top filled and its bottom an outline: a bag item the companion can USE / GIVE
      * (the ITEMS tab's row mark - for a Pokémon). Round, so it never reads as the favorites' [star];

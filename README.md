@@ -140,6 +140,13 @@ under LANGUAGE in either Settings screen. Species, move and item names and the G
 - **Rewind** (optional, Settings > REWIND): hold the REWIND HOLD hotkey (R on a keyboard; pick a pad button in
   HOTKEYS) to play the last ~20 seconds backwards. It never touches your save file.
 - **Status bar** (optional): game, location, money, clock and battery above the game.
+- **HUD** (Settings > HUD, on by default): your party (levels, HP, status), a minimap, your Poké Balls and
+  BAG / WILD buttons on the game screen while you walk around, like a modern Pokémon game. A tap opens a Pokémon's
+  summary, the whole map (with FLY), a compact bag with USE, or the area's wild Pokémon; the game keeps running under
+  them. Three layouts (corners, side rails, a bottom dock), two looks (see-through glass or the app's windows), three
+  sizes, and each part can be hidden. It steps aside for battles, menus and (with EXPAND) conversations.
+- **Battle buttons** (one screen, Settings > BATTLE BUTTONS, on by default): FIGHT, POKéMON and RUN at the top right,
+  beside the battle. FIGHT opens your moves and POKéMON your party in a window, as on the BATTLE tab.
 - **Aspect**: the game's own shape (the GBA's 3:2, the Game Boy's 10:9), stretched to fill a 16:9 top screen, or **EXPAND**: the overworld drawn past the
   GBA's edges - beside the game on a wide screen, above and below it on a phone held upright - so the screen shows
   more of the map with the pixels kept square (FireRed, LeafGreen, Emerald, Ruby and

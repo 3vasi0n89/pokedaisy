@@ -76,6 +76,8 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material.icons.filled.FileOpen
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOff
@@ -857,7 +859,11 @@ class LibraryActivity : ComponentActivity() {
 
     /** One entry of a game's menu: the classic view's dropdown and the launcher's B. */
     /** [opens]: it opens a window, a picker or another screen (the launcher's menu comes back when that closes). */
-    private class RomMenuItem(val label: String, val icon: ImageVector, val danger: Boolean = false, val opens: Boolean = false, val onClick: () -> Unit)
+    /** [pixel]: a [com.pokedaisy.app.companion.ui.PixelIcons] bitmap drawn instead of [icon] (the favorite stars). */
+    private class RomMenuItem(
+        val label: String, val icon: ImageVector, val danger: Boolean = false, val opens: Boolean = false,
+        val pixel: List<String>? = null, val onClick: () -> Unit,
+    )
 
     @Composable
     private fun RomOptionsMenu(
@@ -876,9 +882,9 @@ class LibraryActivity : ComponentActivity() {
     private fun romMenuItems(rom: File, onRename: () -> Unit, onDelete: () -> Unit): List<RomMenuItem> {
         return buildList {
             if (rom.absolutePath in prefs.favoriteRoms) {
-                add(RomMenuItem(tr("UNFAVORITE"), Icons.Filled.StarBorder) { setFavorite(rom, false) })
+                add(RomMenuItem(tr("UNFAVORITE"), Icons.Filled.StarBorder, pixel = com.pokedaisy.app.companion.ui.PixelIcons.starOutline) { setFavorite(rom, false) })
             } else {
-                add(RomMenuItem(tr("FAVORITE"), Icons.Filled.Star) { setFavorite(rom, true) })
+                add(RomMenuItem(tr("FAVORITE"), Icons.Filled.Star, pixel = com.pokedaisy.app.companion.ui.PixelIcons.star) { setFavorite(rom, true) })
             }
             add(RomMenuItem(tr("INFO"), Icons.Filled.Info, opens = true) { showInfo(rom) })
             add(RomMenuItem(tr("RENAME"), Icons.Filled.Edit, opens = true, onClick = onRename))
@@ -928,7 +934,10 @@ class LibraryActivity : ComponentActivity() {
             val fg = if (item.danger) OptionColors.value else OptionColors.label
             DropdownMenuItem(
                 text = { GbaText(item.label, fg, if (item.danger) OptionColors.valueShadow else OptionColors.labelShadow, m) },
-                leadingIcon = { Icon(item.icon, null, tint = fg) },
+                leadingIcon = {
+                    val px = item.pixel
+                    if (px != null) com.pokedaisy.app.companion.ui.PixelIcon(px, fg, Modifier.size(24.dp)) else Icon(item.icon, null, tint = fg)
+                },
                 onClick = { onDismiss(); item.onClick() },
             )
         }
@@ -994,7 +1003,11 @@ class LibraryActivity : ComponentActivity() {
     /** A favorite's star, beside its title. */
     @Composable
     private fun FavoriteStar(size: androidx.compose.ui.unit.Dp) {
-        Icon(Icons.Filled.Star, contentDescription = tr("Favorite"), tint = OptionColors.favorite, modifier = Modifier.size(size))
+        // The bag's pixel star (its starred items), in the favorites' gold.
+        com.pokedaisy.app.companion.ui.PixelIcon(
+            com.pokedaisy.app.companion.ui.PixelIcons.star, OptionColors.favorite,
+            Modifier.size(size).semantics { contentDescription = tr("Favorite") },
+        )
     }
 
     private fun setFavorite(rom: File, on: Boolean) {
@@ -1657,7 +1670,7 @@ class LibraryActivity : ComponentActivity() {
         launcher.menu = LauncherMenu(
             romLabel(rom),
             romMenuItems(rom, onRename = { renaming = rom }, onDelete = { deleting = rom }).mapIndexed { i, item ->
-                LauncherMenu.Item(item.label, item.icon, item.danger, item.opens) {
+                LauncherMenu.Item(item.label, item.icon, item.danger, item.opens, item.pixel) {
                     // B / BACK out of what it opens lands back here, on this entry.
                     if (item.opens) {
                         menuReturn = MenuReturn(rom, i)

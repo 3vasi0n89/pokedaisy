@@ -38,6 +38,8 @@ Many rows are on both. They're the same setting, so changing it on one screen ch
 | --- | --- | --- | --- |
 | `STATUS BAR` | **`OFF`**, `GAME`, `COMPANION` | A strip with the game, location, money, clock and battery, over the game or over the companion's tabs. | [Screen](screen.md) |
 | `ASPECT` | **`ORIGINAL`**, `STRETCH`, `EXPAND` | The GBA's 3:2, stretched to fill the screen, or more of the map drawn past the game's edges. Opens a preview to pick from. | [Screen](screen.md) |
+| `HUD` | **`ON`**, `OFF` (a page) | Your party, a minimap, your Poké Balls and `BAG` / `WILD` buttons on the game while you walk around, with `LAYOUT`, `LOOK`, `SIZE` and which parts show. | [HUD](hud.md) |
+| `BATTLE BUTTONS` | **`ON`**, `OFF` | Only on a device with one screen: `FIGHT`, `POKéMON` and `RUN` at the top right, beside the battle. | [Battle](battle.md) |
 | `SHADERS` | a page (shows the current filter) | `FILTER`, `GRID`, `SMOOTHING`, `GBA COLORS` and `ON COMPANION`; see the next table. | [Screen](screen.md) |
 | `OVERLAY` | **`NONE`**, `DAISY`, `BEZEL`, your imports (a page) | A frame around the game. Import your own RetroArch overlays here with `IMPORT FILE`. | [Screen](screen.md) |
 | `COMPANION` | **`AT BOTTOM`**, `UNDER GAME` | Only on a device with one screen: where the companion sits when you hold it upright. | [Devices](devices.md) |
@@ -132,6 +134,8 @@ The companion's list has the same groups, plus a `COMPANION` group of its own. `
 | --- | --- | --- | --- |
 | `STATUS BAR` | as on the top screen | The strip with game, location, money, clock and battery. | [Screen](screen.md) |
 | `ASPECT` | as on the top screen | A pick-list here. `EXPAND` is tagged `NOT YET` in a game that doesn't have it. | [Screen](screen.md) |
+| `HUD` | a page | The same rows as on the top screen; the game changes as you tap. | [HUD](hud.md) |
+| `BATTLE BUTTONS` | as on the top screen | Only on a device with one screen: `FIGHT`, `POKéMON` and `RUN` beside the battle. | [Battle](battle.md) |
 | `SHADERS` | a page | The same five rows as on the top screen; the game changes as you tap. | [Screen](screen.md) |
 | `OVERLAY` | as on the top screen | Pick a frame. Importing happens on the top screen. | [Screen](screen.md) |
 | `FPS / CPU` | as on the top screen | The performance readout. | [Screen](screen.md) |

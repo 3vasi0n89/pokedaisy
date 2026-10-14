@@ -41,6 +41,14 @@ Some games have more than one map. In FireRed and LeafGreen, for example, the Se
 
 In the `PLACES` list, places that aren't on the first map say which map they're on.
 
+## Flying to a town
+
+When someone in your party knows the move that carries you between towns, a blue button for it appears under `PLACES`. Tap it for the towns you can fly to right now, pick one, and the game takes you there with its own animation, just as if you'd used the move from the party menu.
+
+The game's own rules still apply: you need the badge that allows it and you have to be outdoors, walking around, with no menu or conversation open. If something's missing, the button tells you what instead of flying.
+
+It works in FireRed, LeafGreen, Emerald, Ruby and Sapphire in every language and on these hacks: Unbound, Radical Red, Ultra Violet, Gaia, Odyssey, Amethyst, Sword and Shield Ultimate Plus, Orange Islands, Glazed (its first region), Heart and Soul, SoulGold, Lazarus and Emerald Imperium.
+
 ## Which games get a picture
 
 No game art comes with PokeDaisy. The map picture is rebuilt from your own ROM, once, the first time you play a game, and kept after that. So the very first time, the map can take a moment to appear.

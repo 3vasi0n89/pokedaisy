@@ -34,6 +34,10 @@ import kotlin.math.roundToInt
  * one outside the panel's bottom-left corner closes it, locked or not. While
  * locked, both are see-through ([LOCKED_TAB_ALPHA]) - they sit over the letterbox
  * then. The touch pad stays on the game's side whenever the panel is open.
+ * Open and unlocked, a tap on the game (or the FIELD HUD over it) closes it and goes on to the HUD, unless the touch
+ * pad is up.
+ * While the FIELD HUD is on screen it carries the open button itself, beside BAG and WILD ([tabInHud]): the edge
+ * tab steps aside then.
  */
 class SidePanel(
     private val root: FrameLayout,
@@ -43,6 +47,8 @@ class SidePanel(
     private val back: CompanionBack,
     private val clickSound: () -> Unit,
     private val companion: @Composable () -> Unit,
+    /** The panel and its tabs go right above this view (the FIELD HUD, itself above the touch pad). */
+    private val under: View = touchControls,
 ) {
     private val context: Context get() = root.context
 
@@ -53,7 +59,20 @@ class SidePanel(
     private val docked = mutableStateOf(prefs.sidePanelDocked)
     private var fraction = prefs.sidePanelWidth.coerceIn(MIN_FRACTION, MAX_FRACTION)
 
+    /** On and closed: a tap could open it (the FIELD HUD's button for it shows then). Compose state. */
+    val closed = mutableStateOf(false)
+
+    /** The FIELD HUD has the open button on screen: the edge tab steps aside. */
+    var tabInHud = false
+        set(v) {
+            if (field == v) return
+            field = v
+            apply()
+        }
+
     private var panel: View? = null
+    /** Over the game and the HUD while the panel is open and unlocked: a tap there closes it ([catchOutside]). */
+    private var outside: View? = null
     private var handle: View? = null
     private var openTab: View? = null
     private var closeTab: View? = null
@@ -77,7 +96,9 @@ class SidePanel(
         if (on) {
             docked.value = prefs.sidePanelDocked
             open = docked.value
-            val at = root.indexOfChild(touchControls) + 1
+            outside = View(context).apply { setOnTouchListener { _, e -> catchOutside(e) } }
+                .also { root.addView(it, root.indexOfChild(under) + 1, FrameLayout.LayoutParams(-1, -1)) }
+            val at = root.indexOfChild(under) + 2
             panel = CompanionColors.track(ComposeView(context)).apply {
                 setContent { SidePanelCompanion(companion) }
             }.also { root.addView(it, at, FrameLayout.LayoutParams(panelWidth, -1, Gravity.END)) }
@@ -104,7 +125,8 @@ class SidePanel(
             root.addOnLayoutChangeListener(relayout)
         } else {
             root.removeOnLayoutChangeListener(relayout)
-            for (v in listOfNotNull(panel, handle, closeTab, openTab)) root.removeView(v)
+            for (v in listOfNotNull(outside, panel, handle, closeTab, openTab)) root.removeView(v)
+            outside = null
             panel = null
             handle = null
             closeTab = null
@@ -129,6 +151,19 @@ class SidePanel(
         return true
     }
 
+    /**
+     * A touch on the game (or its HUD) while the panel is open and unlocked: closes it, and the touch goes on to what's
+     * under it - a HUD item (the map, a party member...) opens right after. Not with the touch pad showing - its
+     * buttons are how the game is played then.
+     */
+    private fun catchOutside(e: android.view.MotionEvent): Boolean {
+        if (touchControls.visibility != View.VISIBLE && e.actionMasked == android.view.MotionEvent.ACTION_DOWN) hide()
+        return false
+    }
+
+    /** Opens it (the FIELD HUD's button). */
+    fun openPanel() = show()
+
     private fun show() {
         if (open) return
         open = true
@@ -144,6 +179,7 @@ class SidePanel(
         if (!open) return
         open = false
         // The game and the touch pad take the whole screen back now; the panel slides out over them.
+        outside?.visibility = View.GONE
         setRightMargin(game, 0)
         setRightMargin(touchControls, 0)
         val w = panelWidth.toFloat() + (handle?.width ?: 0)
@@ -173,6 +209,7 @@ class SidePanel(
     private fun apply() {
         val w = panelWidth
         val shown = enabled && open
+        outside?.visibility = if (shown && !docked.value) View.VISIBLE else View.GONE
         panel?.apply {
             visibility = if (shown) View.VISIBLE else View.GONE
             translationX = 0f
@@ -189,8 +226,9 @@ class SidePanel(
             alpha = if (docked.value) LOCKED_TAB_ALPHA else 1f
             setRightMargin(this, w)
         }
+        closed.value = enabled && !open
         openTab?.apply {
-            visibility = if (enabled && !open) View.VISIBLE else View.GONE
+            visibility = if (enabled && !open && !tabInHud) View.VISIBLE else View.GONE
             alpha = if (docked.value) LOCKED_TAB_ALPHA else 1f
         }
         setRightMargin(game, if (shown && docked.value) w else 0)

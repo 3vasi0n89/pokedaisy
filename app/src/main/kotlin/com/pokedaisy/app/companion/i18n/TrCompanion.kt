@@ -97,6 +97,8 @@ internal val trCompanion: Map<String, Tr> = mapOf(
     "LEARN" to Tr(ja = "おぼえる", fr = "APPRENDRE", de = "ERLERNEN", it = "IMPARA", es = "APRENDER", br = "APRENDER", pt = "APRENDER"),
     "NOTHING TO LEARN FOR NOW" to Tr(ja = "いまは おぼえる わざが ない", fr = "RIEN À APPRENDRE POUR L'INSTANT", de = "GERADE NICHTS ZU ERLERNEN", it = "NIENTE DA IMPARARE PER ORA", es = "NADA QUE APRENDER POR AHORA", br = "NADA A APRENDER POR ENQUANTO", pt = "NADA A APRENDER POR AGORA"),
     "NEXT LEVELS" to Tr(ja = "つぎの レベル", fr = "PROCHAINS NIVEAUX", de = "NÄCHSTE LEVEL", it = "PROSSIMI LIVELLI", es = "PRÓXIMOS NIVELES", br = "PRÓXIMOS NÍVEIS", pt = "PRÓXIMOS NÍVEIS"),
+    // The BAG's PC anywhere button (GitHub #85): the games' own word for the PC.
+    "PC" to Tr(ja = "パソコン", fr = "PC", de = "PC", it = "PC", es = "PC", br = "PC", pt = "PC"),
     "TMs IN THE BAG" to Tr(ja = "バッグの わざマシン", fr = "CT DANS LE SAC", de = "TMs IM BEUTEL", it = "MT NELLA BORSA", es = "MT EN LA MOCHILA", br = "MTs NA MOCHILA", pt = "MTs NA MOCHILA"),
     "ACC" to Tr(ja = "めいちゅう", fr = "PRÉC.", de = "GENAU.", it = "PREC.", es = "PREC.", br = "PREC.", pt = "PREC."),
     "FORGET {0}" to Tr(ja = "{0}を わすれる", fr = "OUBLIER {0}", de = "{0} VERGESSEN", it = "DIMENTICA {0}", es = "OLVIDAR {0}", br = "ESQUECER {0}", pt = "ESQUECER {0}"),
@@ -254,4 +256,8 @@ internal val trCompanion: Map<String, Tr> = mapOf(
     // CARD tab.
     "TAP TO FLIP THE CARD" to Tr(ja = "タッチで うらがえす", fr = "TOUCHE POUR RETOURNER LA CARTE", de = "TIPPEN ZUM UMDREHEN", it = "TOCCA PER GIRARE LA SCHEDA", es = "TOCA PARA GIRAR LA FICHA", br = "TOQUE PARA VIRAR O CARTÃO", pt = "TOQUE PARA VIRAR O CARTÃO"),
     "TAP TO SEE THE FRONT" to Tr(ja = "タッチで おもてを みる", fr = "TOUCHE POUR VOIR LE RECTO", de = "TIPPEN FÜR DIE VORDERSEITE", it = "TOCCA PER VEDERE IL FRONTE", es = "TOCA PARA VER EL FRENTE", br = "TOQUE PARA VER A FRENTE", pt = "TOQUE PARA VER A FRENTE"),
+    // FIELD HUD over the game.
+    "WILD" to Tr(ja = "やせい", fr = "SAUVAGES", de = "WILDE", it = "SELVATICI", es = "SALVAJES", br = "SELVAGENS", pt = "SELVAGENS"),
+    "WILD POKéMON" to Tr(ja = "やせいの ポケモン", fr = "POKéMON SAUVAGES", de = "WILDE POKéMON", it = "POKéMON SELVATICI", es = "POKéMON SALVAJES", br = "POKéMON SELVAGENS", pt = "POKéMON SELVAGENS"),
+    "Use on which POKéMON?" to Tr(ja = "どの ポケモンに つかう?", fr = "Sur quel POKéMON ?", de = "Bei welchem POKéMON?", it = "Su quale POKéMON?", es = "¿En qué POKéMON?", br = "Em qual POKéMON?", pt = "Em qual POKéMON?"),
 )

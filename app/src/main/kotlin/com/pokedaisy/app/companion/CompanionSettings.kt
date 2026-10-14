@@ -28,6 +28,41 @@ interface CompanionSettings {
     val gameSpeeds: List<Float> get() = listOf(0.25f, 0.5f, 1f, 1.5f, 2f, 3f, 4f)
     fun setGameSpeed(v: Float) {}
 
+    /** SCENE SPEEDS (GitHub #43 / #85): a battle's, a field text box's and a menu screen's speed while FF is off;
+     * 0 = SAME (GAME SPEED's) - see [com.pokedaisy.app.Prefs.battleSpeed]. */
+    val battleSpeed: Float get() = 0f
+    fun setBattleSpeed(v: Float) {}
+    val textSpeed: Float get() = 0f
+    fun setTextSpeed(v: Float) {}
+    val menuSpeed: Float get() = 0f
+    fun setMenuSpeed(v: Float) {}
+    /** BIKE / SURF SPEED - see [com.pokedaisy.app.Prefs.bikeSpeed]; [fieldMovesReadable]: the game's bike / surf state
+     * is read (FireRed / Emerald engines with their player struct found, Ruby / Sapphire by sprite). */
+    val bikeSpeed: Float get() = 0f
+    fun setBikeSpeed(v: Float) {}
+    val surfSpeed: Float get() = 0f
+    fun setSurfSpeed(v: Float) {}
+    val fieldMovesReadable: Boolean get() = false
+
+    /** Whether the running game's field can be read for TEXT SPEED and AUTO-RUN (WIDE's tables know it). */
+    val fieldReadable: Boolean get() = false
+
+    /** AUTO-RUN: B held while walking (holding it walks) - see [com.pokedaisy.app.Prefs.autoRun]. */
+    val autoRun: Boolean get() = false
+    fun setAutoRun(on: Boolean) {}
+
+    /** RUN INDOORS - see [com.pokedaisy.app.Prefs.runIndoors]; [runIndoorsSupported]: a FireRed / Emerald engine the
+     * field reads know (Ruby / Sapphire tell indoor maps by their type, which other things read too). */
+    val runIndoors: Boolean get() = false
+    fun setRunIndoors(on: Boolean) {}
+    val runIndoorsSupported: Boolean get() = false
+
+    /** WILD ENCOUNTERS: the percent left - see [com.pokedaisy.app.Prefs.wildEncounters]; [wildEncountersSupported]: the
+     * game's switch was found in the ROM ([com.pokedaisy.app.companion.data.WildEncounters]) and its field is read. */
+    val wildEncounters: Int get() = 100
+    fun setWildEncounters(percent: Int) {}
+    val wildEncountersSupported: Boolean get() = false
+
     /** Whether fast-forward is currently toggled on (independent of the hold trigger). */
     val ffToggled: Boolean
     fun setFfToggled(on: Boolean)
@@ -127,6 +162,18 @@ interface CompanionSettings {
     /** The status bar over the companion's tabs instead of over the game - see [Prefs.statusBarOnCompanion]. */
     val statusBarOnCompanion: Boolean get() = false
     fun setStatusBarOnCompanion(on: Boolean) {}
+
+    /** SETTINGS > HUD: the HUD over the overworld - see [Prefs.fieldHud]. */
+    val fieldHud: Boolean get() = true
+    fun setFieldHud(on: Boolean) {}
+
+    /** SETTINGS > BATTLE BUTTONS: one screen, FIGHT, POKéMON and RUN beside a battle - see [Prefs.battleButtons]. */
+    val battleButtons: Boolean get() = true
+    fun setBattleButtons(on: Boolean) {}
+
+    /** The FIELD HUD's layout, look, size and parts - see [Prefs.fieldHudStyle]. */
+    val fieldHudStyle: com.pokedaisy.app.companion.FieldHudStyle get() = com.pokedaisy.app.companion.FieldHudStyle()
+    fun setFieldHudStyle(style: com.pokedaisy.app.companion.FieldHudStyle) {}
 
     /** FPS / CPU over the game's corner - see [Prefs.showPerformance]. */
     val showPerformance: Boolean get() = false
@@ -243,6 +290,9 @@ enum class FfMode(val label: String) {
     NORMAL(tk("NORMAL")),
 }
 
+
+/** SCENE SPEEDS' choices, SAME (0: GAME SPEED's) first. */
+val SCENE_SPEEDS = listOf(0f, 1f, 1.5f, 2f, 3f, 4f)
 
 /** SETTINGS > ASPECT: how the game sits on its screen, in the order the pickers list them.
  * [label] stays English; the rows translate it. */

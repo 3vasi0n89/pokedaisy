@@ -1,5 +1,7 @@
 package com.pokedaisy.app.companion.ui
 
+import com.pokedaisy.app.companion.NewFeatures
+
 import com.pokedaisy.app.companion.ui.theme.DarkModeSetting
 import com.pokedaisy.app.companion.ui.theme.DarkMode
 import com.pokedaisy.app.companion.i18n.L10n
@@ -33,6 +35,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.unit.Dp
 import com.pokedaisy.app.GbaControls
 import com.pokedaisy.app.Hotkeys
+import com.pokedaisy.app.companion.SCENE_SPEEDS
+import com.pokedaisy.app.companion.data.WildEncounters
 import com.pokedaisy.app.companion.COMPANION_TABS
 import com.pokedaisy.app.companion.CompanionSettings
 import com.pokedaisy.app.companion.FfMode
@@ -66,7 +70,7 @@ private val PICKABLE_KEYS = listOf(
     "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z",
 )
 
-internal enum class Page(val title: String) { HOME(tk("SETTINGS")), TABS(tk("TAB BAR")), BUTTONS(tk("GAME BUTTONS")), HOTKEYS(tk("HOTKEYS")), SHADERS(tk("SHADERS")), CHEATS(tk("CHEATS")), TWEAKS(tk("TWEAKS")), HELP(tk("HELP")) }
+internal enum class Page(val title: String) { HOME(tk("SETTINGS")), TABS(tk("TAB BAR")), BUTTONS(tk("GAME BUTTONS")), HOTKEYS(tk("HOTKEYS")), SHADERS(tk("SHADERS")), FIELD_HUD(tk("HUD")), SCENES(tk("SCENE SPEEDS")), CHEATS(tk("CHEATS")), TWEAKS(tk("TWEAKS")), HELP(tk("HELP")) }
 
 /**
  * The bottom-screen SETTINGS tab, laid out like FireRed's OPTION screen over
@@ -193,6 +197,13 @@ fun CompanionSettingsScreen(
                         }
                     } + SettingRow(tk("CANCEL"), null) { page = Page.HOME }
                     Page.SHADERS -> shaderRows(settings) { tick++ } + SettingRow(tk("CANCEL"), null) { page = Page.HOME }
+                    Page.FIELD_HUD -> fieldHudRows(
+                        settings.fieldHud, settings.fieldHudStyle,
+                        setOn = { settings.setFieldHud(it); tick++ },
+                        setStyle = { settings.setFieldHudStyle(it); tick++ },
+                        select = { title, options, current, pick -> selector = Selector(title, options, current) { pick(it); tick++ } },
+                    ) + SettingRow(tk("CANCEL"), null) { page = Page.HOME }
+                    Page.SCENES -> sceneRows(settings, { tick++ }, { selector = it }) + SettingRow(tk("CANCEL"), null) { page = Page.HOME }
                     Page.CHEATS -> cheatRows(settings) { tick++ } + SettingRow(tk("CANCEL"), null) { page = Page.HOME }
                     // Small preferences, each on by default (CompanionTweaks).
                     Page.TWEAKS -> CompanionTweaks.Tweak.entries.map { t ->
@@ -215,7 +226,7 @@ fun CompanionSettingsScreen(
                 // to a floor, past which the list scrolls instead.
                 // SHADERS too: OptionRows shares the window out, so its 4 rows came out taller than SETTINGS'.
                 // TWEAKS: OptionRows has no subtitle line for each tweak's description.
-                if (rows.any { it.header } || page == Page.SHADERS || page == Page.TWEAKS) {
+                if (rows.any { it.header } || page == Page.SHADERS || page == Page.SCENES || page == Page.TWEAKS) {
                     // The row the page was opened for (SWAP SCREENS after the swap): the cursor onto it, scrolled to.
                     val reveal = if (page == Page.HOME) ui.revealRow?.let { r -> rows.indexOfFirst { !it.header && it.label == r } } ?: -1 else -1
                     if (reveal >= 0 && homeCursor != reveal) SideEffect { homeCursor = reveal }
@@ -377,6 +388,8 @@ private fun homeRows(
             val labels = speeds.map(::speedLabel)
             select(Selector(tk("GAME SPEED"), labels, speedLabel(s.gameSpeed)) { l -> s.setGameSpeed(speeds[labels.indexOf(l)]) })
         },
+        // Battles, field text boxes and menu screens each at a speed of their own while FF is off (#43 / #85).
+        SettingRow(tk("SCENE SPEEDS"), null, subtitle = "Battles, text boxes and menus each at their own speed") { navigate(Page.SCENES) },
         // SMART: menus (party, bag, ... in battle too) and the region map at 1x; NORMAL: fast everywhere.
         SettingRow(tk("FF MODE"), s.ffMode.label) {
             val modes = FfMode.entries
@@ -393,6 +406,23 @@ private fun homeRows(
         // Takes effect the next time a game is opened.
         SettingRow(tk("TOUCH PAD"), TOUCH_NAMES[s.touchControlsMode]) {
             select(Selector(tk("TOUCH PAD"), TOUCH_NAMES, TOUCH_NAMES[s.touchControlsMode]) { s.setTouchControlsMode(TOUCH_NAMES.indexOf(it)) })
+        },
+        // B held for the player while walking on the field; holding it walks. Never on a bike or in a menu.
+        SettingRow(tk("AUTO-RUN"), if (s.fieldReadable) onOff(s.autoRun) else tk("N/A"), enabled = s.fieldReadable,
+            subtitle = "Holding B walks instead") { if (s.fieldReadable) { s.setAutoRun(!s.autoRun); changed() } },
+        // Every map lets the player run (buildings too); FireRed / Emerald engines.
+        SettingRow(tk("RUN INDOORS"), if (s.runIndoorsSupported) onOff(s.runIndoors) else tk("N/A"), enabled = s.runIndoorsSupported,
+            subtitle = "Running inside buildings too") { if (s.runIndoorsSupported) { s.setRunIndoors(!s.runIndoors); changed() } },
+        // The game's own switch for random encounters (WildEncounters.kt): NORMAL, 75 / 50 / 25 % of them, or OFF.
+        SettingRow(tk("WILD ENCOUNTERS"), if (s.wildEncountersSupported) wildEncountersLabel(s.wildEncounters) else tk("N/A"),
+            enabled = s.wildEncountersSupported, subtitle = "In grass, caves and water") {
+            if (s.wildEncountersSupported) {
+                val labels = WildEncounters.STEPS.map(::wildEncountersLabel)
+                select(Selector(tk("WILD ENCOUNTERS"), labels, wildEncountersLabel(s.wildEncounters)) { l ->
+                    s.setWildEncounters(WildEncounters.STEPS[labels.indexOf(l)])
+                    changed()
+                })
+            }
         },
         SettingRow(tk("GAME BUTTONS"), null, subtitle = "Key bindings: which button presses A, B, START...") { navigate(Page.BUTTONS) },
         SettingRow(tk("HOTKEYS"), onOff(s.hotkeysEnabled)) { navigate(Page.HOTKEYS) },
@@ -440,6 +470,13 @@ private fun homeRows(
         // EXPAND only: whether a conversation, sign, menu or picture over the field pulls the zoom in (battles always do).
         SettingRow(tk("AUTO ZOOM IN"), onOff(s.expandZoomOnText), subtitle = "1x on dialogue, signs, menus") { s.setExpandZoomOnText(!s.expandZoomOnText); changed() }
             .takeIf { s.gameAspect == GameAspect.WIDE },
+        // The party, a minimap, the balls and BAG / WILD over the game on the field: its own page (layout, look, size, parts).
+        SettingRow(tk("HUD"), onOff(s.fieldHud), labelBadge = NewFeatures.badge(NewFeatures.HUD)) { navigate(Page.FIELD_HUD) },
+        // One screen: FIGHT, POKéMON and RUN in the room beside a battle (BattleButtons).
+        SettingRow(
+            tk("BATTLE BUTTONS"), onOff(s.battleButtons), subtitle = "FIGHT, POKéMON and RUN beside a battle",
+            labelBadge = NewFeatures.badge(NewFeatures.BATTLE_BUTTONS),
+        ) { s.setBattleButtons(!s.battleButtons); changed() }.takeIf { !s.hasSecondScreen },
         // FILTER (LCD / LCD PAPER / SCANLINES / CRT) and GBA COLORS, on their own page.
         SettingRow(tk("SHADERS"), s.screenFilter.label) { navigate(Page.SHADERS) },
         // A frame around the game: NONE, the built-in ones, the player's imports (added on the top screen). Live.
@@ -503,6 +540,29 @@ private fun cheatRows(s: CompanionSettings, changed: () -> Unit): List<SettingRo
 }
 
 
+/** SCENE SPEEDS (GitHub #43 / #85): each one SAME (GAME SPEED's) or 1x ... 4x, while FF is off; it applies at once. */
+private fun sceneRows(s: CompanionSettings, changed: () -> Unit, select: (Selector) -> Unit): List<SettingRow> {
+    val labels = SCENE_SPEEDS.map(::sceneSpeedLabel)
+    fun row(label: String, value: Float, enabled: Boolean = true, set: (Float) -> Unit) =
+        SettingRow(label, if (enabled) sceneSpeedLabel(value) else tk("N/A"), enabled = enabled) {
+            if (enabled) select(Selector(label, labels, sceneSpeedLabel(value)) { l -> set(SCENE_SPEEDS[labels.indexOf(l)]); changed() })
+        }
+    return listOf(
+        // The whole battle: its text, its animations, the turns (its bag and party screens are MENU's).
+        row(tk("BATTLE SPEED"), s.battleSpeed, set = s::setBattleSpeed),
+        // A text box (or the START menu) up on the field: the words come out that much faster.
+        row(tk("TEXT SPEED"), s.textSpeed, s.fieldReadable, s::setTextSpeed),
+        // Menu screens: the party, the bag, the summary, the PC, the region map...
+        row(tk("MENU SPEED"), s.menuSpeed, set = s::setMenuSpeed),
+        // Riding a bike / surfing on the field: the whole game at that speed meanwhile (the player's own state, read
+        // where the game's player struct is found - N/A until then).
+        row(tk("BIKE SPEED"), s.bikeSpeed, s.fieldMovesReadable, s::setBikeSpeed),
+        row(tk("SURF SPEED"), s.surfSpeed, s.fieldMovesReadable, s::setSurfSpeed),
+    )
+}
+
+private fun sceneSpeedLabel(v: Float) = if (v <= 0f) tk("SAME") else speedLabel(v)
+
 /** SHADERS: what the game is drawn through - flips live, the game shows it at once. */
 private fun shaderRows(s: CompanionSettings, changed: () -> Unit): List<SettingRow> {
     return listOf(
@@ -565,4 +625,11 @@ private fun KeyPicker(title: String, m: GbaTextMetrics, note: String?, canClear:
             }
         }
     }
+}
+
+/** WILD ENCOUNTERS' value: NORMAL (the game's own rate), the percent left, or OFF. */
+internal fun wildEncountersLabel(percent: Int) = when (percent) {
+    100 -> tk("NORMAL")
+    0 -> tk("OFF")
+    else -> "$percent%"
 }

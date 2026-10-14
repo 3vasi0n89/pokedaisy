@@ -717,29 +717,31 @@ fun ItemsScreen(
             if (selectedItem != null) Spacer(Modifier.height(descHeight + u * 2))
         }
 
-        // Folder tabs (the first flush with the window's top edge), with the
-        // sort control pinned apart at the bottom - scrolls only on a screen too
-        // short for all of them.
-        BoxWithConstraints(Modifier.width(tabWidth + panelFrame).fillMaxHeight()) {
-            Column(
-                verticalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .heightIn(min = maxHeight),
-            ) {
-                Column {
-                    tabs.forEachIndexed { i, pocket ->
-                        FolderTab(
-                            tabLabels[i], pal, m,
-                            selected = category == pocket,
-                            first = i == 0,
-                            tabWidth = tabWidth, panelFrame = panelFrame,
-                        ) {
-                            selectedCategory = pocket
-                            selectedItem = null
-                        }
-                        Spacer(Modifier.height(u * 2))
+        // Folder tabs: ALL (flush with the window's top edge) stays put, and so do the PC and sort buttons pinned at
+        // the bottom; on a screen too short for every tab (the Thor's, with 6+ pockets) only the tabs between them
+        // scroll.
+        Column(Modifier.width(tabWidth + panelFrame).fillMaxHeight()) {
+            val tab: @Composable (Int) -> Unit = { i ->
+                FolderTab(
+                    tabLabels[i], pal, m,
+                    selected = category == tabs[i],
+                    first = i == 0,
+                    tabWidth = tabWidth, panelFrame = panelFrame,
+                ) {
+                    selectedCategory = tabs[i]
+                    selectedItem = null
+                }
+                Spacer(Modifier.height(u * 2))
+            }
+            if (tabs.isNotEmpty()) tab(0)
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+                for (i in 1 until tabs.size) tab(i)
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(u * 4), modifier = Modifier.padding(top = u * 2)) {
+                // PC anywhere (GitHub #85): the game's own PC over the field; a "not now" pops up over the bag.
+                if (itemUse?.canPc() == true) {
+                    PcButton(pal, m, width = tabWidth - u * 4) {
+                        itemUse.openPc { o -> if (o.result != ItemUseResult.USED) notice = ItemNotice(0, itemUseMessage(o), ok = false) }
                     }
                 }
                 SortButton(sortLabel(sort), pal, m, width = tabWidth - u * 4) {
@@ -873,6 +875,25 @@ private fun SortButton(label: String, pal: BagPalette, m: GbaTextMetrics, width:
         SortIcon(pal, m)
         Spacer(Modifier.width(u * 4))
         GbaText(label, pal.descText, pal.descTextShadow, m)
+    }
+}
+
+/** PC: the game's own PC (WITHDRAW, DEPOSIT...) opened on the field, styled like [SortButton]. */
+@Composable
+private fun PcButton(pal: BagPalette, m: GbaTextMetrics, width: Dp, onClick: () -> Unit) {
+    val u = m.u
+    val noRipple = remember { MutableInteractionSource() }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
+        modifier = Modifier
+            .padding(start = u * 2)
+            .width(width)
+            .drawBehind { drawLayeredBox(pal.descLayers.inPx(u.toPx()), pal.descFill, radius = 6 * u.toPx()) }
+            .soundClickable(interactionSource = noRipple, indication = null, onClick = onClick)
+            .padding(horizontal = u * 6, vertical = u * 6),
+    ) {
+        GbaText(tr("PC"), pal.descText, pal.descTextShadow, m)
     }
 }
 
@@ -1066,7 +1087,7 @@ private fun ItemDescriptionBar(
 
 /** What a USE / GIVE did, in the companion's words: [mon] the Pokémon it went to, [item] the item, [held]
  * what the Pokémon held before. */
-private fun itemUseMessage(o: ItemUseOutcome, mon: String = "", item: String = "", held: Int = 0): String = when (o.result) {
+internal fun itemUseMessage(o: ItemUseOutcome, mon: String = "", item: String = "", held: Int = 0): String = when (o.result) {
     ItemUseResult.USED -> if (o.steps > 0) tr("Used! It lasts {0} steps.", o.steps) else tr("Used on {0}.", mon)
     ItemUseResult.STILL_ACTIVE -> tr("The last one is still working.")
     ItemUseResult.NOT_NOW -> tr("Not now: close the game's menus and battles first.")
@@ -1082,7 +1103,7 @@ private fun itemUseMessage(o: ItemUseOutcome, mon: String = "", item: String = "
 }
 
 /** What a USE / GIVE did, popped up over the bag ([ItemNoticeWindow]). */
-data class ItemNotice(val itemId: Int, val text: String)
+data class ItemNotice(val itemId: Int, val text: String, val ok: Boolean = true)
 
 private const val ITEM_NOTICE_MILLIS = 2600L
 
@@ -1108,8 +1129,9 @@ private fun ItemNoticeWindow(n: ItemNotice, m: GbaTextMetrics, modifier: Modifie
             .padding(horizontal = u * 10, vertical = u * 6),
     ) {
         val cell = with(LocalDensity.current) { m.fontPixel.toDp() }
-        ShadowedPixelIcon(PixelIcons.check, OptionColors.success, OptionColors.titleShadow, m, cell = cell)
-        ItemIcon(com.pokedaisy.app.companion.data.spriteAsset("items", n.itemId), size = m.lineHeight)
+        // A "not now" (PC) has neither the tick nor an item.
+        if (n.ok) ShadowedPixelIcon(PixelIcons.check, OptionColors.success, OptionColors.titleShadow, m, cell = cell)
+        if (n.itemId != 0) ItemIcon(com.pokedaisy.app.companion.data.spriteAsset("items", n.itemId), size = m.lineHeight)
         GbaText(n.text, OptionColors.titleText, OptionColors.titleShadow, m, maxLines = 3)
     }
 }

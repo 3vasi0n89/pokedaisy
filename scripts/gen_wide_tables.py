@@ -124,8 +124,14 @@ HACKS = [
     dict(name="Orange Islands", sha1="8bac897de515f88e6ce92d0712ce2c018a394b37", family="FR", mapped=True,
          pending="the top tile row differs once the walk turns north (half the walk frames)",
          save="orange_islands", a=dict(MAP_GROUPS=0x083526A8, **cfru(0x08801C80, 0x081A2000, 0x4080))),
+    # Beta 5.7: the same RAM and tables as the build above (every address shared, checked headless on the same save).
+    dict(name="Orange Islands Beta 5.7", sha1="d2e3800e69e44c9649c3d9a15dc1cd12c1d90501", family="FR", mapped=True,
+         pending="as Orange Islands",
+         save="orange_islands", a=dict(MAP_GROUPS=0x083526A8, **cfru(0x08801C80, 0x081A2000, 0x4080))),
     dict(name="Celia's Stupid Romhack v1.1.4", sha1="3cbd5a2e72ce60cfae1e0c28d83e01f855c51537", family="FR",
-         mapped=True, save="celia", a=dict(MAP_GROUPS=0x089DCD7C)),
+         mapped=True, save="celia", a=dict(MAP_GROUPS=0x089DCD7C,
+         # FireRed's ScriptContext2_Enable / _Disable / _IsEnabled, moved with the rest (0x080765C8): the field reads'.
+         CONTROLS_LOCKED=0x03000FA4)),
     *[dict(name=f"Sword and Shield Ultimate Plus{v}", sha1=sha, family="FR", mapped=True, save=save,
            a=dict(MAP_GROUPS=0x087B1010, **cfru(0x08EB1000, 0x094BBFCC), **CFRU_FLAGS))
       for v, sha, save in [("", "afe4c8e0f9c7186860fcea5f25d8318f5d7929b9", "sword_shield_up"),
@@ -423,13 +429,19 @@ def main():
         "    int32_t a[PK_WIDE_ADDRS];",
         "} PK_WIDE_ROMS[] = {",
     ]
-    for e in out:
+    def row(e):
         vals = ", ".join(e["addrs"][s] for s in SLOTS)
-        if e.get("pending"):   # checked by verify_wide.py (its build defines PK_WIDE_PENDING), never in the app
-            lines.append("#ifdef PK_WIDE_PENDING")
-        lines.append(f"    {{ 0x{e['crc']}, PK_WIDE_FAMILY_{e['family']}, {{ {vals} }} }},   // {e['name'] or f"{e['code']} rev {e['rev']}"}: {e['file']}")
-        if e.get("pending"):
-            lines.append("#endif")
+        return f"    {{ 0x{e['crc']}, PK_WIDE_FAMILY_{e['family']}, {{ {vals} }} }},   // {e['name'] or f"{e['code']} rev {e['rev']}"}: {e['file']}"
+    lines += [row(e) for e in out if not e.get("pending")]
+    lines += ["};", ""]
+    # Pending hacks: checked by verify_wide.py (its build defines PK_WIDE_PENDING, which lets WIDE draw them); the app
+    # reads their field with them (SCENE SPEEDS' TEXT, AUTO-RUN, RUN INDOORS, WILD ENCOUNTERS: pk_field_configure).
+    lines += [
+        "// Hacks WIDE doesn't draw yet (`pending` in gen_wide_tables.py): only the field reads use them, unless",
+        "// PK_WIDE_PENDING (verify_wide.py's build) lets WIDE draw them too.",
+        "static const struct PkWideRom PK_FIELD_ONLY_ROMS[] = {",
+    ]
+    lines += [row(e) for e in out if e.get("pending")] or ["    { 0, 0, { 0 } },"]
     lines += ["};", ""]
     open(OUT_H, "w").write("\n".join(lines))
     pending = sum(1 for e in out if e.get("pending"))

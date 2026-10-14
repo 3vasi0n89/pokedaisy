@@ -251,7 +251,12 @@ class LauncherState {
 /** A game's options (its library menu), opened with B; [cursor] moves with the D-pad. */
 class LauncherMenu(val title: String, val items: List<Item>) {
     /** [opens]: it opens a window or a screen, and the menu comes back when that closes (B there returns here). */
-    class Item(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector? = null, val danger: Boolean = false, val opens: Boolean = false, val onClick: () -> Unit)
+    class Item(
+        val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector? = null, val danger: Boolean = false, val opens: Boolean = false,
+        /** A PixelIcons bitmap drawn instead of [icon] (the favorite stars). */
+        val pixel: List<String>? = null,
+        val onClick: () -> Unit,
+    )
     var cursor by mutableIntStateOf(0)
     /** Rows per column: all of them, or half when the list is drawn in two columns (it didn't fit). */
     var rows by mutableIntStateOf(items.size)
@@ -645,14 +650,14 @@ fun LauncherMenuOverlay(menu: LauncherMenu, m: GbaTextMetrics, onDismiss: () -> 
                                         height = rowHeight,
                                         labelWeight = 1f,
                                         divider = r < column.lastIndex,
-                                        labelIcon = item.icon?.let { icon ->
+                                        labelIcon = if (item.pixel != null || item.icon != null) {
                                             {
-                                                Icon(
-                                                    icon, null, Modifier.fillMaxSize(),
-                                                    tint = if (item.danger) OptionColors.value else OptionColors.label,
-                                                )
+                                                val tint = if (item.danger) OptionColors.value else OptionColors.label
+                                                val px = item.pixel
+                                                if (px != null) com.pokedaisy.app.companion.ui.PixelIcon(px, tint, Modifier.fillMaxSize())
+                                                else Icon(item.icon!!, null, Modifier.fillMaxSize(), tint = tint)
                                             }
-                                        },
+                                        } else null,
                                     ) {
                                         onDismiss()
                                         item.onClick()

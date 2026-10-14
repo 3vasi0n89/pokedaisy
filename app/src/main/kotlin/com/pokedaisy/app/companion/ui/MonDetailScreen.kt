@@ -133,7 +133,7 @@ fun MonDetailScreen(
             if (mon != null) {
                 // One white window, split by separators: info over matchups
                 // on the left, the moves on the right.
-                OptionListWindow(m, Modifier.fillMaxSize(), fill = OptionColors.titleFill) {
+                OptionListWindow(m, Modifier.fillMaxSize(), fill = optionLook.titleFill) {
                     Row(Modifier.fillMaxSize()) {
                         if (showLearn && canLearn) {
                             val options = rememberLearnOptions(learn!!, mon)
@@ -230,13 +230,13 @@ internal fun takeMessage(o: com.pokedaisy.app.companion.data.ItemUseOutcome, mon
 @Composable
 private fun HeldItemLine(itemId: Int, small: GbaTextMetrics, onTake: (() -> Unit)?, bagFull: Boolean = false) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(top = small.u * 3)) {
-        GbaText(tr("ITEM"), OptionColors.value, OptionColors.valueShadow, small)
+        GbaText(tr("ITEM"), optionLook.value, optionLook.valueShadow, small)
         Spacer(Modifier.width(small.u * 6))
         ItemIcon(com.pokedaisy.app.companion.data.spriteAsset("items", itemId), size = small.lineHeight)
         Spacer(Modifier.width(small.u * 3))
-        GbaText(bagItemName(itemId), OptionColors.label, OptionColors.labelShadow, small, modifier = Modifier.weight(1f))
+        GbaText(bagItemName(itemId), optionLook.label, optionLook.labelShadow, small, modifier = Modifier.weight(1f))
         if (onTake != null) OptionButton(tk("TAKE"), small, onClick = onTake, modifier = Modifier.padding(start = small.u * 4))
-        else if (bagFull) GbaText(tr("BAG FULL"), OptionColors.label, OptionColors.labelShadow, small, modifier = Modifier.padding(start = small.u * 4))
+        else if (bagFull) GbaText(tr("BAG FULL"), optionLook.label, optionLook.labelShadow, small, modifier = Modifier.padding(start = small.u * 4))
     }
 }
 
@@ -273,7 +273,7 @@ private fun PartyStrip(party: List<MonView>, index: Int, onPick: (Int) -> Unit, 
             party.forEachIndexed { i, mon ->
                 val on = i == index
                 PlatinumButton(
-                    fill = if (on) StripLit else StripIdle, frame = if (on) StripLitFrame else StripIdleFrame,
+                    fill = if (on) optionLook.stripLit else optionLook.stripIdle, frame = if (on) optionLook.stripLitFrame else optionLook.stripIdleFrame,
                     modifier = Modifier.size(cell).semantics { contentDescription = mon.name },
                     contentPadding = PaddingValues(0.dp),
                     onClick = { onPick(i) },
@@ -283,15 +283,11 @@ private fun PartyStrip(party: List<MonView>, index: Int, onPick: (Int) -> Unit, 
     }
 }
 
-// The party strip's squares: the shown mon lit, the rest a slate blue (dark mode: deeper, the lit one the cursor row's).
-private val StripIdle get() = if (OptionColors.dark) Color(0xFF2E3A52) else Color(0xFFA8B4C8)
-private val StripIdleFrame get() = if (OptionColors.dark) Color(0xFF151B27) else Color(0xFF68748C)
-private val StripLit get() = if (OptionColors.dark) Color(0xFF4A5468) else Color(0xFFF8F8F8)
-private val StripLitFrame get() = if (OptionColors.dark) Color(0xFF6F7A90) else Color(0xFFC0C8D8)
 
 /** A 1-GBA-pixel rule between the summary's sections, in the window frame's light grey. */
 @Composable
 internal fun Separator(m: GbaTextMetrics, modifier: Modifier = Modifier, vertical: Boolean = false) {
+    val look = optionLook
     Box(
         modifier
             .then(if (vertical) Modifier.width(m.u * 2) else Modifier.height(m.u * 2))
@@ -299,20 +295,18 @@ internal fun Separator(m: GbaTextMetrics, modifier: Modifier = Modifier, vertica
                 val px = m.u.toPx()
                 // Dark line + light line, like the window's own inner frame.
                 if (vertical) {
-                    drawRect(SeparatorDark, Offset.Zero, Size(px, size.height))
-                    drawRect(SeparatorLight, Offset(px, 0f), Size(px, size.height))
+                    drawRect(look.separatorDark, Offset.Zero, Size(px, size.height))
+                    drawRect(look.separatorLight, Offset(px, 0f), Size(px, size.height))
                 } else {
-                    drawRect(SeparatorDark, Offset.Zero, Size(size.width, px))
-                    drawRect(SeparatorLight, Offset(0f, px), Size(size.width, px))
+                    drawRect(look.separatorDark, Offset.Zero, Size(size.width, px))
+                    drawRect(look.separatorLight, Offset(0f, px), Size(size.width, px))
                 }
             },
     )
 }
 
-private val SeparatorDark get() = if (OptionColors.dark) Color(0xFF0E1116) else Color(0xFFB8B8C0)
 /** The summary screen's EXP bar blue. */
 private val ExpBlue = Color(0xFF40B8F8)
-private val SeparatorLight get() = if (OptionColors.dark) Color(0xFF3A414D) else Color(0xFFE8E8EC)
 
 /**
  * The summary's left column: [InfoSection] over the matchups. Where that doesn't fit (a 4:3 screen,
@@ -362,7 +356,7 @@ internal fun InfoSection(mon: MonView, m: GbaTextMetrics, small: GbaTextMetrics,
     Box(modifier) {
         Column(verticalArrangement = Arrangement.spacedBy(u * 3)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                GbaText(mon.name, OptionColors.label, OptionColors.labelShadow, m, modifier = Modifier.weight(1f, fill = false))
+                GbaText(mon.name, optionLook.label, optionLook.labelShadow, m, modifier = Modifier.weight(1f, fill = false))
                 GenderMark(mon.genderSymbol, m, Modifier.padding(start = u * 3))
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -371,15 +365,15 @@ internal fun InfoSection(mon: MonView, m: GbaTextMetrics, small: GbaTextMetrics,
                     Modifier
                         .size(u * 36)
                         .clip(PixelRoundedShape(u * 4))
-                        .background(OptionColors.listFill),
+                        .background(optionLook.listFill),
                     contentAlignment = Alignment.Center,
                 ) { SpeciesIcon(mon.iconAsset, size = u * 32) }
                 Spacer(Modifier.width(u * 5))
                 if (!mon.isEgg) {
                     Column(verticalArrangement = Arrangement.spacedBy(u * 3)) {
                         Row(verticalAlignment = Alignment.Bottom) {
-                            GbaText(tr("Lv"), OptionColors.label, OptionColors.labelShadow, small)
-                            GbaText("${mon.level}", OptionColors.value, OptionColors.valueShadow, m, modifier = Modifier.padding(start = u * 2))
+                            GbaText(tr("Lv"), optionLook.label, optionLook.labelShadow, small)
+                            GbaText("${mon.level}", optionLook.value, optionLook.valueShadow, m, modifier = Modifier.padding(start = u * 2))
                         }
                         if (mon.status.isNotEmpty()) StatusBadge(mon.status)
                         if (typesBesideIcon) Types(mon)
@@ -426,8 +420,9 @@ internal fun GenderMark(symbol: Int, m: GbaTextMetrics, modifier: Modifier = Mod
 internal fun SummaryBar(label: String, text: String, value: Int, max: Int, color: Color, small: GbaTextMetrics) {
     val frac = if (max > 0) (value.toFloat() / max).coerceIn(0f, 1f) else 0f
     val u = small.u
+    val frameDark = optionLook.frameDark
     Row(verticalAlignment = Alignment.CenterVertically) {
-        GbaText(label, OptionColors.value, OptionColors.valueShadow, small)
+        GbaText(label, optionLook.value, optionLook.valueShadow, small)
         Spacer(Modifier.width(u * 3))
         Box(
             Modifier
@@ -435,7 +430,7 @@ internal fun SummaryBar(label: String, text: String, value: Int, max: Int, color
                 .height(u * 6)
                 .drawBehind {
                     val px = u.toPx()
-                    drawPixelRoundRect(OptionColors.frameDark, radius = 2 * px, step = px)
+                    drawPixelRoundRect(frameDark, radius = 2 * px, step = px)
                     val inner = Size(size.width - 2 * px, size.height - 2 * px)
                     drawPixelRoundRect(Color(0xFF506858), Offset(px, px), inner, radius = px, step = px)
                     val fill = kotlin.math.floor(inner.width * frac / px) * px
@@ -443,7 +438,7 @@ internal fun SummaryBar(label: String, text: String, value: Int, max: Int, color
                 },
         )
         Spacer(Modifier.width(u * 3))
-        GbaText(text, OptionColors.label, OptionColors.labelShadow, small)
+        GbaText(text, optionLook.label, optionLook.labelShadow, small)
     }
 }
 
@@ -474,7 +469,7 @@ private fun MatchupColumn(sections: List<Pair<String, List<TypeMatchup>>>, small
         verticalArrangement = Arrangement.spacedBy(small.u * 3),
     ) {
         if (sections.isEmpty()) {
-            GbaText(tr("NO MATCHUP DATA"), OptionColors.muted, OptionColors.mutedShadow, small)
+            GbaText(tr("NO MATCHUP DATA"), optionLook.muted, optionLook.mutedShadow, small)
         }
         sections.forEach { (heading, list) -> MatchupGroup(heading, list, small, inline) }
     }
@@ -487,14 +482,14 @@ internal fun MatchupGroup(heading: String, list: List<TypeMatchup>, small: GbaTe
         FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             // The chip's own height (a 12 sp line + its 3 dp padding), so the heading sits level with them.
             Box(Modifier.height(with(LocalDensity.current) { 12.sp.toDp() } + 6.dp).padding(end = 2.dp), contentAlignment = Alignment.CenterStart) {
-                GbaText(heading, OptionColors.label, OptionColors.labelShadow, small)
+                GbaText(heading, optionLook.label, optionLook.labelShadow, small)
             }
             list.forEach { TypeBadgeWithLabel(it) }
         }
         return
     }
     Column(verticalArrangement = Arrangement.spacedBy(small.u * 2)) {
-        GbaText(heading, OptionColors.label, OptionColors.labelShadow, small)
+        GbaText(heading, optionLook.label, optionLook.labelShadow, small)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             list.forEach { TypeBadgeWithLabel(it) }
         }
@@ -517,7 +512,7 @@ private fun MovesSection(mon: MonView, m: GbaTextMetrics, small: GbaTextMetrics,
 @Composable
 private fun MoveRow(mv: MoveView?, m: GbaTextMetrics, small: GbaTextMetrics, modifier: Modifier = Modifier, forget: Boolean = false) {
     val u = m.u
-    val edge = mv?.let { AppColors.typeColors[it.type] } ?: OptionColors.muted
+    val edge = mv?.let { AppColors.typeColors[it.type] } ?: optionLook.muted
     Box(
         modifier
             .drawBehind {
@@ -530,10 +525,10 @@ private fun MoveRow(mv: MoveView?, m: GbaTextMetrics, small: GbaTextMetrics, mod
             .padding(start = u * 8, top = u * 3, bottom = u * 3),
     ) {
         if (mv == null) {
-            GbaText("—", OptionColors.muted, OptionColors.mutedShadow, m, modifier = Modifier.align(Alignment.CenterStart))
+            GbaText("—", optionLook.muted, optionLook.mutedShadow, m, modifier = Modifier.align(Alignment.CenterStart))
         } else Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                GbaText(mv.name, OptionColors.label, OptionColors.labelShadow, m, Modifier.weight(1f, fill = false))
+                GbaText(mv.name, optionLook.label, optionLook.labelShadow, m, Modifier.weight(1f, fill = false))
                 if (forget) { Spacer(Modifier.width(u * 4)); ForgetTag() }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -556,9 +551,9 @@ private fun MoveRow(mv: MoveView?, m: GbaTextMetrics, small: GbaTextMetrics, mod
 @Composable
 internal fun Stat(label: String, value: String, small: GbaTextMetrics) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        GbaText(label, OptionColors.label, OptionColors.labelShadow, small)
+        GbaText(label, optionLook.label, optionLook.labelShadow, small)
         Spacer(Modifier.width(small.u * 3))
-        GbaText(value, OptionColors.value, OptionColors.valueShadow, small)
+        GbaText(value, optionLook.value, optionLook.valueShadow, small)
     }
 }
 
@@ -597,7 +592,7 @@ internal fun SummaryFrame(
 ) {
     if (onBack != null) CompanionBackHandler(onBack = onBack)
     Column(modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        OptionListWindow(m, Modifier.weight(1f).fillMaxWidth(), fill = OptionColors.titleFill) { content() }
+        OptionListWindow(m, Modifier.weight(1f).fillMaxWidth(), fill = optionLook.titleFill) { content() }
         Row(
             Modifier.fillMaxWidth().height(NavButtonSize),
             verticalAlignment = Alignment.CenterVertically,

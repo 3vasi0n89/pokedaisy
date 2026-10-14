@@ -137,7 +137,11 @@ fun SpeciesIcon(asset: String?, size: Dp, modifier: Modifier = Modifier) {
 @Composable
 fun ItemIcon(asset: String?, size: Dp, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    var bitmap by remember(asset) { mutableStateOf<Bitmap?>(null) }
+    // Starts from an already-decoded icon, like SpeciesIcon.
+    var bitmap by remember(asset) {
+        val id = asset?.takeUnless { it.startsWith("items-unbound/") }?.substringAfterLast('/')?.substringBefore('.')?.toIntOrNull()
+        mutableStateOf(id?.let { DecompIconSource.peekItem(it) })
+    }
     val gen = rememberIconGeneration()
     LaunchedEffect(asset, gen) {
         val id = asset?.substringAfterLast('/')?.substringBefore('.')?.toIntOrNull()

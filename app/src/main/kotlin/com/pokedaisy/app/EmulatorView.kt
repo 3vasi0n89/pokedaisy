@@ -67,6 +67,13 @@ class EmulatorView(context: Context) : GLSurfaceView(context) {
     /** Called (UI thread) with one GBA pixel's height on screen, in view px, whenever it changes -
      * SHADERS on the companion draw their grid at that size ([CompanionColors]). */
     var onGamePixel: ((Float) -> Unit)? = null
+
+    /** Called (UI thread) with where the game's picture is in this view (px), whenever it changes - the FIELD HUD
+     * stays inside it; null = the whole view (EXPAND, or STRETCH with no overlay). */
+    var onGameRect: ((android.graphics.RectF?) -> Unit)? = null
+    /** Where the core's own picture (the GBA's 240x160) is in this view: [onGameRect]'s, but EXPAND's middle at the
+     * view's height (its battles and field stay centred at 1x) and STRETCH's whole view. */
+    var onCoreRect: ((android.graphics.RectF) -> Unit)? = null
     private var frameW = 0
     private var frameH = 0
 
@@ -81,6 +88,24 @@ class EmulatorView(context: Context) : GLSurfaceView(context) {
             else -> minOf(height.toFloat(), width * frameH.toFloat() / frameW)
         }
         onGamePixel?.invoke(h / frameH)
+        val game = when {
+            wide || stretch && img == null -> null
+            img != null -> placement(img, width, height, frameW, frameH, stretch).game.let {
+                android.graphics.RectF(it.x, it.y, it.x + it.w, it.y + it.h)
+            }
+            else -> {
+                val w = minOf(width.toFloat(), height * frameW.toFloat() / frameH)
+                val hh = w * frameH / frameW
+                android.graphics.RectF((width - w) / 2, (height - hh) / 2, (width + w) / 2, (height + hh) / 2)
+            }
+        }
+        onGameRect?.invoke(game)
+        onCoreRect?.invoke(
+            game ?: if (wide) {
+                val w = minOf(width.toFloat(), height * 1.5f)
+                android.graphics.RectF((width - w) / 2, 0f, (width + w) / 2, height.toFloat())
+            } else android.graphics.RectF(0f, 0f, width.toFloat(), height.toFloat()),
+        )
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {

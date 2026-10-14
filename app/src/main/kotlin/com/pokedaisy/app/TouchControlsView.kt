@@ -46,6 +46,14 @@ class TouchControlsView(context: Context) : View(context) {
     var shoulders = true
         set(v) { if (field != v) { field = v; invalidate() } }
 
+    /** The FIELD HUD's room to keep clear while this shows (px): down to the L / R buttons' bottom, and up from the
+     * screen's bottom to the D-pad's / A's top. Both 0 while hidden. */
+    val clearTop: Int get() = if (visibility == VISIBLE && shoulders) lBtn.bottom.toInt() else 0
+    val clearBottom: Int get() = if (visibility == VISIBLE) (height - minOf(dpadCy - dpadR, aBtn.top)).toInt().coerceAtLeast(0) else 0
+
+    /** Called after the buttons were placed (a new size): [clearTop] / [clearBottom] may have changed. */
+    var onPlaced: (() -> Unit)? = null
+
     override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
         val unit = min(w, h)
         dpadR = unit * 0.20f
@@ -65,6 +73,7 @@ class TouchControlsView(context: Context) : View(context) {
 
         lBtn.set(pad, pad, pad + dp(90f), pad + dp(40f))
         rBtn.set(w - pad - dp(90f), pad, w - pad, pad + dp(40f))
+        onPlaced?.invoke()
     }
 
     override fun onDraw(c: Canvas) {

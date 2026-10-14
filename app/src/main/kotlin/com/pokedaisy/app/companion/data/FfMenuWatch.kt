@@ -90,6 +90,18 @@ object FfMenuWatch {
         verifyPrimed = false
     }
 
+    /** gMain.inBattle as of the last [tick] (false until gMain is found). */
+    val battling: Boolean
+        @Synchronized get() = gMain >= 0 && inBattle
+
+    /** The field's own callback2 is running (learned and not in a battle): the player's field, no menu screen over it.
+     * False until the field has been learned (a few seconds of walking the first time a game runs). */
+    val onField: Boolean get() = onFieldNow()
+
+    // (A function: in a property's getter `field` would be its own backing field, not the learned callback.)
+    @Synchronized
+    private fun onFieldNow() = gMain >= 0 && field != 0L && !inBattle && cb2 == field
+
     /** Emu thread, once a frame: true while a menu screen is up. */
     @Synchronized
     fun tick(r: MemoryReader): Boolean {

@@ -3,7 +3,7 @@ title: Controls, hotkeys and touch
 summary: Remap the game's buttons, set up turbo, change or turn off the hotkeys, use the touch pad or an external controller, and what the BACK button does.
 section: player
 order: 2
-keywords: [remap, rebind, keybind, key bindings, buttons, mapping, controller, gamepad, joystick, bluetooth, 8bitdo, gamesir, xbox, keyboard, shortcut, chord, combo, turbo, autofire, rapid fire, triggers, l2, r2, on screen controls, virtual pad]
+keywords: [remap, rebind, keybind, key bindings, buttons, mapping, controller, gamepad, joystick, bluetooth, 8bitdo, gamesir, xbox, keyboard, shortcut, chord, combo, turbo, autofire, rapid fire, triggers, l2, r2, on screen controls, virtual pad, wild encounters, encounter rate, random battles]
 ---
 
 PokeDaisy works out of the box on handhelds like the AYN Thor: the face buttons, shoulders, START and SELECT are the GBA's, and a few button combinations do emulator things like saving a state. Everything here is about changing that: which button presses what, which shortcuts exist, and what happens when you plug in a controller or play by touch.
@@ -101,6 +101,26 @@ The `HOTKEYS` switch at the top of the page turns every hotkey off at once. The 
 - **`NEVER`** never shows them.
 
 A change takes effect the next time you open a game. On a phone held upright the touch controls sit between the game and the companion when there's room; see [Devices](devices.md).
+
+## Running: AUTO-RUN and RUN INDOORS
+
+`AUTO-RUN` runs for you. Once your game lets you run, walking on the field runs without you holding B, and holding B walks instead. It leaves B alone everywhere else: menus, battles, conversations, and while you ride a bike, where B does something of its own. The first time you play a game it starts working after you've walked around for a few seconds. On Heart and Soul, SoulGold, Too Many Types 2, Emerald Rogue and Quetzal it can't always tell yet that you're on a bike.
+
+`RUN INDOORS` lets you run inside buildings too, where the games normally make you walk. It works on games built on FireRed or Emerald. On Ruby and Sapphire it shows `N/A`: those games decide where you can run in a way PokeDaisy can't change safely.
+
+Both show `N/A` on a game PokeDaisy can't read the field of yet.
+
+## WILD ENCOUNTERS
+
+`WILD ENCOUNTERS` sets how often wild Pokémon jump out at you in grass, caves and water:
+
+- **`NORMAL`** (the default) leaves the game's own rate.
+- **`75%`**, **`50%`** and **`25%`** let through about that share of the encounters you would have had, so `25%` means roughly one in four.
+- **`OFF`** turns them off completely.
+
+Only random encounters change. Fishing, moves that lure wild Pokémon out and battles the story sets up still happen, and items that keep wild Pokémon away work as usual on top. The change applies at once, no restart needed.
+
+It works on the original games in every language and on hacks that kept their encounter code (most hacks built on FireRed, including the CFRU ones, and the ones edited from Emerald). On hacks rebuilt from newer source code, like most Emerald expansion hacks, it shows `N/A`.
 
 ## External controllers
 

@@ -1,0 +1,52 @@
+package com.pokedaisy.app.companion
+
+import com.pokedaisy.app.Prefs
+import com.pokedaisy.app.companion.i18n.tk
+
+/**
+ * The NEW tag on a just-shipped feature's settings row (both screens: `SettingRow(labelBadge = NewFeatures.badge(id))`,
+ * drawn green like the Library's NEW), for [DAYS] days from the first launch of a build that has the feature - every
+ * id in [ALL] is dated at app start ([init]), so a feature that comes with an update is new to that player for a week
+ * from the update. Every new feature gets one (CLAUDE.md): add its id to [ALL] and the badge to its row.
+ */
+object NewFeatures {
+    /** SETTINGS > HUD (companion.ui.FieldHud). */
+    const val HUD = "hud"
+
+    /** SETTINGS > BATTLE BUTTONS (companion.ui.BattleButtons). */
+    const val BATTLE_BUTTONS = "battle_buttons"
+
+    /** Every feature that gets the tag. */
+    val ALL = listOf(HUD, BATTLE_BUTTONS)
+
+    private const val DAYS = 7
+    private const val DAY_MS = 24 * 60 * 60 * 1000L
+
+    @Volatile
+    private var since: Map<String, Long> = emptyMap()
+
+    @Volatile
+    private var started = false
+
+    /** App start: date every feature not seen before (now); the ones seen keep their date. */
+    fun init(prefs: Prefs, now: Long = System.currentTimeMillis()) {
+        val seen = prefs.newFeatureSince
+        val all = seen + ALL.filter { it !in seen }.associateWith { now }
+        if (all != seen) prefs.newFeatureSince = all
+        since = all
+        started = true
+    }
+
+    /** Still new: dated less than [DAYS] days ago. Before [init] (screenshot tests, ui-preview) every feature is. */
+    fun isNew(id: String, now: Long = System.currentTimeMillis()): Boolean {
+        if (!started) return true
+        val at = since[id] ?: return false
+        return now - at < DAYS * DAY_MS
+    }
+
+    /** The row's label badge: NEW while [isNew], else none. */
+    fun badge(id: String): String? = if (isNew(id)) NEW_TAG else null
+
+    /** The tag's text, which OptionLine draws green (OptionColors.newBadge). */
+    val NEW_TAG = tk("NEW")
+}

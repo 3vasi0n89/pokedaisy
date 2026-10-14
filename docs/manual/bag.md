@@ -62,3 +62,11 @@ It only works while you're walking around. If a menu, a conversation or a battle
 
 > [!TIP]
 > Other items and other games don't have `USE` yet. For everything else, use the item in the game as normal; the bag tab updates by itself.
+
+## The PC from anywhere
+
+In FireRed, LeafGreen, Emerald, Ruby and Sapphire, the bag tab has a `PC` button above the sort button. Tap it and the game's own PC opens right where you're standing, the same menu a PC in a Pokémon Center gives you: take Pokémon out, put them away and move them between boxes (and, outside Ruby and Sapphire, move their items). Back out of it as usual and you're on the field again.
+
+It works in every language, and on hacks that kept those games' code: Glazed, Emerald Kaizo, Gaia, Odyssey, Orange Islands, Ultra Violet and the CFRU hacks (Unbound, Radical Red, Amethyst, Sword and Shield Ultimate Plus). Heart and Soul, SoulGold, Lazarus and Emerald Imperium have the `PC` button too, but not the bag's `USE`, `GIVE` and `TAKE` yet.
+
+Like `USE`, it only works while you're walking around: with a menu, a conversation or a battle open, it says so instead.

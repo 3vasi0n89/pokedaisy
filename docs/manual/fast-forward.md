@@ -51,6 +51,19 @@ It's saved for each game separately. Set a hack you're replaying to `1.5×` and 
 
 The `SPEED CYCLE` hotkey (L2 on a controller, or the = key) steps through `1×`, `1.5×`, `2×`, `3×` and `4×` and round again, without opening `SETTINGS`. If you're on one of the slow speeds, it goes back to `1×`. Where it stops is saved for that game too.
 
+## Battles, text and menus at their own speed: SCENE SPEEDS
+
+`SCENE SPEEDS` (companion `SETTINGS` only) gives parts of the game a speed of their own. You can keep walking around at normal speed and still have battles go by at 2x, for example:
+
+- **`BATTLE SPEED`** covers the whole battle, from the first message to the last. Its bag and party screens follow `MENU SPEED` instead.
+- **`TEXT SPEED`** applies whenever a text box is open on the field: someone talking, a sign, a message after you pick something up. The words come out that much faster, close to instant text. The START menu counts too.
+- **`MENU SPEED`** covers menu screens: your party, the bag, the summary, the PC, the map and so on.
+- **`BIKE SPEED`** applies while you ride a bike on the field, and **`SURF SPEED`** while you surf (or dive). The whole game runs at that speed meanwhile, so the people and creatures around you speed up too.
+
+Each one is `SAME` (the default: it follows `GAME SPEED`, like walking around does) or `1×` up to `4×`. These apply while fast-forward is off; turn fast-forward on and it wins everywhere. A sped-up scene's music follows `FF MUSIC`, the same as fast-forward's.
+
+`TEXT SPEED` shows `N/A` on a game PokeDaisy can't read text boxes in yet. `BIKE SPEED` and `SURF SPEED` show `N/A` until you've walked around for a moment in a game, and stay that way on hacks where PokeDaisy can't tell yet whether you're riding or surfing: Heart and Soul, SoulGold, Too Many Types 2, Emerald Rogue and Quetzal.
+
 ## Slow motion
 
 Hold the `SLOWMO HOLD` hotkey and the game runs at half speed until you let go, with the sound muted. It's handy for a tricky moment, like timing a button press or watching an animation you'd otherwise miss. On a keyboard it's the minus key; it has no controller button by default, so give it one under `HOTKEYS` if you want it.

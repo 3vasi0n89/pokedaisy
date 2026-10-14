@@ -91,13 +91,13 @@ internal fun CanLearnSection(
     val u = m.u
     Column(modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(u * 3)) {
         when {
-            options == null -> GbaText(tr("LOADING"), OptionColors.muted, OptionColors.mutedShadow, small)
-            options.isEmpty() -> GbaText(tr("NOTHING TO LEARN FOR NOW"), OptionColors.muted, OptionColors.mutedShadow, small, maxLines = 2)
+            options == null -> GbaText(tr("LOADING"), optionLook.muted, optionLook.mutedShadow, small)
+            options.isEmpty() -> GbaText(tr("NOTHING TO LEARN FOR NOW"), optionLook.muted, optionLook.mutedShadow, small, maxLines = 2)
             else -> {
                 val (levels, tms) = options.partition { it.tm.isEmpty() }
-                if (levels.isNotEmpty()) GbaText(tr("NEXT LEVELS"), OptionColors.value, OptionColors.valueShadow, small)
+                if (levels.isNotEmpty()) GbaText(tr("NEXT LEVELS"), optionLook.value, optionLook.valueShadow, small)
                 levels.forEach { LearnRow(it, it.move == selected, onSelect, showHints, m, small) }
-                if (tms.isNotEmpty()) GbaText(tr("TMs IN THE BAG"), OptionColors.value, OptionColors.valueShadow, small)
+                if (tms.isNotEmpty()) GbaText(tr("TMs IN THE BAG"), optionLook.value, optionLook.valueShadow, small)
                 tms.forEach { LearnRow(it, it.move == selected, onSelect, showHints, m, small) }
             }
         }
@@ -111,13 +111,14 @@ private fun LearnRow(o: LearnOption, open: Boolean, onSelect: (Int) -> Unit, sho
     val info = lookupMove(o.move)
     val type = typeName(info.type)
     val stats = moveStats(o.move)
-    val edge = AppColors.typeColors[type] ?: OptionColors.muted
+    val edge = AppColors.typeColors[type] ?: optionLook.muted
+    val openFill = optionLook.listFill
     Column(
         Modifier
             .fillMaxWidth()
             .drawBehind {
                 val px = u.toPx()
-                if (open) drawPixelRoundRect(OptionColors.listFill, radius = 3 * px, step = px)
+                if (open) drawPixelRoundRect(openFill, radius = 3 * px, step = px)
                 drawPixelRoundRect(edge, Offset(0f, 2 * px), Size(3 * px, size.height - 4 * px), radius = px, step = px)
             }
             .soundClickable { onSelect(if (open) 0 else o.move) }
@@ -125,9 +126,9 @@ private fun LearnRow(o: LearnOption, open: Boolean, onSelect: (Int) -> Unit, sho
         verticalArrangement = Arrangement.spacedBy(u * 2),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            GbaText(if (o.tm.isEmpty()) "${tr("Lv")} ${o.level}" else o.tm, OptionColors.muted, OptionColors.mutedShadow, small)
+            GbaText(if (o.tm.isEmpty()) "${tr("Lv")} ${o.level}" else o.tm, optionLook.muted, optionLook.mutedShadow, small)
             Spacer(Modifier.width(u * 4))
-            GbaText(info.name, OptionColors.label, OptionColors.labelShadow, m, Modifier.weight(1f))
+            GbaText(info.name, optionLook.label, optionLook.labelShadow, m, Modifier.weight(1f))
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             TypeBadge(type)

@@ -24,6 +24,8 @@ class GameStageLayout(
     private val bar: View,
     /** The HUD's messages and the FPS / CPU readout: kept under the bar. */
     private val huds: List<View>,
+    /** Laid out exactly over [game], wherever it ends up (the FIELD HUD). */
+    private val overGame: List<View> = emptyList(),
 ) : FrameLayout(context) {
 
     private var gameW = 0
@@ -76,6 +78,11 @@ class GameStageLayout(
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+        measureStage(widthMeasureSpec, heightMeasureSpec)
+        overGame.forEach { if (it.visibility != GONE) it.measure(exactly(game.measuredWidth), exactly(game.measuredHeight)) }
+    }
+
+    private fun measureStage(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
         if (!barShown && !topAligned) return
         val lp = game.layoutParams as LayoutParams
@@ -100,6 +107,11 @@ class GameStageLayout(
     }
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        layoutStage(changed, left, top, right, bottom)
+        overGame.forEach { if (it.visibility != GONE) it.layout(game.left, game.top, game.right, game.bottom) }
+    }
+
+    private fun layoutStage(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         super.onLayout(changed, left, top, right, bottom)
         if (!barShown && !topAligned) return
         val lp = game.layoutParams as LayoutParams

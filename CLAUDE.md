@@ -41,6 +41,13 @@ its keywords *and* its docs). Search is one engine in two languages, `website/sr
 ui-preview's `docsSearchCheck`); words people search for go in `docs/manual/synonyms.yml` or a page's
 `keywords`. A block type the Markdown gains must be drawn by `DocBlocks.astro` *and* `DocsScreen.kt`.
 
+## NEW tags on new features
+
+**Every new player-facing feature gets a NEW tag** (the user's rule, from the HUD on): its settings row on both screens
+carries `labelBadge = NewFeatures.badge(NewFeatures.<ID>)` (green, like the Library's NEW), and its id goes into
+`NewFeatures.ALL` (`companion/NewFeatures.kt`). The tag shows for 7 days from the first launch of a build that has the
+feature (dated at app start, `Prefs.newFeatureSince`), then goes by itself.
+
 ## Relationship to the private ROM-hack repo
 
 PokeDaisy was split out of the user's **private** ROM-hack repo (local
@@ -378,6 +385,34 @@ screens: the Presentation goes away until BACK on the game), STATUS BAR OFF / GA
 (`CompanionTweaks`: icon bounce, map cursor blink, tab animations, jump to battle). The Presentation is
 FLAG_NOT_FOCUSABLE so HOME (the Thor's double press) acts on the game's display. ui-preview runs with a cached
 Gradle (`~/.gradle/wrapper/dists/gradle-8.10.2-all/*/gradle-8.10.2/bin/gradle`): `gradle` isn't on PATH here.
+**QoL batch 1 (GitHub #43 / #85)**: SETTINGS > FAST-FORWARD > SCENE SPEEDS (BATTLE / TEXT / MENU SPEED: SAME = GAME
+SPEED's, or 1x-4x, while FF is off; `EmulatorEngine.sceneSpeed`, scenes from the battle input state, `FfMenuWatch` and
+the field read), CONTROLS > AUTO-RUN (B flipped while walking on the field: never locked, in battle, on a bike - the Acro
+Bike's wheelie is B - or off the learned field callback, `FfMenuWatch.onField`) and RUN INDOORS (gMapHeader.allowRunning
+set: FireRed +0x19 bit 1, Emerald / expansion +0x1A bit 2; Ruby / Sapphire test mapType instead, so never there). The
+field read is `pk_field_state` (pk_wide.c): WIDE's table for the ROM, EXPAND on or off, its own copy of the addresses
+(controls locked, gMain, object events, gMapHeader); `mgba_dump`'s `fieldinfo [run]` prints it. TEXT = locked + BG0 text
+outside battles: it speeds the whole game while a box is up, not just the printing. GUIDE > HERE says "N of M caught
+here" (the DexNav). PC anywhere (BAG's `PC`, `Pc.kt`): `lockall; special ShowPokemonStorageSystemPC; waitstate;
+releaseall; end` written to 0x0203FFF4 and run by ScriptContext_SetupScript - special 60 (FireRed / LeafGreen) / 63
+(Emerald), traced from each retail ROM's script command table (ScrCmd_special's literal pool: the pokeemerald .map's
+gSpecials symbol sat 0x14 off and gave a wrong index once). Debug builds log every scene / speed change and AUTO-RUN's ready / blocked.
+CONTROLS > WILD ENCOUNTERS (NORMAL / 75% / 50% / 25% / OFF, `Prefs.wildEncounters`): the game's own
+sWildEncountersDisabled (StandardWildEncounter returns at once on 1; fishing, Sweet Scent, scripted battles untouched),
+found per ROM by `WildEncounters.find` from StandardWildEncounter's agbcc code (FireRed / Emerald shapes: retail in every
+language + hacks that kept it) or CFRU's hooked copy reading FireRed's 0x020386DC; expansion / gcc builds aren't found
+(row N/A). `pk_field_state`'s `wildRoll` sets it each frame the field is free (not locked / battle / FireRed's quest log
+replay, which sets it itself) with probability 1 - keep; NORMAL puts it back once, only if we set it. Walked headless
+(mgba_dump `wild ADDR KEEP`, warp into Route 101 / Route 1 grass): OFF 360 steps, none; 50% about twice NORMAL's steps.
+**QoL batch 2**: PC anywhere on every language + FireRed rev 0 + Ruby / Sapphire (`port_field_items.py` maps PcFns, each
+checked against its gSpecials; R/S's special is ShowPokemonStorageSystem, 60, same opcodes) and so on the hacks using those
+tables (CFRU, Gaia, Odyssey, Orange Islands, Ultra Violet: retail's gSpecials, checked). The field reads take the WIDE
+`pending` hacks too (`PK_FIELD_ONLY_ROMS`, `pk_field_knows`, `WideScreen.fieldGameFor` - EXPAND stays off there) and
+Celia's CONTROLS_LOCKED (0x03000FA4); the activity's `fieldGame` (not `wideGame`) gates the field rows. Bike / surf come
+from gPlayerAvatar.flags (`playerAvatar`: gObjectEvents + 0x240, R.O.W.E. + 0x4A8 from its ROM symbol table, checked live
+and latched) - the sprite-id check misread R.O.W.E.'s u16 graphics id as a bike; SCENE SPEEDS gained BIKE / SURF SPEED
+(Scene.BIKE / SURF, N/A until `EmulatorEngine.fieldMovesKnown`). pkFieldState now runs every frame on a known game.
+docs/ROM_FEATURES.md has a column per QoL feature.
 **No empty BATTLE tab**: the tab (and the jump to it) needs `SnapshotView.showsBattle` - in a
 battle *and* something read (a battler, the foe's party or the battle input state). A game whose
 battle memory isn't mapped stays on its tabs instead of showing a blank INFO page. Seaglass's battle
@@ -610,6 +645,30 @@ SaveBlock1.money ^ SaveBlock2.encryptionKey via `NativeConfig.moneyOff` (FireRed
 Emerald family / R/S `0x490`, Heart and Soul `0x494`, Emerald Rogue `0x4A8` (its party mons are 104
 bytes), -1 = unknown); values over 999,999 are dropped.
 `MoneyTest` pins every fixture.
+**HUD** (SETTINGS > HUD on either screen - the code calls it FieldHud; a page: `fieldHudRows`, shared; `Prefs.fieldHud` ON default, also with a
+second screen - the user's call; `Prefs.fieldHudStyle`): a Legends-Arceus-style HUD over the overworld (`companion/ui/FieldHud.kt`) -
+party icons with Lv / HP bar / status chip (a tap opens `MonDetailScreen` over the game), a region-map minimap (a tap opens `MapScreen`
+with FLY), the bag's Poké Balls, BAG (a compact grid with USE through `ItemUse`, PP items left to the BAG tab) and WILD (`hudWild`
+over `GuideRomSource.encounters`, like GUIDE > HERE). LAYOUT CORNERS (default; its minimap top-right - FireRed / Emerald slide a new area's name in top-left) / CORNERS 2 (its right side swapped: minimap bottom-right, balls and buttons top-right, BAG / WILD open from the top) / RAILS (columns beside the middle 3:2) / DOCK, LOOK
+GLASS (default, see-through dark) / WINDOW (OPTION windows), SIZE SMALL / NORMAL / LARGE = the GBA pixel one whole screen pixel down /
+up (a `Density` of `k * 16 / 20` under the HUD; its panels stay at the companion's size), each part hideable (`FieldHudPart`). The
+game is **never paused** under its panels (the user's call). Shown only while `EmulatorEngine.onField` (GBA, on the field screen positively - `FfMenuWatch.onField`, the learned field callback2, so a new game's naming screen doesn't pass for field - no battle /
+region map / held frame, and at EXPAND `pkWideScene` FIELD; FADE holds; on after 20 field frames, off at once) and the snapshot has a
+game out of battle; off on a phone held upright (to do later). Without EXPAND every layout but RAILS keeps to the game's picture (`EmulatorView.onGameRect` -> `FieldHud(frame)`; RAILS take the room beside it). The ComposeView sits over the game view (`GameStageLayout.overGame`)
+above the touch pad (untouched areas fall through) and keeps clear of the pad's rows (`TouchControlsView.clearTop` / `clearBottom`);
+An open, unlocked side panel closes on a tap on the game or the HUD and lets the tap through (a HUD item opens right after; `SidePanel.catchOutside`, not with the touch pad up). One screen: while it shows and the side panel is closed, the panel's open tab is a COMPANION button beside BAG / WILD (`SidePanel.closed` / `tabInHud`; the edge tab steps aside), and the side panel's views go above the HUD (`SidePanel(under = fieldHud)`). BACK (or a tap on the dim around a panel) closes its panels first (`hudBack`); the balls open the BAG on POKé BALLS. On GLASS the summary is `MonDetailScreen` under `LocalOptionLook` = `HudGlassLook`: **`OptionLook`** (GbaMenu.kt) is a scoped palette over `OptionColors` (`Live` forwards to it) that the summary screens and `OptionListWindow` read through `optionLook` - capture it before a draw lambda. Title windows' back arrow and the Library's favorite stars are pixel art (`PixelIcons.arrowBack`, `star` / `starOutline`), no Material icons. `FieldHudScreenshotTest` (+ `FieldHudCloseUpScreenshotTest`, 1:1 crops) renders it over a
+real EXPAND frame when `app/build/field-hud/{fr,em}.png` exist (mgba_dump `wideon 22` + `wideshot` on the player's own ROM and save,
+never committed), else a drawn stand-in.
+**BATTLE BUTTONS** (`companion/ui/BattleButtons.kt`, SETTINGS on either screen - one screen only; `Prefs.battleButtons` ON, NEW
+tag): one screen held sideways, a single battle whose input state has been read (`battleRead`: NONE all battle = no touch input),
+FIGHT / POKéMON / RUN at the top of the room right of the GBA's own picture - `EmulatorView.onCoreRect` (EXPAND's middle 3:2 at
+the view's height, which `onGameRect` leaves null) - in the HUD's ComposeView. They're the companion's battle buttons
+(`PlatinumButton`, a thicker `outline`; FIGHT carries the battler's party icon at 3x), the user's call over the HUD's looks. Hidden
+with no room (< 40 GBA px: STRETCH, a docked side panel); 64-76 px wide - at least 64 even past a 16:9 screen's ~22 px margin, into
+the picture's top-right corner (only background there in a battle). FIGHT / POKéMON open the companion's own `MoveGrid(compact)` /
+`PartyPicker` in a title window top right (`BattleButtonsWindow`, `BattleWindow`; the side panel's edge tab steps aside meanwhile);
+RUN = `selectAction(3)`, wild battles only. `FittedGbaText` narrows a label's letters (3 tall, 3 / 2 / 1.5 / 1 wide) before it
+shrinks - measure both ways, layoutlib's measurer ignores scaleX. `BattleButtonsScreenshotTest` (+ 1:1 close-ups, a 20:9 phone).
 **ASPECT** (SETTINGS on either screen, `Prefs.stretchGame`, ORIGINAL default / STRETCH): STRETCH fills
 the top screen - `EmulatorView.stretch` drops the quad's letterbox and `GameStageLayout.stretch` gives the
 game all the space under the status bar. The bottom screen flips it in place; the top-screen Settings opens
@@ -932,7 +991,10 @@ reboot from the `.srm`: every change kept, checksums valid) and in the app on th
 (and English FireRed / Ruby / Sapphire rev 0) are generated: `scripts/port_field_items.py <multi-language dir>` maps each English
 table's functions (code bytes, else BL-masked), party globals and gItems (literal pools) into the port and checks them against the
 ROM (gItems' records, the Repel's steps, the mapped field-use routines = what gItems points at) -> `FieldItemsPortsGen.kt`,
-35 ROMs, each checked headless like the English ones. Not mapped: Japanese Ruby / Sapphire / Emerald. Hacks
+35 ROMs, each checked headless like the English ones; since 2026-10-14 the Japanese Emerald / Ruby / Sapphire too (40):
+their rebuilt code needs the fallbacks - gItems by its records (`detect_items`), fieldControlsLocked from the
+ScriptContext2 trio (`controls_trio`), the small FLY functions by their code alone (`short_code`), the PC special's
+index searched (Japanese Emerald's is 60). FLY and PC opened headless on Japanese Emerald and Ruby (English saves). Hacks
 that are retail code edited in place (`fieldItemsForGame`, by GameKind): Glazed (Emerald's table, its hooked VarGet / VarSet's CRCs),
 Orange Islands and Ultra Violet (FireRed rev 0's), and the CFRU hacks (Unbound, Radical Red, Odyssey, Amethyst, Gaia, Sword and
 Shield: FireRed rev 0's functions, each hack's own gItems; S&S keeps Berries / Mail in pocket 2, so only the TM pocket is kept out
@@ -947,9 +1009,32 @@ LockPlayerFieldControls + FadeScreen(FADE_TO_BLACK), then ~30 frames later (`req
 back in and unlocks. Checked headless on the user's FireRed save (landed outside Cerulean's Pokémon Center, controls free).
 Emerald has no SetFlyWarpDestination: `HealWarp` replays CB_ExitFlyMap (sMapHealLocations' heal location, Littleroot by
 gender, Ever Grande = the city, Battle Frontier past the table) + ReturnToFieldFromFlyMapSelect; checked headless (Fortree).
-LeafGreen: CRCs only, not flown headless. Not done: Unbound (CFRU hooks SetFlyWarpDestination / GetMapsecType into its own
-code), SoulGold (expansion, no source), the language ports, Glazed (its own region). The button is the party menu's field-move
-blue (`OptionColors.fieldMove` / `fieldMoveLayers`), under PLACES (over it where the map's buttons sit at the bottom).
+Since 2026-10-14 also every language port + FireRed rev 0 (`port_field_items.py` maps FlyFns: code, gPartyMenu /
+gSaveBlock2Ptr by pool, sMapFlyDestinations by pool or bytes) and the hacks on FireRed rev 0's code (Radical Red, Ultra
+Violet; Gaia, Odyssey, Amethyst, Sword and Shield, Orange Islands through `GET_MAPSEC_TYPE_U16`, their 16-bit map section
+patch of GetMapsecType) - flown headless on each (a party Pokémon given the move by SetMonData, badges poked in where
+missing). Emerald Kaizo is off: the shortcut's ReturnToField from the live field crashed its map reload (its own Fly map
+works). Ruby / Sapphire (`FLY_RUBY` / `FLY_SAPPHIRE`, every language but Japanese): Emerald's HealWarp with their own
+pieces - SetUpFieldMove_Fly there also sets the party menu's callbacks, so `mapHeader` makes the gate
+Overworld_MapTypeAllowsTeleportAndFly(gMapHeader.mapType); the static Fly map type function (0x080FB778 in rev 1); the
+cut-in's gLastFieldPokeMenuOpened; gSaveBlock2 in place (`saveBlock2Static`). Glazed flies with Emerald's (its towns are
+Hoenn's map slots, CB_ExitFlyMap retail's). Unbound (`flyUnbound`): CFRU jumps GetMapsecType / SetFlyWarpDestination
+into its own code - a visited flag per section from 0x57, and a list of 10-byte fly spots per region (Borrius: 27 at
+0x09FE6694, `FlySpots`, which also gives FLY its towns); the region is GetSelectedRegionMap = sRegionMap (0x020399D4)
++0x479B, NULL on the field, so `RegionMapPin` aims it at a zero scratch byte for the call (unpinned, the warp read
+garbage and landed in an indoor battle room). The expansion hacks (2026-10-14: Heart and Soul, Lazarus, Emerald Imperium)
+get FLY and PC only (`FieldItemFns.bagActions = false`; 0 = an unused function the CRCs skip): addresses from a build of
+their source (Heart and Soul's repo at 2.0.6) or of pokeemerald-expansion 1.10.0 (Lazarus, Imperium), plain `make`
+with Debian's arm-none-eabi-gcc 12 in a container, each function then found in the release by its masked first
+instructions, else through its callers' BLs (votes), else small ones by their RAM byte (the field-lock trio). The
+expansion renumbered MON_DATA (MOVE1 20; IS_EGG 54 Heart and Soul / 52) - `FlyFns.monMoveField` / `monEggField`;
+Heart and Soul gates FLY with gFieldMoveInfo's IsFieldMoveUnlocked_Fly / SetUpFieldMove_Fly. SoulGold too (four builds,
+`fieldItemsCandidatesForGame` lets the CRCs pick; MOVE1 / IS_EGG 21 / 55; its GetMapsecType takes the section - 0xC3, its
+PC is special 71). Not done:
+Seaglass, TMT2, Mariomon, Recharged Yellow, Quetzal, R.O.W.E., Rogue (the same method, one game at a time), Celia. The button is the party menu's field-move
+blue (`OptionColors.fieldMove` / `fieldMoveLayers`), under PLACES; the map buttons sit top right on every map (Emerald-style maps had them bottom left, over Hoenn) but Heart and
+Soul's and R.O.W.E.'s (`BOTTOM_ROW_MAPS`: land and routes fill their top right), which get one row along the bottom left,
+on the sea left of the label window - checked on all three of R.O.W.E.'s maps (ui-preview `rowe-map-region*`).
 **Bag favorites** (ITEMS): the star button beside USE in an item's description bar stars it for this ROM only
 (`FavoriteItems`, Compose state; `Prefs.favoriteItemsFor(crc)`, loaded in `loadRom`, item ids). Starred items come first
 in the DEFAULT order (bag order kept among them) and carry a gold star (`PixelIcons.star`, `OptionColors.favorite`) in

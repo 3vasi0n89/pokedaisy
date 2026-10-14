@@ -61,6 +61,9 @@ object DecompIconSource {
     fun peek(species: Int): Bitmap? = if (tables.monPresent) monCache[species] else null
 
     fun get(species: Int): Bitmap? = cached(monCache, species, tables.monPresent) { fetchMon(species) }
+
+    /** An already-decoded item icon (no ROM read), or null. */
+    fun peekItem(itemId: Int): Bitmap? = if (tables.itemPresent) itemCache[1_000_000 + itemId] else null
     fun getItem(itemId: Int): Bitmap? = cached(itemCache, 1_000_000 + itemId, tables.itemPresent) { fetchItem(itemId) }
 
     private inline fun cached(cache: ConcurrentHashMap<Int, Bitmap>, key: Int, gate: Boolean, fetch: () -> Bitmap?): Bitmap? {

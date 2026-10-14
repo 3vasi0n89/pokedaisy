@@ -578,12 +578,12 @@ private fun PartySlot(palette: PartyPalette, mon: MonView?, selected: Boolean, o
 }
 
 /** Pixel-font metrics at [fp] whole screen pixels per font pixel. */
-private fun slotTextMetrics(density: Density, fp: Int) = with(density) {
+internal fun slotTextMetrics(density: Density, fp: Int) = with(density) {
     GbaTextMetrics(fp, fp.toDp(), (16f * fp).toSp(), fp.toFloat(), (16f * fp).toDp(), (20f * fp).toDp())
 }
 
 @Composable
-private fun StatusChip(status: String, u: Int, m: GbaTextMetrics, modifier: Modifier) {
+internal fun StatusChip(status: String, u: Int, m: GbaTextMetrics, modifier: Modifier) {
     val color = if (status == "FNT") Color(0xFF6B6B6B) else AppColors.statusColor(status)
     val dp = with(LocalDensity.current) { u.toDp() }
     Box(

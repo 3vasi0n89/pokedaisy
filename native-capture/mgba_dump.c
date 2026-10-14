@@ -216,7 +216,13 @@ static void wideAfterFrame(void) {
 static void wideAfterFrame(void) {}
 #endif
 
+// `wild ADDR KEEP`: WILD ENCOUNTERS' roll before every frame, as the app runs it (-1 = off).
+static int wildKeep = -1;
+
 static void runFrame(void) {
+#ifdef HAVE_PK_WIDE
+    if (wildKeep >= 0) pk_field_state(core, 0, wildKeep);
+#endif
     core->runFrame(core);
     wideAfterFrame();
 }
@@ -883,6 +889,7 @@ int main(int argc, char** argv) {
                 fclose(rf);
             }
             wideOn = pk_wide_configure(crc);
+            pk_field_configure(crc);   // fieldinfo's reads: the same table
             wideView = (struct PkWideView) { -n, 0, PK_WIDE_W + 2 * n, PK_WIDE_H };
             memset(&wideStats, 0, sizeof(wideStats));
             printf("wideon: ROM %08x %s, margin %d\n", crc, wideOn ? "known" : "NOT KNOWN (WIDE off)", n);
@@ -981,6 +988,25 @@ int main(int argc, char** argv) {
                 for (int y = 0; y < PK_WIDE_H; y++) printf(" %d,%d", lineRegs(y)[0x14 >> 1] & 0x1FF, lineRegs(y)[0x16 >> 1] & 0x1FF);
                 printf("\n");
             }
+        } else if (!strcmp(cmd, "fieldinfo")) {
+            // The app's SCENE SPEEDS / AUTO-RUN / RUN INDOORS read of this frame (pk_field_state, the game `wideon`
+            // picked): with `run`, RUN INDOORS sets gMapHeader's allowRunning first.
+            arg1[0] = 0;
+            sscanf(line, "%*s %255s", arg1);
+            int fs = pk_field_state(core, !strcmp(arg1, "run"), wildKeep >= 0 ? wildKeep : 100);
+            printf("fieldinfo: frame %u known %d locked %d battle %d text %d bike %d surf %d avatar %d\n",
+                   core->frameCounter(core), !!(fs & PK_FIELD_KNOWN), !!(fs & PK_FIELD_LOCKED), !!(fs & PK_FIELD_BATTLE),
+                   !!(fs & PK_FIELD_TEXT), !!(fs & PK_FIELD_BIKE), !!(fs & PK_FIELD_SURF), !!(fs & PK_FIELD_AVATAR));
+        } else if (!strcmp(cmd, "wild")) {
+            // wild ADDR KEEP: WILD ENCOUNTERS on the game `wideon` picked - its switch (sWildEncountersDisabled, as
+            // WildEncounters.kt finds it) rolled before every frame with KEEP percent of encounters left (100 puts
+            // it back; -1 stops rolling).
+            unsigned addr = 0;
+            int keep = 100;
+            sscanf(line, "%*s %x %d", &addr, &keep);
+            pk_field_wild(addr);
+            wildKeep = keep;
+            printf("wild: switch %08x keep %d\n", addr, keep);
         } else if (!strcmp(cmd, "wideghosts")) {
             // The far-off objects the last snapshot holds (not spawned): box in VMap pixels, palette tag, whether it has colours.
             const struct Snap* s = prev >= 0 ? &snaps[prev] : NULL;

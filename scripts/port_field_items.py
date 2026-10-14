@@ -18,7 +18,9 @@ Sapphire rev 0, whose tables are written straight from their ELFs - it
 A ROM where anything fails to map or check is reported and left out (it keeps no USE / GIVE / TAKE).
 """
 import os
+import re
 import statistics
+import struct
 import struct
 import sys
 import zlib
@@ -35,65 +37,137 @@ FUNCS = ("varGet", "varSet", "checkBagHasItem", "removeBagItem", "fieldControlsL
 USE = ("medicine", "ppRecovery", "ppUp", "repel")  # the field-use routines of item 13, 34, 69, 86
 USE_PROBE = dict(medicine=13, ppRecovery=34, ppUp=69, repel=86)
 
-FR = dict(repelVar=0x4020, itemCount=375, pockets=(2, 4))  # POCKET_KEY_ITEMS, POCKET_TM_CASE
-EM = dict(repelVar=0x4021, itemCount=377, pockets=(5, 3))  # POCKET_KEY_ITEMS, POCKET_TM_HM
-RS = dict(repelVar=0x4021, itemCount=349, pockets=(5, 3))
+FR = dict(repelVar=0x4020, itemCount=375, pockets=(2, 4), pcSpecial=60)  # POCKET_KEY_ITEMS, POCKET_TM_CASE
+EM = dict(repelVar=0x4021, itemCount=377, pockets=(5, 3), pcSpecial=63)  # POCKET_KEY_ITEMS, POCKET_TM_HM
+RS = dict(repelVar=0x4021, itemCount=349, pockets=(5, 3), pcSpecial=60)
+
+# FLY (Fly.kt): the English tables' addresses, from FLY_FIRERED_REV1 / FLY_LEAFGREEN_REV0 / _REV1 / FLY_EMERALD. Functions
+# are mapped by code, gPartyMenu and gSaveBlock2Ptr through the literal pools, sMapFlyDestinations by its pool word or
+# its bytes (the same map ids in every language).
+FLY_FUNCS_FR = ("flagGet", "setUpFieldMoveFly", "getMapsecType", "fadeScreen", "lockControls", "unlockControls",
+                "setFlyWarpDestination")
+FLY_FUNCS_EM = FLY_FUNCS_FR[:-1] + ("toHealLocation", "toMapWarp", "returnToField")
+FLY_FR1 = dict(flagGet=0x0806E6E4, setUpFieldMoveFly=0x08124B04, getMapsecType=0x080C35F0, fadeScreen=0x0807A82C,
+               lockControls=0x08069954, unlockControls=0x08069960, setFlyWarpDestination=0x080C5290,
+               partyMenu=0x0203B0A0, destinations=0x083F2F50, count=108)
+FLY = {
+    "BPRE1": FLY_FR1,
+    "BPGE0": dict(FLY_FR1, flagGet=0x0806E6D0, setUpFieldMoveFly=0x08124A64, getMapsecType=0x080C35B0,
+                  fadeScreen=0x0807A7EC, lockControls=0x08069940, unlockControls=0x0806994C,
+                  setFlyWarpDestination=0x080C5250, destinations=0x083F2D1C),
+    "BPGE1": dict(FLY_FR1, setUpFieldMoveFly=0x08124ADC, getMapsecType=0x080C35C4, fadeScreen=0x0807A800,
+                  setFlyWarpDestination=0x080C5264, destinations=0x083F2D8C),
+    "BPEE0": dict(flagGet=0x0809D790, setUpFieldMoveFly=0x081B5884, getMapsecType=0x08123D58, fadeScreen=0x080ABCD0,
+                  lockControls=0x08098E54, unlockControls=0x08098E60, toHealLocation=0x08084CCC, toMapWarp=0x08084C28,
+                  returnToField=0x080B69DC, partyMenu=0x0203CEC8, saveBlock2Ptr=0x03005D90, destinations=0x085A1E3C,
+                  count=50),
+    # Ruby rev 1 (FLY_RUBY): the map-type check in place of SetUpFieldMove_Fly (with gMapHeader), the cut-in's
+    # gLastFieldPokeMenuOpened (slotAddr) and gSaveBlock2 itself (saveBlock2).
+    "AXVE1": dict(flagGet=0x08069360, setUpFieldMoveFly=0x08054244, getMapsecType=0x080FB778, fadeScreen=0x0807D664,
+                  lockControls=0x08065550, unlockControls=0x0806555C, toHealLocation=0x08053558, toMapWarp=0x080534B0,
+                  returnToField=0x080865DC, slotAddr=0x03005CE0, saveBlock2=0x02024EA4, mapHeader=0x0202E828,
+                  destinations=0x083E793C, count=50),
+}
+# English FireRed rev 0 is written from REFS, but no clean build gives its FLY: ported from rev 1 like the others.
+FLY_FROM = {"BPRE0": "BPRE1", "AXVE0": "AXVE1", "AXPE0": "AXVE1", "AXPE1": "AXVE1"}
 
 
 def ref(stem, fam, **a):
     return dict(stem=stem, fam=fam, a=a)
 
 
-# English references, from the clean builds' ELFs (llvm-nm).
+# English references, from the clean builds' ELFs (llvm-nm). PC anywhere's (Pc.kt: ScriptContext_SetupScript, the PC
+# special's function, gSpecials) were found in each retail ROM by the clean builds' code and gSpecials' entry.
 REFS = {
     "BPRE0": ref("Pokemon - FireRed Version (USA, Europe)", FR, varGet=0x0806E568, varSet=0x0806E584,
                  checkBagHasItem=0x08099F40, removeBagItem=0x0809A1D8, fieldControlsLocked=0x08069958,
                  getMonData=0x0803FBE8, setMonData=0x0804037C, itemNoEffect=0x08042414, itemEffect=0x080413C0,
                  addBagItem=0x0809A084, items=0x083DB028, party=0x02024284, partyCount=0x02024029,
-                 medicine=0x080A16E0, ppRecovery=0x080A16FC, ppUp=0x080A1718, repel=0x080A1998),
+                 medicine=0x080A16E0, ppRecovery=0x080A16FC, ppUp=0x080A1718, repel=0x080A1998,
+                 setupScript=0x08069AE4, pcFn=0x0808C6A8, specials=0x0815FD60),
     "BPRE1": ref("Pokemon - FireRed Version (USA, Europe) (Rev 1)", FR, varGet=0x0806E57C, varSet=0x0806E598,
                  checkBagHasItem=0x08099F54, removeBagItem=0x0809A1EC, fieldControlsLocked=0x0806996C,
                  getMonData=0x0803FBFC, setMonData=0x08040390, itemNoEffect=0x08042428, itemEffect=0x080413D4,
                  addBagItem=0x0809A098, items=0x083DB098, party=0x02024284, partyCount=0x02024029,
-                 medicine=0x080A16F4, ppRecovery=0x080A1710, ppUp=0x080A172C, repel=0x080A19AC),
+                 medicine=0x080A16F4, ppRecovery=0x080A1710, ppUp=0x080A172C, repel=0x080A19AC,
+                 setupScript=0x08069AF8, pcFn=0x0808C6BC, specials=0x0815FDD8),
     "BPGE0": ref("Pokemon - LeafGreen Version (USA, Europe)", FR, varGet=0x0806E568, varSet=0x0806E584,
                  checkBagHasItem=0x08099F14, removeBagItem=0x0809A1AC, fieldControlsLocked=0x08069958,
                  getMonData=0x0803FBE8, setMonData=0x0804037C, itemNoEffect=0x08042414, itemEffect=0x080413C0,
                  addBagItem=0x0809A058, items=0x083DAE64, party=0x02024284, partyCount=0x02024029,
-                 medicine=0x080A16B4, ppRecovery=0x080A16D0, ppUp=0x080A16EC, repel=0x080A196C),
+                 medicine=0x080A16B4, ppRecovery=0x080A16D0, ppUp=0x080A16EC, repel=0x080A196C,
+                 setupScript=0x08069AE4, pcFn=0x0808C67C, specials=0x0815FD3C),
     "BPGE1": ref("Pokemon - LeafGreen Version (USA, Europe) (Rev 1)", FR, varGet=0x0806E57C, varSet=0x0806E598,
                  checkBagHasItem=0x08099F28, removeBagItem=0x0809A1C0, fieldControlsLocked=0x0806996C,
                  getMonData=0x0803FBFC, setMonData=0x08040390, itemNoEffect=0x08042428, itemEffect=0x080413D4,
                  addBagItem=0x0809A06C, items=0x083DAED4, party=0x02024284, partyCount=0x02024029,
-                 medicine=0x080A16C8, ppRecovery=0x080A16E4, ppUp=0x080A1700, repel=0x080A1980),
+                 medicine=0x080A16C8, ppRecovery=0x080A16E4, ppUp=0x080A1700, repel=0x080A1980,
+                 setupScript=0x08069AF8, pcFn=0x0808C690, specials=0x0815FDB4),
     "BPEE0": ref("Pokemon - Emerald Version (USA, Europe)", EM, varGet=0x0809D694, varSet=0x0809D6B0,
                  checkBagHasItem=0x080D6724, removeBagItem=0x080D6AA4, fieldControlsLocked=0x08098E6C,
                  getMonData=0x0806A518, setMonData=0x0806ACAC, itemNoEffect=None, itemEffect=0x0806BD04,
                  addBagItem=0x080D6928, items=0x085839A0, party=0x020244EC, partyCount=0x020244E9,
-                 medicine=0x080FDEA0, ppRecovery=0x080FDEF4, ppUp=0x080FDF10, repel=0x080FE0BC),
+                 medicine=0x080FDEA0, ppRecovery=0x080FDEF4, ppUp=0x080FDF10, repel=0x080FE0BC,
+                 setupScript=0x08098EF8, pcFn=0x080C7578, specials=0x081DBA64),
     "AXVE0": ref("Pokemon - Ruby Version (USA, Europe)", RS, varGet=0x08069254, varSet=0x08069270,
                  checkBagHasItem=0x080A92D4, removeBagItem=0x080A9538, fieldControlsLocked=0x08065548,
                  getMonData=0x0803CB60, setMonData=0x0803D1FC, itemNoEffect=None, itemEffect=0x0803E18C,
                  addBagItem=0x080A9424, items=0x083C5564, party=0x03004360, partyCount=0x03004350,
-                 medicine=0x080C9DB0, ppRecovery=0x080C9E3C, ppUp=0x080C9E58, repel=0x080CA014),
+                 medicine=0x080C9DB0, ppRecovery=0x080C9E3C, ppUp=0x080C9E58, repel=0x080CA014,
+                 setupScript=0x080655B8, pcFn=0x08096100, specials=0x0814B194),
     "AXVE1": ref("Pokemon - Ruby Version (USA, Europe) (Rev 1)", RS, varGet=0x08069274, varSet=0x08069290,
                  checkBagHasItem=0x080A92F4, removeBagItem=0x080A9558, fieldControlsLocked=0x08065568,
                  getMonData=0x0803CB60, setMonData=0x0803D1FC, itemNoEffect=None, itemEffect=0x0803E18C,
                  addBagItem=0x080A9444, items=0x083C5580, party=0x03004360, partyCount=0x03004350,
-                 medicine=0x080C9DD0, ppRecovery=0x080C9E5C, ppUp=0x080C9E78, repel=0x080CA034),
+                 medicine=0x080C9DD0, ppRecovery=0x080C9E5C, ppUp=0x080C9E78, repel=0x080CA034,
+                 setupScript=0x080655D8, pcFn=0x08096120, specials=0x0814B1B4),
     "AXPE0": ref("Pokemon - Sapphire Version (USA, Europe)", RS, varGet=0x08069258, varSet=0x08069274,
                  checkBagHasItem=0x080A92D4, removeBagItem=0x080A9538, fieldControlsLocked=0x0806554C,
                  getMonData=0x0803CB60, setMonData=0x0803D1FC, itemNoEffect=None, itemEffect=0x0803E18C,
                  addBagItem=0x080A9424, items=0x083C55BC, party=0x03004360, partyCount=0x03004350,
-                 medicine=0x080C9DB0, ppRecovery=0x080C9E3C, ppUp=0x080C9E58, repel=0x080CA014),
+                 medicine=0x080C9DB0, ppRecovery=0x080C9E3C, ppUp=0x080C9E58, repel=0x080CA014,
+                 setupScript=0x080655BC, pcFn=0x08096100, specials=0x0814B194),
     "AXPE1": ref("Pokemon - Sapphire Version (USA, Europe) (Rev 1)", RS, varGet=0x08069278, varSet=0x08069294,
                  checkBagHasItem=0x080A92F4, removeBagItem=0x080A9558, fieldControlsLocked=0x0806556C,
                  getMonData=0x0803CB60, setMonData=0x0803D1FC, itemNoEffect=None, itemEffect=0x0803E18C,
                  addBagItem=0x080A9444, items=0x083C55DC, party=0x03004360, partyCount=0x03004350,
-                 medicine=0x080C9DD0, ppRecovery=0x080C9E5C, ppUp=0x080C9E78, repel=0x080CA034),
+                 medicine=0x080C9DD0, ppRecovery=0x080C9E5C, ppUp=0x080C9E78, repel=0x080CA034,
+                 setupScript=0x080655DC, pcFn=0x08096120, specials=0x0814B1B4),
 }
 # The English ROMs written straight from their ELF (no hand table in FieldItems.kt).
 ENGLISH_OUT = ("BPRE0", "AXVE0", "AXPE0")
+
+
+# ScriptContext2_Enable / _Disable / _IsEnabled back to back (each `ldr; movs; strb; bx lr` / `ldr; ldrb; bx lr` with
+# its pool word): fieldControlsLocked is the third. Too short to map by code where the functions around it moved.
+CONTROLS_TRIO = re.compile(rb"\x01\x49\x01\x20\x08\x70\x70\x47(.{4})\x01\x49\x00\x20\x08\x70\x70\x47\1\x01\x48\x00\x78\x70\x47\x00\x00\1", re.S)
+
+
+def short_code(src, rom, a, guess):
+    """A short function (the code before its literal pool, up to its pop / bx) found by that code alone, literal loads'
+    offsets and BL targets ignored: the hit nearest [guess], or None. For the small ones whose pool words fill the
+    48 bytes map_code_masked compares (ReturnToFieldFromFlyMapSelect and the like) in a rebuilt game."""
+    parts = []
+    for i in range(16):
+        h = struct.unpack_from("<H", src.d, (a & ~1) - B + 2 * i)[0]
+        if h >> 11 == 0b01001:
+            parts.append(b"." + bytes([h >> 8]))
+        elif h >> 11 in (0b11110, 0b11111):
+            parts.append(b"..")
+        else:
+            parts.append(re.escape(struct.pack("<H", h)))
+        if h & 0xFF00 == 0xBC00 or h & 0xFF87 == 0x4700:   # pop {...} / bx rN
+            break
+    if len(parts) < 6:
+        return None
+    hits = [B + m.start() + (a & 1) for m in re.finditer(b"".join(parts), rom.d[:rom.code_end], re.S) if m.start() % 2 == 0]
+    return min(hits, key=lambda x: abs(x - guess)) if hits else None
+
+
+def controls_trio(rom, guess):
+    """ScriptContext2_IsEnabled from the trio nearest [guess] (FireRed has a second trio for another byte), or None."""
+    hits = [B + m.start() + 24 for m in CONTROLS_TRIO.finditer(rom.d, 0, rom.code_end)]
+    return min(hits, key=lambda a: abs(a - guess)) if hits else None
 
 
 def crc(rom, a):
@@ -121,11 +195,16 @@ def port(rom, refs, key):
         if a.get(n) is None or out.get(n) is not None:
             continue
         v = map_code_masked(src, rom, a[n], a[n] + shift, radius=0x8000)
+        if v is None and n == "fieldControlsLocked":
+            v = controls_trio(rom, a[n] + shift)
         if v is None:
             return None, f"{n} not found"
         out[n], how[n] = v, "masked"
     for n in ("party", "partyCount", "items"):
         v, votes = map_literal(src, rom, a[n])
+        if v is None and n == "items":
+            # A rebuilt game (Japanese Emerald, Ruby, Sapphire): its pools don't line up; the table by its records.
+            v, votes = detect_items(rom, None)[0], "content"
         if v is None:
             return None, f"{n} not found"
         out[n], how[n] = v, f"lit {votes}"
@@ -141,7 +220,79 @@ def port(rom, refs, key):
     if rom.code[:3] != src.code[:3]:
         return None, "no reference of its game"
     out.update(stride=stride, name_len=name_len, how=how)
+    out["pc"] = port_pc(src, rom, r, shift)
+    fly_key = key if key in FLY else FLY_FROM.get(key)
+    out["fly"] = port_fly(refs[fly_key], rom, fly_key, shift) if fly_key else None
     return out, None
+
+
+def port_fly(src, rom, key, shift):
+    """FLY's addresses mapped from English [key]'s, or None (the port keeps its other actions). Checked: every
+    function found, sMapFlyDestinations' bytes identical to English's (the same towns), gPartyMenu a RAM word."""
+    f = FLY.get(key)
+    if f is None:
+        return None
+    funcs = FLY_FUNCS_EM if "toHealLocation" in f else FLY_FUNCS_FR
+    got = {}
+    for n in funcs:
+        v = map_code(src, rom, f[n])
+        if v is None:
+            v = map_code_masked(src, rom, f[n], f[n] + shift, radius=0x10000)
+        if v is None:
+            v = short_code(src, rom, f[n], f[n] + shift)
+        if v is None:
+            return None
+        got[n] = v
+    for n in ("partyMenu", "saveBlock2Ptr", "slotAddr", "saveBlock2", "mapHeader"):
+        if n in f:
+            v, _ = map_literal(src, rom, f[n])
+            if v is None or not 0x02000000 <= v < 0x03008000:
+                return None
+            got[n] = v
+    size = f["count"] * 3
+    want = src.d[f["destinations"] - B:f["destinations"] - B + size]
+    v, _ = map_literal(src, rom, f["destinations"])
+    if v is None or rom.d[v - B:v - B + size] != want:
+        k = rom.d.find(want)
+        v = B + k if k >= 0 and rom.d.find(want, k + 1) < 0 else None
+    if v is None:
+        return None
+    got["destinations"] = v
+    got["count"] = f["count"]
+    return got
+
+
+def port_pc(src, rom, r, shift):
+    """PC anywhere's addresses mapped like the rest, or None (the ROM keeps its other actions): the PC special's entry
+    in the mapped gSpecials must be the mapped function."""
+    a = r["a"]
+    got = {}
+    for n in ("setupScript", "pcFn"):
+        v = map_code(src, rom, a[n])
+        if v is None:
+            v = map_code_masked(src, rom, a[n], a[n] + shift, radius=0x8000)
+        if v is None:
+            return None
+        got[n] = v
+    idx = r["fam"]["pcSpecial"]
+    got["specials"], _ = map_literal(src, rom, a["specials"])
+    if got["specials"] is None:
+        # FireRed's ScrCmd_special pool doesn't line up with English's: the table whose [idx] is the PC function and
+        # which some literal pool loads, if there's exactly one.
+        entry = struct.pack("<I", got["pcFn"] | 1)
+        tables = [B + o - 4 * idx for o in range(0, len(rom.d) - 3, 4) if rom.d[o:o + 4] == entry]
+        tables = [t for t in tables if rom.d.find(struct.pack("<I", t)) >= 0]
+        got["specials"] = tables[0] if len(tables) == 1 else None
+        if got["specials"] is None:
+            # A rebuild with other specials before it: the index too, where a pool loads the table it gives.
+            found = [(i, B + o - 4 * i) for o in range(0, len(rom.d) - 3, 4) if rom.d[o:o + 4] == entry
+                     for i in range(idx - 8, idx + 9) if rom.d.find(struct.pack("<I", B + o - 4 * i)) >= 0]
+            if len(found) == 1:
+                idx, got["specials"] = found[0]
+    if got["specials"] is None or rom.u32(got["specials"] + 4 * idx) != got["pcFn"] | 1:
+        return None
+    got["special"] = idx
+    return got
 
 
 def kt(rom, key, m):
@@ -162,8 +313,41 @@ def kt(rom, key, m):
             scratch = 0x0203FFF0L, itemCount = {fam['itemCount']}, unholdablePockets = setOf({', '.join(map(str, fam['pockets']))}),
             codeCrcs = listOf({', '.join(f'0x{crc(rom, v):08X}L' for v in party)}),
             useFuncs = setOf({', '.join(h(m[n]) for n in USE)}),
-        ),
+        ),{pc_kt(rom, fam, m.get('pc'))}{fly_kt(rom, m.get('fly'))}
     ),"""
+
+
+def fly_kt(rom, fly):
+    if not fly:
+        return ""
+    h = lambda v: f"0x{v:08X}L"
+    em = "toHealLocation" in fly
+    rs = "slotAddr" in fly
+    funcs = FLY_FUNCS_EM if em else FLY_FUNCS_FR
+    crcs = ", ".join(f"0x{crc(rom, fly[n]):08X}L" for n in funcs)
+    common = (f"flagGet = {h(fly['flagGet'])}, setUpFieldMoveFly = {h(fly['setUpFieldMoveFly'])}, "
+              f"getMapsecType = {h(fly['getMapsecType'])},\n            fadeScreen = {h(fly['fadeScreen'])}, "
+              f"lockControls = {h(fly['lockControls'])}, unlockControls = {h(fly['unlockControls'])}, "
+              f"partyMenuSlotId = {h(fly['slotAddr'] if rs else fly['partyMenu'] + 9)}, destinations = {h(fly['destinations'])},\n            ")
+    if rs:
+        return (f"\n        fly = FLY_RUBY.copy(\n            {common}mapHeader = {h(fly['mapHeader'])}, codeCrcs = listOf({crcs}),\n"
+                f"            healWarp = FLY_RUBY.healWarp!!.copy(toHealLocation = {h(fly['toHealLocation'])}, "
+                f"toMapWarp = {h(fly['toMapWarp'])}, returnToField = {h(fly['returnToField'])}, "
+                f"saveBlock2Ptr = {h(fly['saveBlock2'])}),\n        ),")
+    if em:
+        return (f"\n        fly = FLY_EMERALD.copy(\n            {common}codeCrcs = listOf({crcs}),\n"
+                f"            healWarp = FLY_EMERALD.healWarp!!.copy(toHealLocation = {h(fly['toHealLocation'])}, "
+                f"toMapWarp = {h(fly['toMapWarp'])}, returnToField = {h(fly['returnToField'])}, "
+                f"saveBlock2Ptr = {h(fly['saveBlock2Ptr'])}),\n        ),")
+    return (f"\n        fly = FLY_FIRERED_REV1.copy(\n            {common}setFlyWarpDestination = {h(fly['setFlyWarpDestination'])},\n"
+            f"            codeCrcs = listOf({crcs}),\n        ),")
+
+def pc_kt(rom, fam, pc):
+    if not pc:
+        return ""
+    h = lambda v: f"0x{v:08X}L"
+    return (f"\n        pc = PcFns({h(pc['setupScript'])}, {pc.get('special', fam['pcSpecial'])}, {h(pc['specials'])}, {h(pc['pcFn'] | 1)}, "
+            f"listOf(0x{crc(rom, pc['setupScript']):08X}L, 0x{crc(rom, pc['pcFn']):08X}L)),")
 
 
 def main():
@@ -192,6 +376,9 @@ def main():
             continue
         if rom.lang == "E":
             m = dict(REFS[key]["a"], how={}, stride=44, name_len=14)
+            m["pc"] = {n: m[n] for n in ("setupScript", "pcFn", "specials")}
+            if key in FLY_FROM:
+                m["fly"] = port_fly(refs[FLY_FROM[key]], rom, FLY_FROM[key], 0)
             ref_key = key
         else:
             cands = {k: v for k, v in refs.items() if k[:3] == rom.code[:3]}
@@ -208,7 +395,12 @@ def main():
         js[key] = dict(path=os.path.abspath(p), ref=ref_key, family=rom.code[:3], **{k: v for k, v in m.items() if k != "how"})
         masked = [n for n, v in m["how"].items() if v == "masked"]
         print(f"{key:6} {name[:48]:48} from {ref_key}  items {m['items']:#x} x{m['name_len'] + 30}"
-              f"  party {m['party']:#x}{'  masked ' + ','.join(masked) if masked else ''}")
+              f"  party {m['party']:#x}{'  masked ' + ','.join(masked) if masked else ''}{'' if m.get('pc') else '  NO PC'}{'' if m.get('fly') else '  NO FLY'}")
+    # The hand-written English tables' FLY (FieldItems.kt), checked the same way: printed for FLY_RUBY's file.
+    for key in ("AXVE1", "AXPE1"):
+        if key in refs:
+            f = port_fly(refs["AXVE1"], refs[key], "AXVE1", 0)
+            print(f"{key} FLY: {fly_kt(refs[key], f) if f else 'NOT FOUND'}")
     out_json = os.path.join(HERE, "..", "build", "ports", "field_items.json")
     os.makedirs(os.path.dirname(out_json), exist_ok=True)
     import json
@@ -220,7 +412,7 @@ def main():
         f.write("""package com.pokedaisy.app.companion.data
 
 // Generated by scripts/port_field_items.py from the user's ROMs - don't edit by hand.
-// USE / GIVE / TAKE's tables (FieldItems.kt) for the other-language releases and English
+// USE / GIVE / TAKE's tables (FieldItems.kt), with PC anywhere's (Pc.kt) and FLY's (Fly.kt), for the other-language releases and English
 // FireRed / Ruby / Sapphire rev 0, by game code + revision; each checked headless.
 
 val FIELD_ITEMS_PORTS: Map<String, FieldItemFns> = mapOf(

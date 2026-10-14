@@ -151,7 +151,7 @@ fun MapScreen(
                         },
                     )
                     MapButtons(
-                        style = style,
+                        bottomRow = snapshot.game in BOTTOM_ROW_MAPS,
                         regionLabel = if (model.images.size > 1) regionName(model.images, (shown + 1) % model.images.size) else null,
                         awayFromPlayer = selection != null || (playerRegion != null && shown != playerRegion),
                         onPlaces = { placesOpen = true },
@@ -208,7 +208,7 @@ private fun RegionMapModel.select(region: Int, tx: Int, ty: Int): MapSelection {
  * Each game family's own region-map label, sampled from the game (headless
  * mGBA, the Town Map / wall map); sizes in map pixels.
  */
-private enum class MapLabelStyle(val width: Int, val height: Int) {
+internal enum class MapLabelStyle(val width: Int, val height: Int) {
     /** FireRed: a strip that darkens the map (GBA blend, ~10/16) from the map's top-left corner, white text, grey shadow. */
     FIRERED(120, 16),
 
@@ -403,10 +403,16 @@ private fun MapLabel(style: MapLabelStyle, label: String, dungeon: String?, crop
     if (dungeon != null && style == MapLabelStyle.FIRERED) box(1, dungeon)
 }
 
-/** PLACES / region / ME, in the corner across from the label (sea on both games' maps). */
+/** Maps whose top right is land and routes, with open sea along the bottom left instead (left of their label window):
+ * Heart and Soul's Johto (its north-east routes run into the corner) and R.O.W.E.'s (its Sevii title strip and islands). */
+private val BOTTOM_ROW_MAPS = setOf(GameKind.HEART_AND_SOUL, GameKind.ROWE)
+
+/** PLACES / region, FLY under them and ME, top right on every map. Emerald-style maps had them bottom left, across from
+ * their bottom-right label - over the west of Hoenn's land, where the player looks; the top right is open sea there too.
+ * [bottomRow] ([BOTTOM_ROW_MAPS]): one row along the bottom left instead, low enough to stay on the sea. */
 @Composable
 private fun BoxScope.MapButtons(
-    style: MapLabelStyle,
+    bottomRow: Boolean,
     regionLabel: String?,
     awayFromPlayer: Boolean,
     onPlaces: () -> Unit,
@@ -416,34 +422,43 @@ private fun BoxScope.MapButtons(
     onFly: (() -> Unit)? = null,
 ) {
     val m = rememberGbaTextMetrics(1f)
-    val bottom = style == MapLabelStyle.EMERALD
+    if (bottomRow) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(m.u * 4),
+            verticalAlignment = Alignment.Bottom,
+            modifier = Modifier.align(Alignment.BottomStart).padding(m.u * 8),
+        ) {
+            if (regionLabel != null) OptionButton(regionLabel, m, onClick = onRegion)
+            OptionButton(tr("PLACES"), m, onClick = onPlaces)
+            if (onFly != null) FlyButton(onFly)
+            if (awayFromPlayer) OptionButton(tr("ME"), m, onClick = onMe, emphasis = true)
+        }
+        return
+    }
     // ME on its own row (nearer the edge), so the row beside the label stays short.
     Column(
-        horizontalAlignment = if (bottom) Alignment.Start else Alignment.End,
+        horizontalAlignment = Alignment.End,
         verticalArrangement = Arrangement.spacedBy(m.u * 4),
-        modifier = Modifier
-            .align(if (bottom) Alignment.BottomStart else Alignment.TopEnd)
-            .padding(m.u * 8),
+        modifier = Modifier.align(Alignment.TopEnd).padding(m.u * 8),
     ) {
-        // FLY next to PLACES on the side away from the label: under it up top, over it at the bottom - in the
-        // party menu's field-move blue.
-        // At the companion's full text size (the others are the denser 1x): the button that does something in the game.
-        val big = rememberGbaTextMetrics()
-        val flyButton = @Composable {
-            if (onFly != null) OptionButton(
-                tr("FLY"), big, onClick = onFly, modifier = Modifier.widthIn(min = big.u * 56),
-                labelColors = OptionColors.fieldMove to OptionColors.fieldMoveShadow, frameLayers = OptionColors.fieldMoveLayers,
-            )
-        }
-        if (awayFromPlayer && bottom) OptionButton(tr("ME"), m, onClick = onMe, emphasis = true)
-        if (bottom) flyButton()
         Row(horizontalArrangement = Arrangement.spacedBy(m.u * 4)) {
             if (regionLabel != null) OptionButton(regionLabel, m, onClick = onRegion)
             OptionButton(tr("PLACES"), m, onClick = onPlaces)
         }
-        if (!bottom) flyButton()
-        if (awayFromPlayer && !bottom) OptionButton(tr("ME"), m, onClick = onMe, emphasis = true)
+        if (onFly != null) FlyButton(onFly)
+        if (awayFromPlayer) OptionButton(tr("ME"), m, onClick = onMe, emphasis = true)
     }
+}
+
+/** FLY in the party menu's field-move blue, at the companion's full text size (the other map buttons are the denser
+ * 1x): the button that does something in the game. */
+@Composable
+private fun FlyButton(onFly: () -> Unit) {
+    val big = rememberGbaTextMetrics()
+    OptionButton(
+        tr("FLY"), big, onClick = onFly, modifier = Modifier.widthIn(min = big.u * 56),
+        labelColors = OptionColors.fieldMove to OptionColors.fieldMoveShadow, frameLayers = OptionColors.fieldMoveLayers,
+    )
 }
 
 /**
@@ -594,7 +609,7 @@ private val FR_SHADOW = Color(0xFF636363)
  * long, 2 pixels out from it, or 3 on the [big] frame - as the cursor sprite
  * draws them around its tile. [sx]/[sy] are screen pixels per map pixel.
  */
-private fun DrawScope.drawMapCursor(left: Int, top: Int, right: Int, bottom: Int, sx: Float, sy: Float, big: Boolean, color: Color = Color.White) {
+internal fun DrawScope.drawMapCursor(left: Int, top: Int, right: Int, bottom: Int, sx: Float, sy: Float, big: Boolean, color: Color = Color.White) {
     val out = if (big) 3 else 2
     val x0 = left - out
     val y0 = top - out
