@@ -590,7 +590,7 @@ class SettingsActivity : ComponentActivity() {
             }.takeIf { usesSecondScreen },
             // Two screens played on one: the second is free for other apps, the companion opens over the game.
             SettingRow(
-                tk("SINGLE SCREEN"), onOff(prefs.singleScreen), subtitle = "Frees the second screen; the companion opens over the game",
+                tk("SINGLE SCREEN"), onOff(prefs.singleScreen), subtitle = "Second screen free; companion over the game",
                 labelBadge = com.pokedaisy.app.companion.NewFeatures.badge(com.pokedaisy.app.companion.NewFeatures.SINGLE_SCREEN),
             ) {
                 prefs.singleScreen = !prefs.singleScreen

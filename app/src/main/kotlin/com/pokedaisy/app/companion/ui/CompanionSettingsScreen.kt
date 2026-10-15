@@ -458,7 +458,7 @@ private fun homeRows(
             .takeIf { s.usesSecondScreen },
         // Two screens played on one: the second is free for other apps, the companion opens over the game.
         SettingRow(
-            tk("SINGLE SCREEN"), onOff(s.singleScreen), subtitle = "Frees the second screen; the companion opens over the game",
+            tk("SINGLE SCREEN"), onOff(s.singleScreen), subtitle = "Second screen free; companion over the game",
             labelBadge = NewFeatures.badge(NewFeatures.SINGLE_SCREEN),
         ) { s.setSingleScreen(!s.singleScreen); changed() }.takeIf { s.hasSecondScreen },
         // OFF / ON / AUTO (the device's): both screens switch at once.
