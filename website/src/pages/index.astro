@@ -4,14 +4,17 @@ import Pixel from '../components/Pixel.astro';
 import Matrix from '../components/Matrix.astro';
 import RomCheck from '../components/RomCheck.astro';
 import HeroDevice from '../components/HeroDevice.astro';
+import HeroSingleDevice from '../components/HeroSingleDevice.astro';
 import BattleDemo from '../components/BattleDemo.astro';
 import PartyDemo from '../components/PartyDemo.astro';
 import data from '../data/compat.json';
-import { REPO_URL, formatDate, getReleases, highlights } from '../lib/releases.js';
+import { REPO_URL, formatDate, getReleases, getDownloads, highlights } from '../lib/releases.js';
 
 const releases = await getReleases();
 const latest = releases[0];
 const download = latest?.apk ?? `${REPO_URL}/releases/latest`;
+const downloads = await getDownloads();
+
 const gameCount = new Set(data.matrix.rows.map((r) => r.game)).size;
 const hackCount = new Set(data.hacks.map((h) => h.title)).size;
 
@@ -45,8 +48,8 @@ const ticker = ['GB · GBC · GBA', 'PARTY', 'BAG', 'BATTLE', 'MAP', 'DEX', 'GUI
 const title = 'POKEDAISY'.split('');
 ---
 <Base
-  title="PokeDaisy: Game Boy Pokémon on two screens"
-  description="A free player for Game Boy, Game Boy Color and Game Boy Advance Pokémon games on dual-screen Android handhelds: the game on the top screen, a live companion with your party, battles, map, dex and guide on the bottom one."
+  title="PokeDaisy: Game Boy Pokémon with a live companion"
+  description="A free player for Game Boy, Game Boy Color and Game Boy Advance Pokémon games on Android handhelds with two screens or one: the game, and a live companion with your party, battles, map, dex and guide on the second screen or right beside it."
 >
   <!-- Hero -->
   <section class="hero container">
@@ -60,9 +63,9 @@ const title = 'POKEDAISY'.split('');
           {title.map((ch, i) => <span class:list={['drop-letter', i < 4 && 'red']} style={`--d:${i}`} aria-hidden="true">{ch}</span>)}
         </h1>
       </div>
-      <p class="hero-kicker">Game Boy, Color and Advance Pokémon, made for dual-screen handhelds</p>
+      <p class="hero-kicker">Game Boy, Color and Advance Pokémon, for handhelds with two screens or one</p>
       <div class="dialog f-dialog" data-type>
-        <p data-type-text>Play your Pokémon games on the top screen. See everything about your game on the bottom one.</p>
+        <p data-type-text>Play your Pokémon games. See everything about them on your second screen, or right beside the game.</p>
         <span class="more"><Pixel name="more" scale={1} /></span>
       </div>
       <div class="cta">
@@ -71,13 +74,26 @@ const title = 'POKEDAISY'.split('');
         </a>
         <a class="btn f-btn h-btnHot big" href="#check">CHECK YOUR ROM</a>
       </div>
+      <a class="downloads" href={`${REPO_URL}/releases`} data-downloads hidden={!downloads}>
+        <Pixel name="download" scale={0.75} />
+        <span class="dl-count" data-downloads-count>{downloads.toLocaleString('en-US')}</span>
+        <span class="dl-label">DOWNLOADS</span>
+      </a>
       <p class="small muted hero-note">Free and open source · Android 8.0+ · No ads, no accounts</p>
     </div>
     <div class="hero-art">
       <div class="glow"></div>
-      <HeroDevice />
-      <span class="tag tag-top chip f-chip"><Pixel name="tv" scale={0.667} /> THE GAME</span>
-      <span class="tag tag-bottom chip f-chip"><Pixel name="logo" scale={0.5} /> YOUR COMPANION</span>
+      <!-- Both at once: the Thor at the back, a one-screen handheld in front, its companion beside the game. -->
+      <div class="duo">
+        <div class="duo-dual">
+          <HeroDevice />
+          <span class="tag tag-dual chip f-chip"><Pixel name="dual" scale={0.5} /> TWO SCREENS</span>
+        </div>
+        <div class="duo-single">
+          <HeroSingleDevice />
+          <span class="tag tag-single chip f-chip"><Pixel name="single" scale={0.5} /> ONE SCREEN</span>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -91,7 +107,7 @@ const title = 'POKEDAISY'.split('');
   <!-- Companion -->
   <section class="block container" id="features">
     <div class="section-head center">
-      <span class="eyebrow">THE BOTTOM SCREEN</span>
+      <span class="eyebrow">THE COMPANION</span>
       <h2 class="heading">A live companion that reads your game</h2>
       <p class="lead">Everything is read straight from the game as you play, and drawn in its own menu style. No typing, no alt-tabbing to a wiki.</p>
     </div>
@@ -131,7 +147,7 @@ const title = 'POKEDAISY'.split('');
   <!-- Player -->
   <section class="block container">
     <div class="section-head center">
-      <span class="eyebrow">THE TOP SCREEN</span>
+      <span class="eyebrow">THE PLAYER</span>
       <h2 class="heading">A Game Boy player built for Pokémon</h2>
       <p class="lead">mGBA under the hood plays Game Boy, Color and Advance, tuned for the long grind: fast where it's dull, normal where it matters.</p>
     </div>
@@ -152,8 +168,8 @@ const title = 'POKEDAISY'.split('');
   <section class="block container">
     <div class="section-head">
       <span class="eyebrow">DEVICES</span>
-      <h2 class="heading">Two screens if you have them</h2>
-      <p class="lead">Made for dual-screen handhelds. On one screen the companion sits beside the game, or under it on a phone held upright.</p>
+      <h2 class="heading">Two screens or one</h2>
+      <p class="lead">On a dual-screen handheld the companion gets a screen of its own. On one screen it sits right beside the game, or under it on a phone held upright.</p>
     </div>
     <div class="device-grid">
       {deviceList.map(([icon, name, text, status, frame], i) => (
@@ -273,12 +289,27 @@ const title = 'POKEDAISY'.split('');
   .cta { display: flex; flex-wrap: wrap; gap: 16px 20px; align-items: center; }
   .ver { opacity: 0.85; font-size: var(--t-m); margin-left: 4px; }
   .hero-note { margin-top: 24px; }
+  /* Every APK download from GitHub releases: counted at build, refreshed in the browser. */
+  .downloads { display: inline-flex; align-items: center; gap: 12px; margin-top: 28px; text-decoration: none; color: var(--ink); }
+  .downloads[hidden] { display: none; }
+  .dl-count { font-size: var(--t-l); text-shadow: var(--bold); letter-spacing: 0.0625em; }
+  .dl-label { font-size: var(--t-s); color: var(--muted); letter-spacing: 0.0625em; }
+  .downloads:hover .dl-count { color: var(--red); }
+  .downloads + .hero-note { margin-top: 12px; }
 
   .hero-art { position: relative; }
+  /* Both handhelds at once: the Thor at the back on the right, the one-screen one in front, lower left. */
+  .duo { position: relative; padding-bottom: 6%; }
+  .duo-dual { position: relative; width: 74%; margin-left: auto; }
+  .duo-single { position: absolute; left: -4%; bottom: 0; width: 76%; z-index: 2; }
+  /* Its game keeps the whole picture: at this size the text box would be a sliver beside the panel. */
+  .duo-single :global(.textbox) { display: none; }
+  .duo :global(.device) { margin: 0; max-width: none; }
+  .duo-single :global(.device) { filter: drop-shadow(calc(var(--px) * 4) calc(var(--px) * 4) 0 rgba(29, 27, 38, 0.22)); }
   .glow { position: absolute; inset: -6% -4%; background: radial-gradient(closest-side, rgba(232, 48, 40, 0.18), rgba(61, 111, 224, 0.12) 60%, transparent); filter: blur(30px); }
   .tag { position: absolute; z-index: 1; filter: var(--hard-shadow); animation: hover 5s steps(10) infinite alternate-reverse; }
-  .tag-top { left: -24px; top: 14%; }
-  .tag-bottom { right: 4%; bottom: -30px; }
+  .tag-dual { right: -12px; top: -18px; }
+  .tag-single { left: 8%; top: -22px; }
 
   /* Ticker */
   .ticker { background: var(--ink); color: #fff; overflow: hidden; border-block: var(--px) solid var(--ink); }
@@ -348,11 +379,17 @@ const title = 'POKEDAISY'.split('');
   }
   @media (max-width: 560px) {
     .feature-grid, .player-grid { grid-template-columns: 1fr; }
-    .tag { display: none; }
+    /* The two labels stay (they're the point of the picture), smaller and inside the edges. */
+    .tag { font-size: var(--t-xs); }
+    .tag-dual { right: 0; top: -16px; }
+    .tag-single { left: 4%; top: -18px; }
+    .duo-single { left: 0; }
   }
 </style>
 
 <script>
+  import { apkDownloads } from '../lib/releases.js';
+
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // The hero's message types itself out like the game's text box.
@@ -365,9 +402,26 @@ const title = 'POKEDAISY'.split('');
     let i = 0;
     setTimeout(function type() {
       textEl.textContent = full.slice(0, ++i);
-      if (i < full.length) setTimeout(type, full[i - 1] === '.' ? 260 : 28);
+      if (i < full.length) setTimeout(type, full[i - 1] === '.' || full[i - 1] === ':' ? 260 : 28);
       else box.classList.add('done');
     }, 900);
   } else box?.classList.add('done');
+
+  // The one-screen handheld's companion slides in beside its game once the page has settled.
+  const single = document.querySelector<HTMLElement>('[data-single-device]');
+  setTimeout(() => single?.classList.add('open'), reduce ? 0 : 1600);
+
+  // The download count, fresh from GitHub (the build's number stays if that fails or is rate-limited).
+  const dl = document.querySelector<HTMLElement>('[data-downloads]');
+  fetch('https://api.github.com/repos/lidor30/pokedaisy/releases?per_page=100', { headers: { Accept: 'application/vnd.github+json' } })
+    .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+    .then((list: any[]) => {
+      const n = apkDownloads(list);
+      if (dl && n > Number(dl.querySelector('[data-downloads-count]')!.textContent!.replace(/,/g, ''))) {
+        dl.querySelector('[data-downloads-count]')!.textContent = n.toLocaleString('en-US');
+        dl.hidden = false;
+      }
+    })
+    .catch(() => {});
 
 </script>
