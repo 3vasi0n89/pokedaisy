@@ -1,0 +1,56 @@
+diff --git a/app/src/main/kotlin/com/pokedaisy/app/companion/data/ActiveTables.kt b/app/src/main/kotlin/com/pokedaisy/app/companion/data/ActiveTables.kt
+index 71aab0c..faa13da 100644
+--- a/app/src/main/kotlin/com/pokedaisy/app/companion/data/ActiveTables.kt
++++ b/app/src/main/kotlin/com/pokedaisy/app/companion/data/ActiveTables.kt
+@@ -162,6 +162,16 @@ val EEC_SHA1S = setOf(
+     "1cba867852e3ce5d8b04e1534cabe49344296ad5", // Classic+ Hotfix 1.6
+ )
+ 
++/**
++ * Emerald Extended Cut is a rebuild, not a patch of retail: its party, battle and save-block pointers are retail's,
++ * but a few EWRAM variables moved. Counted from its literal pools (no reference left to retail's addresses):
++ * gMapHeader 0x02037318 -> 0x020373A8 (144 references) and gObjectEvents 0x02037350 -> 0x020373E0 (400), both +0x90;
++ * gBagPockets 0x02039DD8 -> 0x02039EE4, from SetBagItemsPointers (0x080DA8B0: the same five pockets, offsets and
++ * capacities as retail). Read through retail's, the MAP's player marker sat on a stale map section.
++ */
++fun eecConfig(cfg: NativeConfig): NativeConfig =
++    cfg.copy(mapHeader = 0x020373A8L, objectEvents = 0x020373E0L, bagPockets = 0x02039EE4L)
++
+ /** The running game is an Emerald hack with its own text ([emeraldHack]), laid over Emerald's. */
+ val runningEmeraldHack: HackText? get() = emeraldHack?.takeIf { activeGame == GameKind.EMERALD }
+ 
+diff --git a/app/src/main/kotlin/com/pokedaisy/app/companion/data/Poller.kt b/app/src/main/kotlin/com/pokedaisy/app/companion/data/Poller.kt
+index 0e2278b..8d5df94 100644
+--- a/app/src/main/kotlin/com/pokedaisy/app/companion/data/Poller.kt
++++ b/app/src/main/kotlin/com/pokedaisy/app/companion/data/Poller.kt
+@@ -104,7 +104,8 @@ class TelemetrySampler {
+ 
+     private fun useBestEffort(m: BestEffort.Match) {
+         kind = m.candidate.kind
+-        nativeCfg = m.config
++        // Emerald Extended Cut reads as retail Emerald but keeps a few variables elsewhere (eecConfig).
++        nativeCfg = if (m.candidate.cfg === NATIVE_EMERALD_RETAIL && beSha1?.lowercase() in EEC_SHA1S) eecConfig(m.config) else m.config
+         baseCfg = m.candidate.cfg
+         unsupportedHackLabel = null
+         beMatch = m
+diff --git a/app/src/test/kotlin/com/pokedaisy/app/companion/data/EecMapTest.kt b/app/src/test/kotlin/com/pokedaisy/app/companion/data/EecMapTest.kt
+index 01e7833..653c9ec 100644
+--- a/app/src/test/kotlin/com/pokedaisy/app/companion/data/EecMapTest.kt
++++ b/app/src/test/kotlin/com/pokedaisy/app/companion/data/EecMapTest.kt
+@@ -58,6 +58,16 @@ class EecMapTest {
+         assertEquals(regionMapImagesImperium.toList(), activeRegionMapImages.toList())
+     }
+ 
++    @Test fun itsMovedRamIsReadWhereTheRomKeepsIt() {
++        val c = eecConfig(NATIVE_EMERALD_RETAIL)
++        assertEquals(0x020373A8L, c.mapHeader)
++        assertEquals(0x020373E0L, c.objectEvents)
++        assertEquals(0x02039EE4L, c.bagPockets)
++        // The rest is retail's: the party, battle and save-block pointers didn't move.
++        assertEquals(NATIVE_EMERALD_RETAIL.playerParty, c.playerParty)
++        assertEquals(NATIVE_EMERALD_RETAIL.saveBlock1Ptr, c.saveBlock1Ptr)
++    }
++
+     @Test fun theBuiltInHashIsHotfix16() {
+         assertTrue("1cba867852e3ce5d8b04e1534cabe49344296ad5" in EEC_SHA1S)
+     }
