@@ -1,8 +1,8 @@
 diff --git a/app/src/main/kotlin/com/pokedaisy/app/companion/data/ActiveTables.kt b/app/src/main/kotlin/com/pokedaisy/app/companion/data/ActiveTables.kt
-index 71aab0c..faa13da 100644
+index 71aab0c..2b9b7c7 100644
 --- a/app/src/main/kotlin/com/pokedaisy/app/companion/data/ActiveTables.kt
 +++ b/app/src/main/kotlin/com/pokedaisy/app/companion/data/ActiveTables.kt
-@@ -162,6 +162,16 @@ val EEC_SHA1S = setOf(
+@@ -162,6 +162,22 @@ val EEC_SHA1S = setOf(
      "1cba867852e3ce5d8b04e1534cabe49344296ad5", // Classic+ Hotfix 1.6
  )
  
@@ -12,9 +12,15 @@ index 71aab0c..faa13da 100644
 + * gMapHeader 0x02037318 -> 0x020373A8 (144 references) and gObjectEvents 0x02037350 -> 0x020373E0 (400), both +0x90;
 + * gBagPockets 0x02039DD8 -> 0x02039EE4, from SetBagItemsPointers (0x080DA8B0: the same five pockets, offsets and
 + * capacities as retail). Read through retail's, the MAP's player marker sat on a stale map section.
++ * Its icon tables moved too (best effort found retail's empty and switched the sprites off): gMonIconTable 0x088F1E40
++ * (440 pointers), gMonIconPaletteIndices 0x088F2520 and gMonIconPaletteTable 0x088F26D8 right after it (tags
++ * 0xDAC0-0xDAC5), as in retail's layout; gItemIconTable 0x0898B6FC ({LZ77 tiles, LZ77 palette} pairs).
 + */
-+fun eecConfig(cfg: NativeConfig): NativeConfig =
-+    cfg.copy(mapHeader = 0x020373A8L, objectEvents = 0x020373E0L, bagPockets = 0x02039EE4L)
++fun eecConfig(cfg: NativeConfig): NativeConfig = cfg.copy(
++    mapHeader = 0x020373A8L, objectEvents = 0x020373E0L, bagPockets = 0x02039EE4L,
++    monIconTable = 0x088F1E40L, monIconPaletteIndices = 0x088F2520L, monIconPaletteTable = 0x088F26D8L, monIconPalettes = 0L,
++    itemIconTable = 0x0898B6FCL,
++)
 +
  /** The running game is an Emerald hack with its own text ([emeraldHack]), laid over Emerald's. */
  val runningEmeraldHack: HackText? get() = emeraldHack?.takeIf { activeGame == GameKind.EMERALD }
@@ -34,10 +40,10 @@ index 0e2278b..8d5df94 100644
          unsupportedHackLabel = null
          beMatch = m
 diff --git a/app/src/test/kotlin/com/pokedaisy/app/companion/data/EecMapTest.kt b/app/src/test/kotlin/com/pokedaisy/app/companion/data/EecMapTest.kt
-index 01e7833..653c9ec 100644
+index 01e7833..115eb28 100644
 --- a/app/src/test/kotlin/com/pokedaisy/app/companion/data/EecMapTest.kt
 +++ b/app/src/test/kotlin/com/pokedaisy/app/companion/data/EecMapTest.kt
-@@ -58,6 +58,16 @@ class EecMapTest {
+@@ -58,6 +58,21 @@ class EecMapTest {
          assertEquals(regionMapImagesImperium.toList(), activeRegionMapImages.toList())
      }
  
@@ -46,6 +52,11 @@ index 01e7833..653c9ec 100644
 +        assertEquals(0x020373A8L, c.mapHeader)
 +        assertEquals(0x020373E0L, c.objectEvents)
 +        assertEquals(0x02039EE4L, c.bagPockets)
++        assertEquals(0x088F1E40L, c.monIconTable)
++        assertEquals(0x0898B6FCL, c.itemIconTable)
++        // A best effort match that switched retail's icons off still gets EEC's.
++        val off = NATIVE_EMERALD_RETAIL.copy(monIconTable = 0, monIconPaletteIndices = 0, monIconPaletteTable = 0, itemIconTable = 0)
++        assertEquals(0x088F26D8L, eecConfig(off).monIconPaletteTable)
 +        // The rest is retail's: the party, battle and save-block pointers didn't move.
 +        assertEquals(NATIVE_EMERALD_RETAIL.playerParty, c.playerParty)
 +        assertEquals(NATIVE_EMERALD_RETAIL.saveBlock1Ptr, c.saveBlock1Ptr)
