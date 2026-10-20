@@ -1,4 +1,4 @@
-# Builds an installable debug APK with the Emerald Extended Cut map patch (eec/pokedaisy-eec-map.patch) on GitHub's servers.
+# Builds an installable debug APK with the Emerald Extended Cut patches (eec/*.patch) on GitHub's servers.
 # Run it from the Actions tab: "Build EEC APK" > Run workflow. The APK is the "pokedaisy-debug-apk" download on the run's page.
 name: Build EEC APK
 
@@ -17,10 +17,9 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Apply the Emerald Extended Cut map patch
+      - name: Apply the Emerald Extended Cut patches (eec/*.patch, in name order)
         run: |
-          sha256sum eec/pokedaisy-eec-map.patch
-          git apply --verbose eec/pokedaisy-eec-map.patch
+          for p in $(ls eec/*.patch | sort); do sha256sum "$p"; git apply --verbose "$p"; done
 
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
         with:
